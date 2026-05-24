@@ -739,6 +739,32 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .auth-card-head h2 { font-family: var(--serif); font-size: 42px; line-height: 1; font-weight: 400; letter-spacing: -0.04em; color: #0c2a1f; }
 .auth-card-head p { margin-top: 10px; color: #5e7868; line-height: 1.55; font-size: 14px; }
+.wallet-login-card {
+  width: 100%; background: #ffffff; border: 1px solid rgba(12,42,31,0.10);
+  border-radius: 20px; padding: 18px; box-shadow: 0 16px 42px rgba(12,42,31,0.10); margin-bottom: 16px;
+}
+.wallet-login-head { margin-bottom: 12px; }
+.wallet-login-title { font-family: var(--serif); font-size: 24px; color: #0c2a1f; margin-bottom: 4px; }
+.wallet-login-copy { color: #5e7868; font-size: 13px; line-height: 1.45; }
+.wallet-button-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.wallet-connect-btn {
+  width: 100%; min-height: 54px; display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(12,42,31,0.12);
+  background: #f7faf4; color: #0c2a1f; text-align: left; transition: transform 0.14s, border-color 0.14s, background 0.14s;
+}
+.wallet-connect-btn:hover:not(:disabled) { transform: translateY(-1px); background: #fff; border-color: #2f6d4a; }
+.wallet-connect-btn:disabled { opacity: 0.72; cursor: wait; }
+.wallet-icon {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  flex: 0 0 auto; color: #fff; font-weight: 800;
+}
+.wallet-icon-phantom { background: linear-gradient(135deg, #ab9ff2, #6d5fd3); }
+.wallet-icon-metamask { background: linear-gradient(135deg, #f6851b, #e2761b); }
+.wallet-icon-base { background: linear-gradient(135deg, #0052ff, #123a9d); }
+.wallet-name { display: block; font-weight: 700; font-size: 14px; }
+.wallet-sub { display: block; margin-top: 2px; color: #5e7868; font-size: 11.5px; }
+.wallet-error { margin-top: 10px; color: #a83a2a; }
+.clerk-social-hidden { display: none !important; }
 .demo-login-card {
   width: 100%; background: #ffffff; border: 1px solid rgba(12,42,31,0.10);
   border-radius: 20px; padding: 18px; box-shadow: 0 16px 42px rgba(12,42,31,0.10); margin-bottom: 16px;

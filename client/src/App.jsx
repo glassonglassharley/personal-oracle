@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, SignIn, UserButton } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, SignIn, UserButton, useSignIn } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import LogEntry from './pages/LogEntry';
@@ -192,15 +192,74 @@ function AuthenticatedApp() {
   );
 }
 
+function WalletSignIn() {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const [activeWallet, setActiveWallet] = useState('');
+  const [error, setError] = useState('');
+
+  const wallets = [
+    { key: 'phantom', label: 'Phantom', sub: 'Solana wallet', icon: '◈', action: () => signIn.authenticateWithSolana({ walletName: 'phantom' }) },
+    { key: 'metamask', label: 'MetaMask', sub: 'Ethereum wallet', icon: '🦊', action: () => signIn.authenticateWithMetamask() },
+    { key: 'base', label: 'Base Wallet', sub: 'Coinbase wallet', icon: '◎', action: () => signIn.authenticateWithBase() },
+  ];
+
+  const connect = async wallet => {
+    if (!isLoaded) return;
+    setError('');
+    setActiveWallet(wallet.key);
+    try {
+      const result = await wallet.action();
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        return;
+      }
+      setError('Wallet connected, but sign-in needs one more step. Try email sign-in below if this keeps happening.');
+    } catch (err) {
+      setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || `Could not connect ${wallet.label}.`);
+    } finally {
+      setActiveWallet('');
+    }
+  };
+
+  return (
+    <div className="wallet-login-card">
+      <div className="wallet-login-head">
+        <div>
+          <div className="wallet-login-title">Connect your wallet</div>
+          <p className="wallet-login-copy">Choose Phantom, MetaMask, or Base/Coinbase Wallet. Other Web3 options are hidden for now.</p>
+        </div>
+      </div>
+      <div className="wallet-button-grid">
+        {wallets.map(wallet => (
+          <button
+            key={wallet.key}
+            type="button"
+            className="wallet-connect-btn"
+            disabled={!isLoaded || activeWallet === wallet.key}
+            onClick={() => connect(wallet)}
+          >
+            <span className={`wallet-icon wallet-icon-${wallet.key}`}>{wallet.icon}</span>
+            <span>
+              <span className="wallet-name">{activeWallet === wallet.key ? 'Connecting…' : wallet.label}</span>
+              <span className="wallet-sub">{wallet.sub}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {error && <div className="form-error wallet-error">{error}</div>}
+    </div>
+  );
+}
+
 function DemoLogin() {
   const { startDemo } = useDemoAuth();
-  const [username, setUsername] = useState('demo');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = e => {
     e.preventDefault();
     try {
-      startDemo(username);
+      startDemo(username || 'demo');
     } catch (err) {
       setError(err.message);
     }
@@ -209,13 +268,13 @@ function DemoLogin() {
   return (
     <div className="demo-login-card">
       <div className="demo-card-top">
-        <span className="demo-badge">No email needed</span>
         <div>
-          <div className="demo-login-title">Try demo mode</div>
-          <p className="demo-login-copy">Pick any username and explore the full app instantly.</p>
+          <div className="demo-login-title">No account yet?</div>
+          <p className="demo-login-copy">Try a private username demo first. No email, no wallet, no setup.</p>
         </div>
+        <span className="demo-badge">Demo</span>
       </div>
-      <form className="demo-login-form" onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="demo-login-form">
         <label className="form-label" htmlFor="demo-username">Username</label>
         <div className="demo-login-row">
           <input
@@ -287,10 +346,10 @@ function SignedOutContent() {
           <div className="auth-card-head">
             <span className="auth-pill">Private progress tracker</span>
             <h2>Welcome back</h2>
-            <p>Start with a username demo or sign in securely with email.</p>
+            <p>Connect with Phantom, MetaMask, Base Wallet, or sign in securely with email.</p>
           </div>
 
-          <DemoLogin />
+          <WalletSignIn />
           <div className="auth-divider"><span>or continue with email</span></div>
           <div className="clerk-frame">
             <SignIn
@@ -300,13 +359,17 @@ function SignedOutContent() {
                   card: 'clerk-card-box',
                   headerTitle: 'clerk-title',
                   headerSubtitle: 'clerk-subtitle',
-                  socialButtonsBlockButton: 'clerk-social-button',
+                  socialButtons: 'clerk-social-hidden',
+                  socialButtonsBlockButton: 'clerk-social-hidden',
+                  socialButtonsIconButton: 'clerk-social-hidden',
                   formButtonPrimary: 'clerk-primary-button',
                   footerActionLink: 'clerk-link',
                 },
               }}
             />
           </div>
+          <div className="auth-divider"><span>or use demo last</span></div>
+          <DemoLogin />
         </div>
       </section>
     </div>
