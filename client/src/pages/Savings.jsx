@@ -378,75 +378,6 @@ export default function Savings() {
         )}
       </div>
 
-      {/* ── Investment projection cards ── */}
-      {!loading && perDay > 0 && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">If you bought assets instead</span>
-            <span className="sv-section-sub">
-              Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
-            </span>
-          </div>
-          <div className="sv-invest-grid">
-            {investmentCards.map(asset => (
-              <div key={asset.key} className="sv-invest-card" style={{ '--asset-c': asset.color }}>
-                <div className="sv-invest-top">
-                  <span className="sv-invest-icon">{asset.icon}</span>
-                  <div>
-                    <div className="sv-invest-name">{asset.cardLabel}</div>
-                    <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
-                  </div>
-                </div>
-                <div className="sv-invest-value">{fmt$0(asset.value)}</div>
-                <div className="sv-invest-gain">
-                  <span>{fmt$0(asset.gain)} more than cash saved</span>
-                  <b>+{asset.gainPct.toFixed(0)}%</b>
-                </div>
-                <div className="sv-invest-note">{asset.description}</div>
-              </div>
-            ))}
-          </div>
-          <p className="sv-disclaimer">
-            These are illustrative projections using fixed annualized returns — not live prices or financial advice.
-          </p>
-        </div>
-      )}
-
-      {/* ── Investment projection chart ── */}
-      {!loading && perDay > 0 && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">Investment growth comparison</span>
-            <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
-          </div>
-          <div className="sv-chart-wrap">
-            <Line data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Milestone cards ── */}
-      <div className="sv-section">
-        <div className="sv-section-head">
-          <span className="sv-section-title">Milestones</span>
-          <span className="sv-section-sub">Click a card to update the projection</span>
-        </div>
-        <div className="sv-ms-grid">
-          {msCards.map(m => (
-            <div
-              key={m.days}
-              className={`sv-ms-card${horizon === m.days ? ' active' : ''}`}
-              onClick={() => setHorizon(m.days)}
-            >
-              <div className="sv-ms-label">{m.label}</div>
-              <div className="sv-ms-amount">{fmtBig(m.amount)}</div>
-              <div className="sv-ms-date">by {m.date}</div>
-              <div className="sv-ms-sub">{m.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── What could you do ── */}
       {!loading && (
         <div className="sv-section">
@@ -542,6 +473,76 @@ export default function Savings() {
           </div>
         </div>
       )}
+
+      {/* ── Investment projection cards ── */}
+      {!loading && perDay > 0 && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">If you bought assets instead</span>
+            <span className="sv-section-sub">
+              Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
+            </span>
+          </div>
+          <div className="sv-invest-grid">
+            {investmentCards.map(asset => (
+              <div key={asset.key} className="sv-invest-card" style={{ '--asset-c': asset.color }}>
+                <div className="sv-invest-top">
+                  <span className="sv-invest-icon">{asset.icon}</span>
+                  <div>
+                    <div className="sv-invest-name">{asset.cardLabel}</div>
+                    <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
+                  </div>
+                </div>
+                <div className="sv-invest-value">{fmt$0(asset.value)}</div>
+                <div className="sv-invest-gain">
+                  <span>{fmt$0(asset.gain)} more than cash saved</span>
+                  <b>+{asset.gainPct.toFixed(0)}%</b>
+                </div>
+                <div className="sv-invest-note">{asset.description}</div>
+              </div>
+            ))}
+          </div>
+          <p className="sv-disclaimer">
+            These are illustrative projections using fixed annualized returns — not live prices or financial advice.
+          </p>
+        </div>
+      )}
+
+      {/* ── Investment projection chart ── */}
+      {!loading && perDay > 0 && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">Investment growth comparison</span>
+            <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
+          </div>
+          <div className="sv-chart-wrap">
+            <Line data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Milestone cards ── */}
+      <div className="sv-section">
+        <div className="sv-section-head">
+          <span className="sv-section-title">Milestones</span>
+          <span className="sv-section-sub">Click a card to update the projection</span>
+        </div>
+        <div className="sv-ms-grid">
+          {msCards.map(m => (
+            <div
+              key={m.days}
+              className={`sv-ms-card${horizon === m.days ? ' active' : ''}`}
+              onClick={() => setHorizon(m.days)}
+            >
+              <div className="sv-ms-label">{m.label}</div>
+              <div className="sv-ms-amount">{fmtBig(m.amount)}</div>
+              <div className="sv-ms-date">by {m.date}</div>
+              <div className="sv-ms-sub">{m.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </main>
   );
 }
