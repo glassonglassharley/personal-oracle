@@ -92,13 +92,13 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
             {!collapsed && <span>{label}</span>}
           </NavLink>
         ))}
-        <button className="nav-item" type="button" onClick={handleLogout}>
-          <span className="dot" />
-          {!collapsed && <span>Logout</span>}
-        </button>
       </nav>
 
       <div className="side-bottom">
+        <button className="sidebar-logout-btn" type="button" onClick={handleLogout} title="Logout">
+          <span className="dot" />
+          {!collapsed && <span>Logout</span>}
+        </button>
         {!collapsed && (
           <div className="theme-strip">
             {THEMES.map(t => (

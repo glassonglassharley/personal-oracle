@@ -655,6 +655,15 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   display: flex; flex-direction: column; gap: 12px;
 }
 .side-bottom .me { margin-top: 0; border-top: none; padding-top: 0; }
+.sidebar-logout-btn {
+  width: 100%; padding: 9px 10px; font-size: 13px; color: var(--ink-2);
+  border-radius: 8px; display: flex; align-items: center; gap: 10px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  text-align: left; transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.sidebar-logout-btn:hover { color: var(--ink); border-color: var(--rule-2); background: var(--paper-3); }
+.sidebar-logout-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 12%, transparent); flex-shrink: 0; }
+.side.collapsed .sidebar-logout-btn { justify-content: center; padding: 9px 0; }
 .nightly-reminder-card {
   display: grid; gap: 8px; padding: 12px; border: 1px solid var(--rule);
   border-radius: 12px; background: var(--paper-2); color: var(--ink-2);
