@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, UserButton, useSignIn, useSignUp, useUser } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, UserButton, useClerk, useSignIn, useSignUp, useUser } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import LogEntry from './pages/LogEntry';
@@ -54,6 +54,18 @@ function AccountControl({ collapsed = false }) {
 }
 
 function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobileClose }) {
+  const { signOut } = useClerk();
+  const { isDemo, stopDemo } = useDemoAuth();
+
+  const handleLogout = () => {
+    onMobileClose?.();
+    if (isDemo) {
+      stopDemo();
+      return;
+    }
+    signOut({ redirectUrl: '/' });
+  };
+
   return (
     <aside className={`side${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="side-top">
@@ -80,6 +92,10 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
             {!collapsed && <span>{label}</span>}
           </NavLink>
         ))}
+        <button className="nav-item" type="button" onClick={handleLogout}>
+          <span className="dot" />
+          {!collapsed && <span>Logout</span>}
+        </button>
       </nav>
 
       <div className="side-bottom">
