@@ -19,7 +19,7 @@ const NAV = [
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
   { to: '/partners', label: 'Partners' },
-  { to: '/support', label: 'Support' },
+  { to: '/support', label: 'FAQ' },
 ];
 
 function AccountControl({ collapsed = false }) {

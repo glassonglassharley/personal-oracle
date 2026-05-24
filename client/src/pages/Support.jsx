@@ -55,8 +55,8 @@ export default function Support() {
     <main className="main">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Support</h1>
-          <p className="page-subtitle">How to use Vice Spending and get help.</p>
+          <h1 className="page-title">FAQ</h1>
+          <p className="page-subtitle">Answers to common questions and how to get help.</p>
         </div>
       </div>
 
