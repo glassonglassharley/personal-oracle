@@ -700,6 +700,41 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   border-radius: 14px; padding: 24px 20px; height: 300px;
 }
 
+.sv-invest-grid {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+}
+.sv-invest-card {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--asset-c) 18%, transparent), transparent 54%),
+    var(--paper-2);
+  border: 1px solid color-mix(in srgb, var(--asset-c) 34%, var(--rule));
+  border-radius: 14px; padding: 18px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+}
+.sv-invest-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.sv-invest-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--asset-c) 18%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--asset-c) 42%, transparent);
+  color: var(--asset-c); font-family: var(--serif); font-size: 22px;
+}
+.sv-invest-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.sv-invest-rate { margin-top: 2px; font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+.sv-invest-value {
+  font-family: var(--serif); font-size: clamp(30px, 4vw, 42px); line-height: 1;
+  color: var(--asset-c); letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+.sv-invest-gain {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 12px; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+}
+.sv-invest-gain b { color: var(--asset-c); font-weight: 600; }
+.sv-invest-note { margin-top: 10px; color: var(--ink-4); font-size: 11px; line-height: 1.45; }
+.sv-disclaimer { margin-top: 12px; color: var(--ink-4); font-size: 11.5px; line-height: 1.5; }
+
 /* ── Milestone cards ──────────────────────────────── */
 .sv-ms-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
 .sv-ms-card {
@@ -954,6 +989,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .vice-header, .page-header, .budget-bar-label { gap: 12px; flex-wrap: wrap; }
   .vice-stats-row { flex-wrap: wrap; gap: 8px 14px; }
   .sv-ms-grid { grid-template-columns: repeat(2,1fr); }
+  .sv-invest-grid { grid-template-columns: 1fr; }
   .sv-big-num { font-size: clamp(54px, 15vw, 82px); }
   .sv-dollar  { font-size: 38px; }
   .sv-chart-wrap { height: 220px; padding: 16px; }

@@ -11,7 +11,8 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 
 const TEAL_LIT = '#1acd8c';
 const VIOLET   = '#8b5cf6';
-const CYAN     = '#22d3ee';
+const GOLD     = '#f5c542';
+const ORANGE   = '#f7931a';
 const GRAY     = '#4a5568';
 
 const DARK_VARS = {
@@ -31,10 +32,46 @@ const DARK_VARS = {
 };
 
 const ASSETS = [
-  { key: 'Cash', label: 'Cash (no returns)', rate: 0,     color: GRAY,     dash: [5, 3] },
-  { key: 'HYSA', label: 'HYSA (4.5% APY)',  rate: 0.045, color: CYAN,     dash: [] },
-  { key: 'SPY',  label: 'S&P 500 (SPY)',    rate: 0.105, color: VIOLET,   dash: [] },
-  { key: 'VOO',  label: 'Vanguard (VOO)',   rate: 0.104, color: TEAL_LIT, dash: [] },
+  {
+    key: 'Cash',
+    label: 'Cash saved',
+    cardLabel: 'Cash saved',
+    rate: 0,
+    color: GRAY,
+    dash: [5, 3],
+    icon: '💵',
+    description: 'No market growth, just money not spent',
+  },
+  {
+    key: 'BTC',
+    label: 'Bitcoin (BTC)',
+    cardLabel: 'Bitcoin',
+    rate: 0.40,
+    color: ORANGE,
+    dash: [],
+    icon: '₿',
+    description: 'Illustrative 40% annualized return',
+  },
+  {
+    key: 'SP500',
+    label: 'S&P 500',
+    cardLabel: 'S&P 500',
+    rate: 0.10,
+    color: VIOLET,
+    dash: [],
+    icon: '📈',
+    description: 'Illustrative 10% annualized return',
+  },
+  {
+    key: 'Gold',
+    label: 'Gold',
+    cardLabel: 'Gold',
+    rate: 0.07,
+    color: GOLD,
+    dash: [],
+    icon: '🥇',
+    description: 'Illustrative 7% annualized return',
+  },
 ];
 
 const MILESTONES = [
@@ -172,6 +209,14 @@ export default function Savings() {
 
   const affordable = BUYS.filter(b => b.cost <= projected).slice(-6);
   const nextItems  = BUYS.filter(b => b.cost > projected).slice(0, 3);
+  const investmentCards = ASSETS
+    .filter(asset => asset.key !== 'Cash')
+    .map(asset => {
+      const value = dcaFV(perDay, asset.rate, horizon);
+      const gain = value - projected;
+      const gainPct = projected > 0 ? (gain / projected) * 100 : 0;
+      return { ...asset, value, gain, gainPct };
+    });
 
   if (vices.length === 0) {
     return (
@@ -247,11 +292,45 @@ export default function Savings() {
         )}
       </div>
 
+      {/* ── Investment projection cards ── */}
+      {!loading && perDay > 0 && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">If you bought assets instead</span>
+            <span className="sv-section-sub">
+              Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
+            </span>
+          </div>
+          <div className="sv-invest-grid">
+            {investmentCards.map(asset => (
+              <div key={asset.key} className="sv-invest-card" style={{ '--asset-c': asset.color }}>
+                <div className="sv-invest-top">
+                  <span className="sv-invest-icon">{asset.icon}</span>
+                  <div>
+                    <div className="sv-invest-name">{asset.cardLabel}</div>
+                    <div className="sv-invest-rate">{(asset.rate * 100).toFixed(asset.rate >= 0.1 ? 0 : 1)}% annualized</div>
+                  </div>
+                </div>
+                <div className="sv-invest-value">{fmt$0(asset.value)}</div>
+                <div className="sv-invest-gain">
+                  <span>{fmt$0(asset.gain)} more than cash saved</span>
+                  <b>+{asset.gainPct.toFixed(0)}%</b>
+                </div>
+                <div className="sv-invest-note">{asset.description}</div>
+              </div>
+            ))}
+          </div>
+          <p className="sv-disclaimer">
+            These are illustrative projections using fixed annualized returns — not live prices or financial advice.
+          </p>
+        </div>
+      )}
+
       {/* ── Investment projection chart ── */}
       {!loading && perDay > 0 && (
         <div className="sv-section">
           <div className="sv-section-head">
-            <span className="sv-section-title">If you invested those savings</span>
+            <span className="sv-section-title">Investment growth comparison</span>
             <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
           </div>
           <div className="sv-chart-wrap">
