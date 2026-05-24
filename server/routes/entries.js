@@ -14,7 +14,7 @@ router.get('/', async (req, res, next) => {
     const params = [vice_id];
     if (from) { q += ` AND date >= $${params.length + 1}`; params.push(from); }
     if (to)   { q += ` AND date <= $${params.length + 1}`; params.push(to); }
-    q += ' ORDER BY date DESC';
+    q += ' ORDER BY date DESC, created_at DESC, id DESC';
 
     const r = await pool.query(q, params);
     res.json(r.rows);
@@ -31,12 +31,10 @@ router.post('/', async (req, res, next) => {
     const r = await pool.query(
       `INSERT INTO entries (vice_id, date, quantity, price_per_unit)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (vice_id, date) DO UPDATE
-         SET quantity = EXCLUDED.quantity, price_per_unit = EXCLUDED.price_per_unit
        RETURNING *`,
       [vice_id, date, quantity ?? 0, price_per_unit]
     );
-    res.status(200).json(r.rows[0]);
+    res.status(201).json(r.rows[0]);
   } catch (err) { next(err); }
 });
 
@@ -48,14 +46,6 @@ router.put('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     if (!await verifyViceOwnership(vice_id, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
-
-    const duplicate = await pool.query(
-      'SELECT id FROM entries WHERE vice_id = $1 AND date = $2 AND id <> $3',
-      [vice_id, date, req.params.id]
-    );
-    if (duplicate.rows.length > 0) {
-      return res.status(409).json({ error: 'An entry already exists for that vice and date' });
-    }
 
     const r = await pool.query(
       `UPDATE entries

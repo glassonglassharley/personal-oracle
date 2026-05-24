@@ -29,8 +29,7 @@ const SCHEMA = `
     date DATE NOT NULL,
     quantity NUMERIC NOT NULL DEFAULT 0,
     price_per_unit NUMERIC NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (vice_id, date)
+    created_at TIMESTAMPTZ DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS goals (
@@ -73,6 +72,8 @@ const MIGRATIONS = `
   CREATE UNIQUE INDEX IF NOT EXISTS users_auth_username_unique ON users (auth_username) WHERE auth_username IS NOT NULL;
   CREATE UNIQUE INDEX IF NOT EXISTS users_username_token_hash_unique ON users (username_token_hash) WHERE username_token_hash IS NOT NULL;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_session_token_hash TEXT;
+
+  ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_vice_id_date_key;
 
   CREATE TABLE IF NOT EXISTS plaid_connections (
     id SERIAL PRIMARY KEY,
