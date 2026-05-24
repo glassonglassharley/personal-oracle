@@ -15,22 +15,6 @@ const GOLD     = '#f5c542';
 const ORANGE   = '#f7931a';
 const GRAY     = '#4a5568';
 
-const DARK_VARS = {
-  '--paper':      '#070d0b',
-  '--paper-2':    '#0d1a15',
-  '--paper-3':    '#142319',
-  '--ink':        '#e8f5f0',
-  '--ink-2':      '#b0d4c2',
-  '--ink-3':      '#5a8a74',
-  '--ink-4':      '#2e4a3c',
-  '--rule':       'rgba(26,205,140,0.07)',
-  '--rule-2':     'rgba(26,205,140,0.16)',
-  '--money':      TEAL_LIT,
-  '--money-2':    '#0F6E56',
-  '--money-soft': 'rgba(26,205,140,0.12)',
-  '--warn':       '#f97316',
-};
-
 const ASSETS = [
   {
     key: 'Cash',
@@ -140,6 +124,12 @@ function fmtBig(n) {
   return fmt$0(n);
 }
 
+function readThemeColor(name, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  const value = getComputedStyle(document.body).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
 export default function Savings() {
   const api = useApi();
   const { vices } = useViceContext();
@@ -221,6 +211,15 @@ export default function Savings() {
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
+  const themeColors = {
+    paper: readThemeColor('--paper', '#0a1f17'),
+    paper2: readThemeColor('--paper-2', '#11281f'),
+    ink: readThemeColor('--ink', '#e8efe0'),
+    ink2: readThemeColor('--ink-2', '#c8d4be'),
+    ink3: readThemeColor('--ink-3', '#8e9a85'),
+    rule: readThemeColor('--rule', 'rgba(232,239,224,0.08)'),
+    rule2: readThemeColor('--rule-2', 'rgba(232,239,224,0.20)'),
+  };
 
   // Chart: monthly data points up to horizon
   const maxDays = Math.max(horizon, 90);
@@ -254,25 +253,25 @@ export default function Savings() {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: '#5a8a74', boxWidth: 16, padding: 20, font: { size: 12 } },
+        labels: { color: themeColors.ink3, boxWidth: 16, padding: 20, font: { size: 12 } },
       },
       tooltip: {
-        backgroundColor: '#0d1a15',
-        borderColor: 'rgba(26,205,140,0.22)',
+        backgroundColor: themeColors.paper2,
+        borderColor: themeColors.rule2,
         borderWidth: 1,
-        titleColor: '#b0d4c2',
-        bodyColor: '#e8f5f0',
+        titleColor: themeColors.ink2,
+        bodyColor: themeColors.ink,
         callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtBig(ctx.parsed.y)}` },
       },
     },
     scales: {
       x: {
-        grid: { color: 'rgba(26,205,140,0.06)' },
-        ticks: { color: '#5a8a74', maxTicksLimit: 8 },
+        grid: { color: themeColors.rule },
+        ticks: { color: themeColors.ink3, maxTicksLimit: 8 },
       },
       y: {
-        grid: { color: 'rgba(26,205,140,0.06)' },
-        ticks: { color: '#5a8a74', callback: v => fmtBig(v) },
+        grid: { color: themeColors.rule },
+        ticks: { color: themeColors.ink3, callback: v => fmtBig(v) },
       },
     },
   };
@@ -306,7 +305,7 @@ export default function Savings() {
 
   if (vices.length === 0) {
     return (
-      <main className="main sv-page" style={DARK_VARS}>
+      <main className="main sv-page">
         <div className="empty-state">
           <div className="empty-icon">💰</div>
           <h2>Add a vice to see your savings</h2>
@@ -317,7 +316,7 @@ export default function Savings() {
   }
 
   return (
-    <main className="main sv-page" style={DARK_VARS}>
+    <main className="main sv-page">
       <div className="crumbs">
         <span>Vice Spending</span>
         <span className="sep">›</span>
