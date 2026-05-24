@@ -11,12 +11,14 @@ async function ensureUser(req, res, next) {
     );
 
     if (existing.rows.length === 0) {
-      let name = 'User';
-      try {
-        const u = await clerkClient.users.getUser(userId);
-        name = [u.firstName, u.lastName].filter(Boolean).join(' ') ||
-               u.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User';
-      } catch (_) {}
+      let name = req.demoUsername ? `Demo ${req.demoUsername}` : 'User';
+      if (!req.demoUsername) {
+        try {
+          const u = await clerkClient.users.getUser(userId);
+          name = [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+                 u.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User';
+        } catch (_) {}
+      }
       await pool.query(
         'INSERT INTO users (clerk_user_id, name) VALUES ($1, $2)', [userId, name]
       );

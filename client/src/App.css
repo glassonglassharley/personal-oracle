@@ -594,6 +594,29 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .auth-brand { font-family: var(--serif); font-size: 32px; font-weight: 400; letter-spacing: -0.02em; color: var(--ink); }
 .auth-tagline { color: var(--ink-3); margin-bottom: 16px; font-size: 15px; }
+.demo-login-card {
+  width: min(100%, 420px); background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 16px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 12px;
+}
+.demo-login-title { font-family: var(--serif); font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+.demo-login-copy { color: var(--ink-3); font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+.demo-login-form { display: flex; flex-direction: column; gap: 8px; }
+.demo-login-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.auth-divider {
+  width: min(100%, 420px); display: flex; align-items: center; gap: 12px;
+  color: var(--ink-3); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  margin: 4px 0 12px;
+}
+.auth-divider::before,
+.auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.demo-account {
+  width: 100%; display: flex; align-items: center; gap: 10px; color: var(--ink);
+  text-align: left; border-radius: 10px; padding: 4px; transition: background 0.12s;
+}
+.demo-account:hover { background: var(--paper-2); }
+.demo-account .me-text { display: flex; flex-direction: column; }
+.mobile-topbar .demo-account { width: auto; padding: 0; }
+.form-error { color: var(--warn); font-size: 12px; }
 
 /* ── Empty / loading ─────────────────────────────── */
 .empty-state { text-align: center; padding: 64px 24px; }

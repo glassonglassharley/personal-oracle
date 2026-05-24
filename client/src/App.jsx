@@ -6,7 +6,7 @@ import LogEntry from './pages/LogEntry';
 import Savings from './pages/Savings';
 import ViceManager from './pages/ViceManager';
 import { ViceContext, getViceColor } from './ViceContext';
-import { useApi } from './useApi';
+import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const THEMES = ['emerald', 'mint', 'plum', 'noir'];
@@ -17,6 +17,31 @@ const NAV = [
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
 ];
+
+function AccountControl({ collapsed = false }) {
+  const { isDemo, demoUsername, stopDemo } = useDemoAuth();
+
+  if (isDemo) {
+    return (
+      <button className="demo-account" type="button" onClick={stopDemo} title="Exit demo mode">
+        <span className="avatar">{demoUsername.slice(0, 2).toUpperCase()}</span>
+        {!collapsed && (
+          <span className="me-text">
+            <span className="me-name">Demo: {demoUsername}</span>
+            <span className="me-sub">Click to sign out</span>
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <UserButton afterSignOutUrl="/" />
+      {!collapsed && <span className="me-name">Account</span>}
+    </>
+  );
+}
 
 function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId, setActiveViceId, mobileOpen, onMobileClose }) {
   const handleViceClick = id => {
@@ -82,8 +107,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
           </div>
         )}
         <div className="me">
-          <UserButton afterSignOutUrl="/" />
-          {!collapsed && <span className="me-name">Account</span>}
+          <AccountControl collapsed={collapsed} />
         </div>
       </div>
     </aside>
@@ -110,7 +134,7 @@ function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
           {subtitle && <div className="mobile-vice-name">{subtitle}</div>}
         </div>
       </div>
-      <UserButton afterSignOutUrl="/" />
+      <AccountControl collapsed />
     </header>
   );
 }
@@ -185,21 +209,83 @@ function AuthenticatedApp() {
   );
 }
 
+function DemoLogin() {
+  const { startDemo } = useDemoAuth();
+  const [username, setUsername] = useState('demo');
+  const [error, setError] = useState('');
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    try {
+      startDemo(username);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="demo-login-card">
+      <div>
+        <div className="demo-login-title">Demo mode</div>
+        <p className="demo-login-copy">Enter any username to try Vice Spending without an email.</p>
+      </div>
+      <form className="demo-login-form" onSubmit={handleSubmit}>
+        <label className="form-label" htmlFor="demo-username">Username</label>
+        <div className="demo-login-row">
+          <input
+            id="demo-username"
+            className="form-input"
+            value={username}
+            placeholder="demo"
+            autoComplete="username"
+            onChange={e => { setUsername(e.target.value); setError(''); }}
+          />
+          <button className="btn btn-primary" type="submit">Enter demo</button>
+        </div>
+        {error && <div className="form-error">{error}</div>}
+      </form>
+    </div>
+  );
+}
+
+function SignedOutContent() {
+  const { isDemo } = useDemoAuth();
+  if (isDemo) return <AuthenticatedApp />;
+
+  return (
+    <div className="auth-page">
+      <div className="auth-brand">Vice Spending</div>
+      <p className="auth-tagline">Track your spending habits. Own your choices.</p>
+      <DemoLogin />
+      <div className="auth-divider"><span>or sign in with email</span></div>
+      <SignIn />
+    </div>
+  );
+}
+
+function SignedInContent() {
+  const { isDemo, stopDemo } = useDemoAuth();
+
+  useEffect(() => {
+    if (isDemo) stopDemo();
+  }, [isDemo, stopDemo]);
+
+  return <AuthenticatedApp />;
+}
+
 export default function App() {
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <BrowserRouter>
-        <SignedOut>
-          <div className="auth-page">
-            <div className="auth-brand">Vice Spending</div>
-            <p className="auth-tagline">Track your spending habits. Own your choices.</p>
-            <SignIn />
-          </div>
-        </SignedOut>
-        <SignedIn>
-          <AuthenticatedApp />
-        </SignedIn>
-      </BrowserRouter>
+      <DemoAuthProvider>
+        <BrowserRouter>
+          <SignedOut>
+            <SignedOutContent />
+          </SignedOut>
+          <SignedIn>
+            <SignedInContent />
+          </SignedIn>
+        </BrowserRouter>
+      </DemoAuthProvider>
     </ClerkProvider>
   );
 }

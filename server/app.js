@@ -6,10 +6,31 @@ const { ensureUser } = require('./middleware/auth');
 
 const app = express();
 
+function sanitizeDemoUsername(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 32);
+}
+
+function demoOrClerkAuth(req, res, next) {
+  const demoUsername = sanitizeDemoUsername(req.get('X-Demo-Username'));
+  if (demoUsername) {
+    req.auth = { userId: `demo:${demoUsername}` };
+    req.demoUsername = demoUsername;
+    return next();
+  }
+
+  return requireAuth()(req, res, next);
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
-app.use('/api', requireAuth(), ensureUser);
+app.use('/api', demoOrClerkAuth, ensureUser);
 
 app.use('/api/users',   require('./routes/users'));
 app.use('/api/vices',   require('./routes/vices'));
