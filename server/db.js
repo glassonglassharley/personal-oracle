@@ -72,6 +72,17 @@ const MIGRATIONS = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS username_token_hash TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS users_auth_username_unique ON users (auth_username) WHERE auth_username IS NOT NULL;
   CREATE UNIQUE INDEX IF NOT EXISTS users_username_token_hash_unique ON users (username_token_hash) WHERE username_token_hash IS NOT NULL;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_session_token_hash TEXT;
+
+  CREATE TABLE IF NOT EXISTS plaid_connections (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    access_token TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    institution_name TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, item_id)
+  );
 
   CREATE TABLE IF NOT EXISTS notification_subscriptions (
     id SERIAL PRIMARY KEY,

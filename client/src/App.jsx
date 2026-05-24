@@ -24,12 +24,27 @@ const NAV = [
 ];
 
 function AccountControl({ collapsed = false }) {
-  const { isDemo, demoUsername, stopDemo } = useDemoAuth();
+  const { isDemo, demoUsername, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
   const { user } = useUser();
   const accountName = user?.username
     || user?.fullName
     || user?.primaryEmailAddress?.emailAddress?.split('@')[0]
     || 'Account';
+
+  if (isWallet) {
+    const abbr = `${walletPublicKey.slice(0, 4)}…${walletPublicKey.slice(-4)}`;
+    return (
+      <button className="demo-account" type="button" onClick={stopWallet} title="Disconnect wallet">
+        <span className="avatar">◈</span>
+        {!collapsed && (
+          <span className="me-text">
+            <span className="me-name">{abbr}</span>
+            <span className="me-sub">Phantom wallet</span>
+          </span>
+        )}
+      </button>
+    );
+  }
 
   if (isDemo) {
     return (
@@ -55,10 +70,14 @@ function AccountControl({ collapsed = false }) {
 
 function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobileClose }) {
   const { signOut } = useClerk();
-  const { isDemo, stopDemo } = useDemoAuth();
+  const { isDemo, stopDemo, isWallet, stopWallet } = useDemoAuth();
 
   const handleLogout = () => {
     onMobileClose?.();
+    if (isWallet) {
+      stopWallet();
+      return;
+    }
     if (isDemo) {
       stopDemo();
       return;
@@ -240,7 +259,11 @@ function AuthenticatedApp() {
   const [vices, setVices] = useState([]);
   const [viceStats, setViceStats] = useState({});
   const [activeViceId, setActiveViceId] = useState(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('vt-theme') || 'emerald');
+  const [theme, setTheme] = useState(() => {
+    const t = localStorage.getItem('vt-theme') || 'emerald';
+    document.body.className = `theme-${t}`;
+    return t;
+  });
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vt-sidebar') === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [companion, setCompanion] = useState(null);
@@ -251,6 +274,13 @@ function AuthenticatedApp() {
     document.body.className = `theme-${theme}${mobileOpen ? ' mobile-menu-open' : ''}`;
     localStorage.setItem('vt-theme', theme);
   }, [theme, mobileOpen]);
+
+  const handleSetTheme = useCallback((t) => {
+    // Apply class immediately so readThemeColor() in Savings reads the correct
+    // CSS variables during the re-render that setTheme triggers (before the effect fires)
+    document.body.className = `theme-${t}${mobileOpen ? ' mobile-menu-open' : ''}`;
+    setTheme(t);
+  }, [mobileOpen]);
 
   useEffect(() => {
     localStorage.setItem('vt-sidebar', collapsed ? '1' : '');
@@ -298,7 +328,7 @@ function AuthenticatedApp() {
         {mobileOpen && <button className="mobile-menu-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
         <Sidebar
           theme={theme}
-          setTheme={setTheme}
+          setTheme={handleSetTheme}
           collapsed={mobileOpen ? false : collapsed}
           setCollapsed={setCollapsed}
           mobileOpen={mobileOpen}
@@ -324,24 +354,67 @@ function AuthenticatedApp() {
   );
 }
 
+const PHANTOM_SIGN_MESSAGE = 'Sign in to Vice Spending';
+
+function getPhantomProvider() {
+  if (typeof window === 'undefined') return null;
+  if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
+  if (window.solana?.isPhantom) return window.solana;
+  return null;
+}
+
 function WalletSignIn() {
   const clerk = useClerk();
   const { isLoaded, setActive } = useSignIn();
+  const { startWallet } = useDemoAuth();
   const [activeWallet, setActiveWallet] = useState('');
   const [error, setError] = useState('');
+
+  const phantomInstalled = Boolean(getPhantomProvider());
 
   const walletRedirects = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '/';
     return { redirectUrl: url, signUpContinueUrl: url };
   };
 
-  const wallets = [
-    { key: 'phantom', label: 'Phantom', sub: 'Solana wallet', icon: '◈', action: () => clerk.authenticateWithSolana({ walletName: 'Phantom', ...walletRedirects() }) },
+  const connectPhantom = async () => {
+    setActiveWallet('phantom');
+    setError('');
+    try {
+      const provider = getPhantomProvider();
+      if (!provider) {
+        window.open('https://phantom.app', '_blank');
+        return;
+      }
+      const response = await provider.connect();
+      const publicKey = response.publicKey.toString();
+      const messageBytes = new TextEncoder().encode(PHANTOM_SIGN_MESSAGE);
+      const { signature } = await provider.signMessage(messageBytes, 'utf8');
+      // Convert Uint8Array → base64 (browser-safe, no Node Buffer needed)
+      const signatureBase64 = btoa(Array.from(new Uint8Array(signature), b => String.fromCharCode(b)).join(''));
+
+      const res = await fetch('/api/auth/phantom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicKey, signature: signatureBase64, message: PHANTOM_SIGN_MESSAGE }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+
+      startWallet(publicKey, body.token);
+    } catch (err) {
+      setError(err.message || 'Could not connect Phantom. Make sure the extension is unlocked and try again.');
+    } finally {
+      setActiveWallet('');
+    }
+  };
+
+  const clerkWallets = [
     { key: 'metamask', label: 'MetaMask', sub: 'Ethereum wallet', icon: '🦊', action: () => clerk.authenticateWithMetamask(walletRedirects()) },
-    { key: 'base', label: 'Base Wallet', sub: 'Coinbase wallet', icon: '◎', action: () => clerk.authenticateWithBase(walletRedirects()) },
+    { key: 'base',     label: 'Base Wallet', sub: 'Coinbase wallet', icon: '◎', action: () => clerk.authenticateWithBase(walletRedirects()) },
   ];
 
-  const connect = async wallet => {
+  const connectClerk = async wallet => {
     if (!isLoaded) return;
     setError('');
     setActiveWallet(wallet.key);
@@ -352,7 +425,7 @@ function WalletSignIn() {
         return;
       }
       if (result?.status && result.status !== 'complete') {
-        setError('Wallet connected, but sign-in needs one more step. Try email sign-in below if this keeps happening.');
+        setError('Wallet connected, but sign-in needs one more step. Try username or email sign-in below.');
       }
     } catch (err) {
       setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || `Could not connect ${wallet.label}.`);
@@ -366,17 +439,48 @@ function WalletSignIn() {
       <div className="wallet-login-head">
         <div>
           <div className="wallet-login-title">Connect your wallet</div>
-          <p className="wallet-login-copy">Choose Phantom, MetaMask, or Base/Coinbase Wallet. Other Web3 options are hidden for now.</p>
+          <p className="wallet-login-copy">Use Phantom to sign in with your Solana wallet, or connect MetaMask / Base for Ethereum.</p>
         </div>
       </div>
       <div className="wallet-button-grid">
-        {wallets.map(wallet => (
+        {/* Phantom — custom sign-in flow */}
+        {phantomInstalled ? (
+          <button
+            type="button"
+            className="wallet-connect-btn"
+            disabled={activeWallet === 'phantom'}
+            onClick={connectPhantom}
+          >
+            <span className="wallet-icon wallet-icon-phantom">◈</span>
+            <span>
+              <span className="wallet-name">{activeWallet === 'phantom' ? 'Connecting…' : 'Phantom'}</span>
+              <span className="wallet-sub">Solana wallet</span>
+            </span>
+          </button>
+        ) : (
+          <a
+            href="https://phantom.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="wallet-connect-btn"
+            style={{ textDecoration: 'none' }}
+          >
+            <span className="wallet-icon wallet-icon-phantom">◈</span>
+            <span>
+              <span className="wallet-name">Install Phantom</span>
+              <span className="wallet-sub">Get the browser extension</span>
+            </span>
+          </a>
+        )}
+
+        {/* MetaMask + Base — via Clerk */}
+        {clerkWallets.map(wallet => (
           <button
             key={wallet.key}
             type="button"
             className="wallet-connect-btn"
             disabled={!isLoaded || activeWallet === wallet.key}
-            onClick={() => connect(wallet)}
+            onClick={() => connectClerk(wallet)}
           >
             <span className={`wallet-icon wallet-icon-${wallet.key}`}>{wallet.icon}</span>
             <span>
@@ -600,8 +704,8 @@ function DemoLogin() {
 }
 
 function SignedOutContent() {
-  const { isDemo } = useDemoAuth();
-  if (isDemo) return <AuthenticatedApp />;
+  const { isDemo, isWallet } = useDemoAuth();
+  if (isDemo || isWallet) return <AuthenticatedApp />;
 
   return (
     <div className="auth-page">
@@ -669,11 +773,12 @@ function SignedOutContent() {
 }
 
 function SignedInContent() {
-  const { isDemo, stopDemo } = useDemoAuth();
+  const { isDemo, stopDemo, isWallet, stopWallet } = useDemoAuth();
 
   useEffect(() => {
     if (isDemo) stopDemo();
-  }, [isDemo, stopDemo]);
+    if (isWallet) stopWallet();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <AuthenticatedApp />;
 }

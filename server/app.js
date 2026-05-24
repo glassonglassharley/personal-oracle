@@ -11,10 +11,44 @@ const {
   validToken,
   safeEqual,
 } = require('./routes/usernameAuth');
+const {
+  router: phantomAuthRouter,
+  hashToken: hashWalletToken,
+  safeEqual: safeEqualWallet,
+} = require('./routes/phantomAuth');
 
 const app = express();
 
+function validWalletToken(token) {
+  return /^vtw_[A-Za-z0-9_-]{40,}$/.test(String(token || ''));
+}
+
 async function usernameOrClerkAuth(req, res, next) {
+  // Wallet (Phantom) auth
+  const walletAddress = String(req.get('X-Wallet-Address') || '').trim();
+  const walletToken = String(req.get('X-Wallet-Token') || '').trim();
+  if (walletAddress || walletToken) {
+    if (!walletAddress || !validWalletToken(walletToken)) {
+      return res.status(401).json({ error: 'Wallet session token required.' });
+    }
+    try {
+      const result = await pool.query(
+        'SELECT wallet_session_token_hash FROM users WHERE clerk_user_id = $1 LIMIT 1',
+        [`wallet:${walletAddress}`]
+      );
+      const storedHash = result.rows[0]?.wallet_session_token_hash;
+      if (!storedHash || !safeEqualWallet(hashWalletToken(walletToken), storedHash)) {
+        return res.status(401).json({ error: 'Invalid or expired wallet session.' });
+      }
+      req.auth = { userId: `wallet:${walletAddress}` };
+      req.walletAuth = { publicKey: walletAddress };
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  // Username auth
   const username = sanitizeUsername(req.get('X-Username-Auth'));
   const token = String(req.get('X-Username-Token') || '').trim();
   if (username || token) {
@@ -46,6 +80,7 @@ app.use(express.json());
 app.use(clerkMiddleware());
 app.use('/api/cron', require('./routes/cron'));
 app.use('/api/auth/username', usernameAuthRouter);
+app.use('/api/auth/phantom', phantomAuthRouter);
 app.use('/api', usernameOrClerkAuth, ensureUser);
 
 app.use('/api/users',   require('./routes/users'));
@@ -58,6 +93,7 @@ app.use('/api/partners', require('./routes/partners'));
 app.use('/api/goals',   require('./routes/goals'));
 app.use('/api/wrapped', require('./routes/wrapped'));
 app.use('/api/companion', require('./routes/companion'));
+app.use('/api/plaid',    require('./routes/plaid'));
 
 app.use((err, req, res, next) => {
   console.error(err);

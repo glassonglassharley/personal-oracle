@@ -118,12 +118,6 @@ export default function Dashboard() {
   // Challenge notifications
   const [challenges, setChallenges] = useState([]);
 
-  // Show last year's Wrapped button after Jan 1
-  const wrappedYear = (() => {
-    const now = new Date();
-    return now.getFullYear() - 1; // always show prev year (today is post-Jan-1 by definition)
-  })();
-
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -284,11 +278,6 @@ export default function Dashboard() {
           <p className="page-subtitle">Combined overview across every tracked vice.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {wrappedYear && (
-            <Link className="btn ghost dashboard-log-btn" to={`/wrapped/${wrappedYear}`}>
-              ✦ {wrappedYear} Wrapped
-            </Link>
-          )}
           <Link className="btn dashboard-log-btn" to="/log">
             <span>＋</span>
             Log Entry

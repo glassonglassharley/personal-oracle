@@ -124,6 +124,23 @@ function readThemeColor(name, fallback) {
   return value || fallback;
 }
 
+function buildThemeColors() {
+  return {
+    paper:  readThemeColor('--paper',   '#0a1f17'),
+    paper2: readThemeColor('--paper-2', '#11281f'),
+    ink:    readThemeColor('--ink',     '#e8efe0'),
+    ink2:   readThemeColor('--ink-2',   '#c8d4be'),
+    ink3:   readThemeColor('--ink-3',   '#8e9a85'),
+    ink4:   readThemeColor('--ink-4',   '#5f6f61'),
+    rule:   readThemeColor('--rule',    'rgba(232,239,224,0.08)'),
+    rule2:  readThemeColor('--rule-2',  'rgba(232,239,224,0.20)'),
+    money:  readThemeColor('--money',   '#5ec48a'),
+    money2: readThemeColor('--money-2', '#2d6a4f'),
+    warn:   readThemeColor('--warn',    '#d46a4a'),
+    good:   readThemeColor('--good',    '#5ec48a'),
+  };
+}
+
 export default function Savings() {
   const api = useApi();
   const { vices } = useViceContext();
@@ -140,6 +157,13 @@ export default function Savings() {
   });
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
+  const [themeColors, setThemeColors] = useState(buildThemeColors);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setThemeColors(buildThemeColors()));
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (vices.length === 0) {
@@ -205,20 +229,6 @@ export default function Savings() {
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
-  const themeColors = {
-    paper: readThemeColor('--paper', '#0a1f17'),
-    paper2: readThemeColor('--paper-2', '#11281f'),
-    ink: readThemeColor('--ink', '#e8efe0'),
-    ink2: readThemeColor('--ink-2', '#c8d4be'),
-    ink3: readThemeColor('--ink-3', '#8e9a85'),
-    ink4: readThemeColor('--ink-4', '#5f6f61'),
-    rule: readThemeColor('--rule', 'rgba(232,239,224,0.08)'),
-    rule2: readThemeColor('--rule-2', 'rgba(232,239,224,0.20)'),
-    money: readThemeColor('--money', '#5ec48a'),
-    money2: readThemeColor('--money-2', '#2d6a4f'),
-    warn: readThemeColor('--warn', '#d46a4a'),
-    good: readThemeColor('--good', '#5ec48a'),
-  };
   const assetColors = {
     primary: themeColors.money,
     secondary: themeColors.money2,

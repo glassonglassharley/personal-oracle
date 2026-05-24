@@ -3,6 +3,7 @@ import { useAuth } from '@clerk/clerk-react';
 
 const DemoAuthContext = createContext(null);
 const USERNAME_AUTH_KEY = 'vt-username-auth';
+const WALLET_AUTH_KEY   = 'vtv_wallet_session';
 
 export function sanitizeDemoUsername(value) {
   return String(value || '')
@@ -27,11 +28,27 @@ function readStoredUsernameAuth() {
   }
 }
 
+function readStoredWalletAuth() {
+  try {
+    const raw = localStorage.getItem(WALLET_AUTH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const publicKey = String(parsed?.publicKey || '').trim();
+    const token = String(parsed?.token || '').trim();
+    return publicKey && token ? { publicKey, token } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function DemoAuthProvider({ children }) {
-  const [account, setAccount] = useState(readStoredUsernameAuth);
+  const [account, setAccount]       = useState(readStoredUsernameAuth);
+  const [walletAccount, setWalletAccount] = useState(readStoredWalletAuth);
+
   const demoUsername = account?.username || '';
 
   const value = useMemo(() => ({
+    // Username auth
     demoUsername,
     usernameToken: account?.token || '',
     isDemo: Boolean(account?.username && account?.token),
@@ -58,7 +75,21 @@ export function DemoAuthProvider({ children }) {
       localStorage.removeItem('vt-demo-username');
       setAccount(null);
     },
-  }), [account, demoUsername]);
+
+    // Wallet (Phantom) auth
+    isWallet: Boolean(walletAccount?.publicKey && walletAccount?.token),
+    walletPublicKey: walletAccount?.publicKey || '',
+    walletToken: walletAccount?.token || '',
+    startWallet(publicKey, token) {
+      const next = { publicKey, token };
+      localStorage.setItem(WALLET_AUTH_KEY, JSON.stringify(next));
+      setWalletAccount(next);
+    },
+    stopWallet() {
+      localStorage.removeItem(WALLET_AUTH_KEY);
+      setWalletAccount(null);
+    },
+  }), [account, walletAccount, demoUsername]);
 
   return createElement(DemoAuthContext.Provider, { value }, children);
 }
@@ -71,16 +102,22 @@ export function useDemoAuth() {
 
 export function useApi() {
   const { getToken } = useAuth();
-  const { demoUsername, usernameToken } = useDemoAuth();
+  const { demoUsername, usernameToken, isWallet, walletPublicKey, walletToken } = useDemoAuth();
 
   return async (url, options = {}) => {
-    const token = demoUsername ? null : await getToken();
+    const useClerkToken = !demoUsername && !isWallet;
+    const token = useClerkToken ? await getToken() : null;
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-    if (demoUsername && usernameToken) {
-      headers['X-Username-Auth'] = demoUsername;
+
+    if (isWallet && walletPublicKey && walletToken) {
+      headers['X-Wallet-Address'] = walletPublicKey;
+      headers['X-Wallet-Token']   = walletToken;
+    } else if (demoUsername && usernameToken) {
+      headers['X-Username-Auth']  = demoUsername;
       headers['X-Username-Token'] = usernameToken;
     }
     if (token) headers.Authorization = `Bearer ${token}`;
+
     const res = await fetch(url, { ...options, headers });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

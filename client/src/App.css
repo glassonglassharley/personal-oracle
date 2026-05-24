@@ -1433,6 +1433,49 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .faq-item.open .faq-chevron { color: var(--money); }
 .faq-a { padding: 0 0 16px; font-size: 13.5px; color: var(--ink-3); line-height: 1.65; }
 
+/* ── Plaid Bank Import ───────────────────────────── */
+.plaid-panel { margin-bottom: 24px; }
+.plaid-connected-badge {
+  font-size: 11px; font-family: var(--mono); color: var(--money);
+  background: var(--money-soft); padding: 3px 10px; border-radius: 999px;
+}
+.plaid-cta { display: flex; flex-direction: column; gap: 12px; }
+.plaid-copy { font-size: 13.5px; color: var(--ink-3); line-height: 1.6; margin: 0; }
+.plaid-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.plaid-results { margin-top: 20px; }
+.plaid-results-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: var(--ink-3); font-family: var(--mono);
+  margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+}
+.plaid-vice-note { color: var(--money); }
+.plaid-tx-list { display: flex; flex-direction: column; gap: 6px; }
+.plaid-tx {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  transition: border-color 0.12s;
+}
+.plaid-tx-confirmed { border-color: var(--money); background: color-mix(in srgb, var(--money) 6%, var(--paper-2)); }
+.plaid-tx-skipped   { opacity: 0.4; }
+.plaid-tx-logged    { opacity: 0.55; border-color: var(--rule); }
+.plaid-tx-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.plaid-tx-merchant { font-size: 13.5px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plaid-tx-cat  { font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+.plaid-tx-date { font-size: 11px; color: var(--ink-4); font-family: var(--mono); }
+.plaid-tx-amount { font-family: var(--mono); font-size: 14px; color: var(--ink); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.plaid-tx-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.plaid-tx-btn {
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--rule-2);
+  background: transparent; color: var(--ink-3); font-size: 12px; cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.plaid-tx-btn:hover { border-color: var(--money); color: var(--money); }
+.plaid-tx-btn.on    { border-color: var(--money); background: var(--money); color: var(--paper); }
+.plaid-tx-btn.skip:hover { border-color: var(--warn); color: var(--warn); }
+.plaid-tx-btn.skip.on    { border-color: var(--warn); background: var(--warn); color: #fff; }
+.plaid-tx-done { font-size: 11px; color: var(--money); font-family: var(--mono); }
+
 /* ── Annual Wrapped ──────────────────────────────── */
 .wr-loading {
   min-height: 100dvh; display: flex; flex-direction: column;
