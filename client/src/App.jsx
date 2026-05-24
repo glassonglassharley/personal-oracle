@@ -18,9 +18,14 @@ const NAV = [
   { to: '/vices', label: 'Vices' },
 ];
 
-function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId, setActiveViceId }) {
+function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId, setActiveViceId, mobileOpen, onMobileClose }) {
+  const handleViceClick = id => {
+    setActiveViceId(id);
+    onMobileClose?.();
+  };
+
   return (
-    <aside className={`side${collapsed ? ' collapsed' : ''}`}>
+    <aside className={`side${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="side-top">
         <div className="brand">
           <span className="brand-mark">◈</span>
@@ -29,6 +34,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
         <button className="side-collapse" onClick={() => setCollapsed(c => !c)} aria-label="Toggle sidebar">
           {collapsed ? '›' : '‹'}
         </button>
+        <button className="side-close" onClick={onMobileClose} aria-label="Close menu">×</button>
       </div>
 
       {vices.length > 0 && (
@@ -38,7 +44,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
               key={v.id}
               className={`vice-row${v.id === activeViceId ? ' active' : ''}`}
               style={{ '--vice-c': v.color }}
-              onClick={() => setActiveViceId(v.id)}
+              onClick={() => handleViceClick(v.id)}
             >
               <span className="vice-glyph">{v.emoji || v.name[0]}</span>
               {!collapsed && <span className="vice-name">{v.name}</span>}
@@ -54,6 +60,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
             to={to}
             end={end}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            onClick={onMobileClose}
           >
             <span className="dot" />
             {!collapsed && <span>{label}</span>}
@@ -83,6 +90,33 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
   );
 }
 
+function MobileTopBar({ activeVice, mobileOpen, setMobileOpen }) {
+  return (
+    <header className="mobile-topbar">
+      <button
+        className="hamburger-btn"
+        onClick={() => setMobileOpen(open => !open)}
+        aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={mobileOpen}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
+      <div className="mobile-brand">
+        <span className="brand-mark">◈</span>
+        <div>
+          <div className="mobile-brand-name">Vice Spending</div>
+          {activeVice && (
+            <div className="mobile-vice-name">{activeVice.emoji} {activeVice.name}</div>
+          )}
+        </div>
+      </div>
+      <UserButton afterSignOutUrl="/" />
+    </header>
+  );
+}
+
 function AuthenticatedApp() {
   const api = useApi();
   const apiRef = useRef(api);
@@ -93,11 +127,12 @@ function AuthenticatedApp() {
   const [activeViceId, setActiveViceId] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('vt-theme') || 'emerald');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vt-sidebar') === '1');
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    document.body.className = `theme-${theme}`;
+    document.body.className = `theme-${theme}${mobileOpen ? ' mobile-menu-open' : ''}`;
     localStorage.setItem('vt-theme', theme);
-  }, [theme]);
+  }, [theme, mobileOpen]);
 
   useEffect(() => {
     localStorage.setItem('vt-sidebar', collapsed ? '1' : '');
@@ -119,18 +154,23 @@ function AuthenticatedApp() {
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices };
+  const activeVice = vices.find(v => v.id === activeViceId);
 
   return (
     <ViceContext.Provider value={ctx}>
       <div className={`shell${collapsed ? ' collapsed' : ''}`}>
+        <MobileTopBar activeVice={activeVice} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        {mobileOpen && <button className="mobile-menu-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
         <Sidebar
           theme={theme}
           setTheme={setTheme}
-          collapsed={collapsed}
+          collapsed={mobileOpen ? false : collapsed}
           setCollapsed={setCollapsed}
           vices={vices}
           activeViceId={activeViceId}
           setActiveViceId={setActiveViceId}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
         />
         <Routes>
           <Route path="/" element={<Dashboard />} />

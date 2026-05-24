@@ -160,6 +160,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .me-sub { font-size: 11px; color: var(--ink-3); }
 .me-text { flex: 1; min-width: 0; }
 
+.side-close,
+.mobile-topbar,
+.mobile-menu-backdrop { display: none; }
+
 /* ── Main content area ───────────────────────────── */
 .main { padding: 36px 56px 64px; max-width: 1180px; }
 @media (max-width: 1100px) { .main { padding: 28px 32px 48px; } }
@@ -609,14 +613,82 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 768px) {
+  body.mobile-menu-open { overflow: hidden; }
+
   .shell { grid-template-columns: 1fr !important; }
-  .side { display: none; }
-  .main { padding: 16px 16px 48px; }
+
+  .mobile-topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 120;
+    min-height: calc(64px + env(safe-area-inset-top, 0px));
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex; align-items: center; gap: 12px;
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    border-bottom: 1px solid var(--rule);
+    backdrop-filter: blur(16px);
+  }
+
+  .hamburger-btn {
+    width: 42px; height: 42px; border-radius: 10px;
+    border: 1px solid var(--rule-2); background: var(--paper-2);
+    display: inline-flex; flex-direction: column; justify-content: center; gap: 5px;
+    padding: 0 10px; flex: 0 0 auto;
+  }
+  .hamburger-btn span {
+    display: block; width: 100%; height: 2px; border-radius: 999px;
+    background: var(--ink); transition: transform 0.16s, opacity 0.16s;
+  }
+  .hamburger-btn[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .hamburger-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .hamburger-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .mobile-brand { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
+  .mobile-brand .brand-mark { width: 34px; height: 34px; }
+  .mobile-brand-name {
+    font-family: var(--serif); font-size: 18px; line-height: 1.05;
+    color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mobile-vice-name {
+    margin-top: 2px; font-size: 11px; color: var(--ink-3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48vw;
+  }
+
+  .mobile-menu-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 130;
+    background: rgba(0,0,0,0.45);
+  }
+
+  .side {
+    display: flex; position: fixed; top: 0; left: 0; bottom: 0; z-index: 140;
+    width: min(86vw, 340px); height: 100dvh;
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-105%); transition: transform 0.24s cubic-bezier(0.2,0.7,0.2,1);
+    border-right: 1px solid var(--rule-2); box-shadow: 20px 0 50px rgba(0,0,0,0.35);
+  }
+  .side.mobile-open { transform: translateX(0); }
+  .side .side-collapse { display: none; }
+  .side-close {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--rule-2); color: var(--ink-2);
+    background: var(--paper-2); display: grid; place-items: center;
+    font-size: 24px; line-height: 1; flex-shrink: 0;
+  }
+
+  .main { padding: 88px 16px 48px; max-width: 100%; overflow-x: hidden; }
   .hero { grid-template-columns: 1fr; gap: 24px; }
-  .hero-amount { font-size: 72px; }
+  .hero-headline { font-size: 32px; }
+  .hero-amount { font-size: clamp(58px, 18vw, 72px); }
+  .hero-amount .dollar { font-size: 38px; }
+  .hero-amount .cents { font-size: 20px; }
   .grid-4 { grid-template-columns: repeat(2,1fr); }
   .stats-strip { grid-template-columns: repeat(2,1fr); }
+  .stat { padding: 16px 14px; }
+  .stat-val { font-size: 25px; }
+  .panel, .card { padding: 18px 16px; }
+  .panel-head, .card-header { gap: 10px; flex-wrap: wrap; }
   .cat-bars { gap: 10px; }
   .edit-grid { grid-template-columns: 1fr; }
   .grid-log { grid-template-columns: 1fr; }
+  .entry-item { flex-wrap: wrap; }
+  .vice-header, .page-header, .budget-bar-label { gap: 12px; flex-wrap: wrap; }
+  .vice-stats-row { flex-wrap: wrap; gap: 8px 14px; }
 }
