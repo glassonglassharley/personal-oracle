@@ -1273,6 +1273,68 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .faq-item.open .faq-chevron { color: var(--money); }
 .faq-a { padding: 0 0 16px; font-size: 13.5px; color: var(--ink-3); line-height: 1.65; }
 
+/* ── Annual Wrapped ──────────────────────────────── */
+.wr-loading {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  background: #060e0a; color: #fff; text-align: center; padding: 24px;
+}
+.wr-loading h2 { font-family: var(--serif); font-size: 28px; }
+.wr-page {
+  min-height: 100dvh;
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+}
+.wr-slide {
+  min-height: 100dvh;
+  scroll-snap-align: start;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--wr-accent) 28%, transparent), transparent 50%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--wr-accent) 18%, transparent), transparent 50%),
+    #060e0a;
+  padding: 40px 24px; position: relative; overflow: hidden;
+}
+.wr-slide-dim { background: #060e0a !important; }
+.wr-slide::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--wr-accent) 12%, transparent), transparent 60%);
+  pointer-events: none;
+}
+.wr-slide-inner {
+  position: relative; z-index: 1; max-width: 600px; width: 100%;
+  text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.wr-kicker { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--wr-accent); font-weight: 700; }
+.wr-year { font-family: var(--serif); font-size: clamp(80px,22vw,160px); font-weight: 400; letter-spacing: -0.05em; color: #fff; line-height: 0.9; }
+.wr-cover-sub { font-size: 18px; color: rgba(255,255,255,0.55); font-family: var(--serif); }
+.wr-eyebrow { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.5); font-weight: 500; }
+.wr-big { font-family: var(--serif); font-size: clamp(52px,14vw,112px); font-weight: 400; letter-spacing: -0.04em; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; }
+.wr-green { color: var(--wr-accent); }
+.wr-desc { font-size: 16px; color: rgba(255,255,255,0.55); }
+.wr-two-stat { display: flex; align-items: center; gap: 40px; }
+.wr-divider { width: 1px; height: 80px; background: rgba(255,255,255,0.15); }
+.wr-stat-label { font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+.wr-emoji-big { font-size: clamp(56px,14vw,96px); }
+.wr-vice-strip { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; width: 100%; max-width: 340px; }
+.wr-vice-chip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); font-size: 14px; color: rgba(255,255,255,0.8); }
+.wr-vice-amt { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--wr-accent); }
+.wr-months-grid { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+.wr-month-card { padding: 22px 28px; border-radius: 16px; text-align: center; min-width: 140px; }
+.wr-month-best  { background: rgba(15,110,86,0.2); border: 1px solid rgba(15,110,86,0.4); }
+.wr-month-worst { background: rgba(224,122,94,0.15); border: 1px solid rgba(224,122,94,0.3); }
+.wr-month-label { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+.wr-month-name  { font-family: var(--serif); font-size: 22px; color: #fff; margin-bottom: 4px; }
+.wr-month-amt   { font-family: var(--mono); font-size: 13px; color: rgba(255,255,255,0.6); }
+.wr-ai-quote {
+  font-family: var(--serif); font-size: clamp(20px,5vw,32px);
+  font-style: italic; color: rgba(255,255,255,0.9); line-height: 1.4;
+  max-width: 520px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 28px 32px;
+}
+
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 940px) {
   .auth-page {

@@ -39,6 +39,7 @@ app.use('/api/stats',   require('./routes/stats'));
 app.use('/api/savings',  require('./routes/savings'));
 app.use('/api/partners', require('./routes/partners'));
 app.use('/api/goals',   require('./routes/goals'));
+app.use('/api/wrapped', require('./routes/wrapped'));
 
 app.use((err, req, res, next) => {
   console.error(err);

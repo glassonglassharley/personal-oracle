@@ -7,6 +7,7 @@ import Savings from './pages/Savings';
 import ViceManager from './pages/ViceManager';
 import Partners from './pages/Partners';
 import Support from './pages/Support';
+import Wrapped from './pages/Wrapped';
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
@@ -184,6 +185,7 @@ function AuthenticatedApp() {
           <Route path="/vices" element={<ViceManager />} />
           <Route path="/partners" element={<Partners />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/wrapped/:year" element={<Wrapped />} />
         </Routes>
       </div>
     </ViceContext.Provider>
