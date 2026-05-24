@@ -10,6 +10,7 @@ import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit } from '../formatUnits';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 import CompanionCard from '../companions/CompanionCard';
+import BadgesSection from './BadgesSection';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -344,6 +345,8 @@ export default function Dashboard() {
             onCreateGoal={createGoal}
             onDeleteGoal={deleteGoal}
           />
+
+          <BadgesSection />
 
           <div className="grid-2">
             <div className="panel">

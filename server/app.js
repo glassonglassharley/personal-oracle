@@ -94,6 +94,7 @@ app.use('/api/goals',   require('./routes/goals'));
 app.use('/api/wrapped', require('./routes/wrapped'));
 app.use('/api/companion', require('./routes/companion'));
 app.use('/api/plaid',    require('./routes/plaid'));
+app.use('/api/badges',   require('./routes/badges'));
 
 app.use((err, req, res, next) => {
   console.error(err);

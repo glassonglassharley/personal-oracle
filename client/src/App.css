@@ -1433,6 +1433,72 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .faq-item.open .faq-chevron { color: var(--money); }
 .faq-a { padding: 0 0 16px; font-size: 13.5px; color: var(--ink-3); line-height: 1.65; }
 
+/* ── Streaks & Badges ────────────────────────────── */
+.badges-section { margin-bottom: 0; }
+
+.streak-row {
+  display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.streak-pill {
+  flex: 1; min-width: 120px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 14px; padding: 16px 20px; text-align: center;
+}
+.streak-pill-val {
+  font-family: var(--serif); font-size: 40px; font-weight: 400;
+  color: var(--money); line-height: 1; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.streak-pill-label { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 6px; }
+.streak-pill-sub   { font-size: 11px; color: var(--ink-4); font-family: var(--mono); margin-top: 2px; }
+
+.badges-progress { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.badge-card {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 18px 10px 14px;
+  border-radius: 12px; border: 1px solid var(--rule);
+  text-align: center; cursor: default;
+  transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+}
+.badge-card.earned {
+  background: color-mix(in srgb, var(--money) 7%, var(--paper-2));
+  border-color: color-mix(in srgb, var(--money) 28%, transparent);
+}
+.badge-card.earned:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  border-color: var(--money);
+}
+.badge-card.locked {
+  background: var(--paper-2); opacity: 0.55;
+}
+.badge-emoji { font-size: 28px; line-height: 1; }
+.badge-name  { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+.badge-earned-date { font-size: 10px; color: var(--money); font-family: var(--mono); }
+.badge-locked-hint { font-size: 10px; color: var(--ink-4); font-family: var(--mono); line-height: 1.35; }
+.badge-tooltip {
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--paper-3, var(--paper-2)); border: 1px solid var(--rule-2);
+  color: var(--ink-2); font-size: 11.5px; padding: 6px 10px; border-radius: 8px;
+  white-space: nowrap; pointer-events: none; z-index: 10;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 640px) {
+  .badge-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .badge-card { padding: 14px 6px 10px; }
+  .badge-emoji { font-size: 22px; }
+  .badge-name  { font-size: 10px; }
+  .streak-pill-val { font-size: 32px; }
+}
+
 /* ── Plaid Bank Import ───────────────────────────── */
 .plaid-panel { margin-bottom: 24px; }
 .plaid-connected-badge {
