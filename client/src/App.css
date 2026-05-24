@@ -797,7 +797,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .auth-card-panel {
   padding: 28px; background: rgba(238,244,232,0.96); color: #0c2a1f;
-  display: flex; flex-direction: column; justify-content: center;
+  display: flex; flex-direction: column; justify-content: flex-start;
 }
 .auth-card-head { margin-bottom: 20px; }
 .auth-pill {
@@ -870,7 +870,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .auth-divider::after { content: ""; flex: 1; height: 1px; background: rgba(12,42,31,0.12); }
 .clerk-frame {
   display: grid; place-items: start center;
-  min-height: 430px;
+  min-height: 300px;
   width: 100%;
   overflow-anchor: none;
   contain: layout paint;

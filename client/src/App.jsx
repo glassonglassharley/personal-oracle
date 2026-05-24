@@ -652,16 +652,16 @@ function SignedOutContent() {
           <div className="auth-card-head">
             <span className="auth-pill">Private progress tracker</span>
             <h2>Welcome back</h2>
-            <p>Connect with Phantom, MetaMask, Base Wallet, or sign in securely with email.</p>
+            <p>Connect with Phantom, MetaMask, Base Wallet, claim a username token, or sign in securely with email.</p>
           </div>
 
           <WalletSignIn />
+          <div className="auth-divider"><span>or claim a username</span></div>
+          <DemoLogin />
           <div className="auth-divider"><span>or continue with email</span></div>
           <div className="clerk-frame">
             <EmailAuth />
           </div>
-          <div className="auth-divider"><span>or use a username token last</span></div>
-          <DemoLogin />
         </div>
       </section>
     </div>
