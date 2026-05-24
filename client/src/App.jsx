@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, SignIn, UserButton, useSignIn } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, SignIn, UserButton, useSignIn, useUser } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import LogEntry from './pages/LogEntry';
@@ -24,6 +24,11 @@ const NAV = [
 
 function AccountControl({ collapsed = false }) {
   const { isDemo, demoUsername, stopDemo } = useDemoAuth();
+  const { user } = useUser();
+  const accountName = user?.username
+    || user?.fullName
+    || user?.primaryEmailAddress?.emailAddress?.split('@')[0]
+    || 'Account';
 
   if (isDemo) {
     return (
@@ -42,7 +47,7 @@ function AccountControl({ collapsed = false }) {
   return (
     <>
       <UserButton afterSignOutUrl="/" />
-      {!collapsed && <span className="me-name">Account</span>}
+      {!collapsed && <span className="me-name">{accountName}</span>}
     </>
   );
 }
