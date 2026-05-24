@@ -11,7 +11,6 @@ import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
-const fmtQ = n => Number(n || 0) % 1 === 0 ? String(Number(n || 0)) : Number(n || 0).toFixed(1);
 
 function last7Dates() {
   const today = new Date();
@@ -78,9 +77,23 @@ export default function Dashboard() {
 
   const chartOptions = {
     responsive: true,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: context => formatQuantityWithUnit(context.parsed.y, activeVice),
+        },
+      },
+    },
     scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: inkColor } },
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(128,128,128,0.08)' },
+        ticks: {
+          color: inkColor,
+          callback: value => formatQuantityWithUnit(value, activeVice),
+        },
+      },
       x: { grid: { display: false }, ticks: { color: inkColor } },
     }
   };
@@ -139,7 +152,7 @@ export default function Dashboard() {
               <div className="savings-rows">
                 <div className="savings-row"><span>Clean days logged</span><strong className="text-money">{stats.clean_days} days</strong></div>
                 <div className="savings-row"><span>Saved from clean days</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
-                <div className="savings-row"><span>Avg {activeUnitLabel}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
+                <div className="savings-row"><span>Avg {activeUnitLabel}/day</span><strong>{formatQuantityWithUnit(stats.avg_quantity_per_day, activeVice)}</strong></div>
                 <div className="savings-row"><span>Avg price/{activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
                 <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-divider" />
@@ -166,7 +179,7 @@ export default function Dashboard() {
               </div>
               <div className="savings-rows">
                 <div className="savings-row"><span>Per {activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
-                <div className="savings-row"><span>{activeUnitLabel}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
+                <div className="savings-row"><span>{activeUnitLabel}/day</span><strong>{formatQuantityWithUnit(stats.avg_quantity_per_day, activeVice)}</strong></div>
                 <div className="savings-row"><span>Daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-row"><span>Total clean days</span><strong className="text-money">{stats.clean_days}</strong></div>
                 <div className="savings-row"><span>Active days logged</span><strong>{stats.total_logged_days}</strong></div>
