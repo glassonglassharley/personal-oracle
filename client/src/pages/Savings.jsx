@@ -9,19 +9,13 @@ import { useViceContext } from '../ViceContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-const TEAL_LIT = '#1acd8c';
-const VIOLET   = '#8b5cf6';
-const GOLD     = '#f5c542';
-const ORANGE   = '#f7931a';
-const GRAY     = '#4a5568';
-
 const ASSETS = [
   {
     key: 'Cash',
     label: 'Cash saved',
     cardLabel: 'Cash saved',
     rate: 0,
-    color: GRAY,
+    colorKey: 'muted',
     dash: [5, 3],
     icon: '💵',
     description: 'No market growth, just money not spent',
@@ -31,7 +25,7 @@ const ASSETS = [
     label: 'S&P 500',
     cardLabel: 'S&P 500',
     rate: 0.10,
-    color: VIOLET,
+    colorKey: 'secondary',
     dash: [],
     icon: '📈',
     description: 'Illustrative 10% annualized return',
@@ -41,7 +35,7 @@ const ASSETS = [
     label: 'High Yield Savings Account',
     cardLabel: 'High Yield Savings Account',
     rate: 0.04,
-    color: TEAL_LIT,
+    colorKey: 'primary',
     dash: [],
     icon: '🏦',
     description: 'Illustrative 4% annualized return',
@@ -51,7 +45,7 @@ const ASSETS = [
     label: 'Bitcoin (BTC)',
     cardLabel: 'Bitcoin',
     rate: 0.40,
-    color: ORANGE,
+    colorKey: 'hot',
     dash: [],
     icon: '₿',
     description: 'Illustrative 40% annualized return',
@@ -61,7 +55,7 @@ const ASSETS = [
     label: 'Gold',
     cardLabel: 'Gold',
     rate: 0.07,
-    color: GOLD,
+    colorKey: 'warm',
     dash: [],
     icon: '🥇',
     description: 'Illustrative 7% annualized return',
@@ -217,9 +211,25 @@ export default function Savings() {
     ink: readThemeColor('--ink', '#e8efe0'),
     ink2: readThemeColor('--ink-2', '#c8d4be'),
     ink3: readThemeColor('--ink-3', '#8e9a85'),
+    ink4: readThemeColor('--ink-4', '#5f6f61'),
     rule: readThemeColor('--rule', 'rgba(232,239,224,0.08)'),
     rule2: readThemeColor('--rule-2', 'rgba(232,239,224,0.20)'),
+    money: readThemeColor('--money', '#5ec48a'),
+    money2: readThemeColor('--money-2', '#2d6a4f'),
+    warn: readThemeColor('--warn', '#d46a4a'),
+    good: readThemeColor('--good', '#5ec48a'),
   };
+  const assetColors = {
+    primary: themeColors.money,
+    secondary: themeColors.money2,
+    muted: themeColors.ink4,
+    hot: themeColors.warn,
+    warm: themeColors.good,
+  };
+  const themedAssets = ASSETS.map(asset => ({
+    ...asset,
+    color: assetColors[asset.colorKey] || themeColors.money,
+  }));
 
   // Chart: monthly data points up to horizon
   const maxDays = Math.max(horizon, 90);
@@ -234,7 +244,7 @@ export default function Savings() {
     return `${(d / 365).toFixed(d % 365 === 0 ? 0 : 1)}yr`;
   });
 
-  const chartDatasets = ASSETS.map(a => ({
+  const chartDatasets = themedAssets.map(a => ({
     label: a.label,
     data: points.map(d => Math.round(dcaFV(perDay, a.rate, d))),
     borderColor: a.color,
@@ -294,7 +304,7 @@ export default function Savings() {
       return { ...goal, savedPct, remaining, daysAway };
     })
     .sort((a, b) => a.cost - b.cost);
-  const investmentCards = ASSETS
+  const investmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
       const value = dcaFV(perDay, asset.rate, horizon);
