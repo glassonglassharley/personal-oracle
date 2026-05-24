@@ -6,7 +6,7 @@ import {
 } from 'chart.js';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
-import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
+import { formatQuantityWithUnit } from '../formatUnits';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -21,19 +21,89 @@ function last7Dates() {
   });
 }
 
+function emptyPeriod() {
+  return { quantity: 0, spend: 0, byVice: [] };
+}
+
+function combinePeriod(vices, statsByVice, key) {
+  const byVice = vices.map(vice => ({
+    vice,
+    quantity: Number(statsByVice[vice.id]?.[key]?.quantity || 0),
+    spend: Number(statsByVice[vice.id]?.[key]?.spend || 0),
+  }));
+
+  return {
+    quantity: byVice.reduce((sum, item) => sum + item.quantity, 0),
+    spend: byVice.reduce((sum, item) => sum + item.spend, 0),
+    byVice,
+  };
+}
+
+function combineStats(vices, statsByVice) {
+  if (vices.length === 0) return null;
+
+  const totals = vices.reduce((acc, vice) => {
+    const s = statsByVice[vice.id];
+    if (!s) return acc;
+
+    const activeDays = Number(s.total_logged_days || 0);
+    const cleanDays = Number(s.clean_days || 0);
+    const totalDays = activeDays + cleanDays;
+    const avgDailySpend = Number(s.avg_daily_spend || 0);
+    const avgQuantityPerDay = Number(s.avg_quantity_per_day || 0);
+    const estimatedSpend = avgDailySpend * totalDays;
+
+    acc.totalDays += totalDays;
+    acc.totalLoggedDays += activeDays;
+    acc.cleanDays += cleanDays;
+    acc.savingsFromCleanDays += Number(s.savings_from_clean_days || 0);
+    acc.estimatedSpend += estimatedSpend;
+    acc.quantityByVice.push({ vice, avgQuantityPerDay, totalDays });
+    return acc;
+  }, {
+    totalDays: 0,
+    totalLoggedDays: 0,
+    cleanDays: 0,
+    savingsFromCleanDays: 0,
+    estimatedSpend: 0,
+    quantityByVice: [],
+  });
+
+  return {
+    today: combinePeriod(vices, statsByVice, 'today'),
+    week: combinePeriod(vices, statsByVice, 'week'),
+    month: combinePeriod(vices, statsByVice, 'month'),
+    year: combinePeriod(vices, statsByVice, 'year'),
+    avg_daily_spend: totals.totalDays > 0 ? totals.estimatedSpend / totals.totalDays : 0,
+    total_logged_days: totals.totalLoggedDays,
+    clean_days: totals.cleanDays,
+    savings_from_clean_days: totals.savingsFromCleanDays,
+    quantityByVice: totals.quantityByVice,
+  };
+}
+
+function QuantityBreakdown({ period }) {
+  const items = period.byVice.filter(item => item.quantity > 0);
+  if (items.length === 0) return <span>0 across all vices</span>;
+
+  return (
+    <span>
+      {items.map(({ vice, quantity }) => formatQuantityWithUnit(quantity, vice)).join(' · ')}
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const api = useApi();
   const apiRef = useRef(api);
   apiRef.current = api;
 
-  const { vices, activeViceId } = useViceContext();
+  const { vices } = useViceContext();
   const [stats, setStats] = useState(null);
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const activeVice = vices.find(v => v.id === activeViceId);
-  const activeUnitLabel = getUnitLabel(activeVice);
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -42,23 +112,49 @@ export default function Dashboard() {
     : '#8e9a85';
 
   useEffect(() => {
-    if (!activeViceId) return;
+    if (vices.length === 0) {
+      setStats(null);
+      setLast7([]);
+      setRecentEntries([]);
+      return;
+    }
+
     setLoading(true);
     const dates = last7Dates();
     const from = dates[0], to = dates[6];
-    Promise.all([
-      apiRef.current(`/api/stats/${activeViceId}`),
-      apiRef.current(`/api/entries?vice_id=${activeViceId}&from=${from}&to=${to}`),
-      apiRef.current(`/api/entries?vice_id=${activeViceId}`),
-    ]).then(([s, weekEntries, allEntries]) => {
-      setStats(s);
-      const byDate = {};
-      weekEntries.forEach(e => { byDate[e.date.split('T')[0]] = e; });
-      setLast7(dates.map(d => ({ date: d, entry: byDate[d] || null })));
-      setRecentEntries(allEntries.slice(0, 10));
+
+    Promise.all(vices.map(async vice => {
+      const [statsForVice, weekEntries, allEntries] = await Promise.all([
+        apiRef.current(`/api/stats/${vice.id}`),
+        apiRef.current(`/api/entries?vice_id=${vice.id}&from=${from}&to=${to}`),
+        apiRef.current(`/api/entries?vice_id=${vice.id}`),
+      ]);
+      return { vice, statsForVice, weekEntries, allEntries };
+    })).then(results => {
+      const statsByVice = {};
+      const spendByDate = Object.fromEntries(dates.map(date => [date, 0]));
+      const allEntries = [];
+
+      results.forEach(({ vice, statsForVice, weekEntries, allEntries: entries }) => {
+        statsByVice[vice.id] = statsForVice;
+        weekEntries.forEach(entry => {
+          const date = entry.date.split('T')[0];
+          spendByDate[date] = (spendByDate[date] || 0) + Number(entry.quantity || 0) * Number(entry.price_per_unit || 0);
+        });
+        entries.forEach(entry => allEntries.push({ ...entry, vice }));
+      });
+
+      setStats(combineStats(vices, statsByVice));
+      setLast7(dates.map(date => ({ date, spend: spendByDate[date] || 0 })));
+      setRecentEntries(allEntries
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10));
       setLoading(false);
-    }).catch(console.error);
-  }, [activeViceId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chartData = {
     labels: last7.map(({ date }) => {
@@ -66,11 +162,9 @@ export default function Dashboard() {
       return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
     }),
     datasets: [{
-      label: activeUnitLabel,
-      data: last7.map(({ entry }) => entry ? Number(entry.quantity) : 0),
-      backgroundColor: last7.map(({ entry }) =>
-        entry && Number(entry.quantity) === 0 ? moneyColor : inkColor
-      ),
+      label: 'Combined spend',
+      data: last7.map(({ spend }) => Number(spend || 0)),
+      backgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? moneyColor : inkColor),
       borderRadius: 4,
     }]
   };
@@ -81,7 +175,7 @@ export default function Dashboard() {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: context => formatQuantityWithUnit(context.parsed.y, activeVice),
+          label: context => ` Combined spend: ${fmt$(context.parsed.y)}`,
         },
       },
     },
@@ -89,10 +183,7 @@ export default function Dashboard() {
       y: {
         beginAtZero: true,
         grid: { color: 'rgba(128,128,128,0.08)' },
-        ticks: {
-          color: inkColor,
-          callback: value => formatQuantityWithUnit(value, activeVice),
-        },
+        ticks: { color: inkColor, callback: value => fmt$(value) },
       },
       x: { grid: { display: false }, ticks: { color: inkColor } },
     }
@@ -111,27 +202,25 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="main" style={{ '--vice-c': activeVice?.color }}>
+    <main className="main">
       <div className="crumbs">
         <span>Vice Spending</span>
         <span className="sep">›</span>
-        <span className="here">Dashboard</span>
-        {activeVice && (
-          <span className="crumb-pill">
-            <span className="dot" />
-            {activeVice.emoji} {activeVice.name}
-          </span>
-        )}
+        <span className="here">Combined Dashboard</span>
+        <span className="crumb-pill">
+          <span className="dot" />
+          All vices
+        </span>
       </div>
 
       {loading ? <div className="loading">Loading…</div> : stats && (
         <>
           <div className="stats-strip">
             {[
-              { key: 'Today', p: stats.today },
-              { key: 'This week', p: stats.week },
-              { key: 'This month', p: stats.month },
-              { key: 'This year', p: stats.year },
+              { key: 'Today', p: stats.today || emptyPeriod() },
+              { key: 'This week', p: stats.week || emptyPeriod() },
+              { key: 'This month', p: stats.month || emptyPeriod() },
+              { key: 'This year', p: stats.year || emptyPeriod() },
             ].map(({ key, p }) => (
               <div key={key} className="stat">
                 <div className="stat-key">{key}</div>
@@ -139,7 +228,7 @@ export default function Dashboard() {
                   {'$' + Number(p.spend || 0).toFixed(0)}
                   <span className="small">.{Number(p.spend || 0).toFixed(2).split('.')[1]}</span>
                 </div>
-                <div className="stat-delta">{formatQuantityWithUnit(p.quantity, activeVice)}</div>
+                <div className="stat-delta"><QuantityBreakdown period={p} /></div>
               </div>
             ))}
           </div>
@@ -147,24 +236,22 @@ export default function Dashboard() {
           <div className="grid-2">
             <div className="panel">
               <div className="panel-head">
-                <span className="panel-title">Savings summary</span>
+                <span className="panel-title">Combined savings summary</span>
               </div>
               <div className="savings-rows">
                 <div className="savings-row"><span>Clean days logged</span><strong className="text-money">{stats.clean_days} days</strong></div>
                 <div className="savings-row"><span>Saved from clean days</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
-                <div className="savings-row"><span>Avg {activeUnitLabel}/day</span><strong>{formatQuantityWithUnit(stats.avg_quantity_per_day, activeVice)}</strong></div>
-                <div className="savings-row"><span>Avg price/{activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
                 <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-divider" />
-                <div className="savings-row"><span>Quit · 30 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 30)}</strong></div>
-                <div className="savings-row"><span>Quit · 90 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 90)}</strong></div>
-                <div className="savings-row"><span>Quit · 1 year</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 365)}</strong></div>
+                <div className="savings-row"><span>Quit all · 30 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 30)}</strong></div>
+                <div className="savings-row"><span>Quit all · 90 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 90)}</strong></div>
+                <div className="savings-row"><span>Quit all · 1 year</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 365)}</strong></div>
               </div>
             </div>
 
             <div className="panel">
               <div className="panel-head">
-                <span className="panel-title">Last 7 days</span>
+                <span className="panel-title">Last 7 days · combined spend</span>
               </div>
               <div style={{ height: 220 }}>
                 <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
@@ -175,20 +262,25 @@ export default function Dashboard() {
           <div className="grid-2">
             <div className="panel">
               <div className="panel-head">
-                <span className="panel-title">Averages</span>
+                <span className="panel-title">Per-vice averages</span>
               </div>
               <div className="savings-rows">
-                <div className="savings-row"><span>Per {activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
-                <div className="savings-row"><span>{activeUnitLabel}/day</span><strong>{formatQuantityWithUnit(stats.avg_quantity_per_day, activeVice)}</strong></div>
-                <div className="savings-row"><span>Daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
+                {stats.quantityByVice.map(({ vice, avgQuantityPerDay }) => (
+                  <div className="savings-row" key={vice.id}>
+                    <span>{vice.emoji} {vice.name}/day</span>
+                    <strong>{formatQuantityWithUnit(avgQuantityPerDay, vice)}</strong>
+                  </div>
+                ))}
+                <div className="savings-divider" />
                 <div className="savings-row"><span>Total clean days</span><strong className="text-money">{stats.clean_days}</strong></div>
                 <div className="savings-row"><span>Active days logged</span><strong>{stats.total_logged_days}</strong></div>
+                <p className="text-muted" style={{ margin: 0 }}>Detailed metrics for each vice live under the Vices tab.</p>
               </div>
             </div>
 
             <div className="panel">
               <div className="panel-head">
-                <span className="panel-title">Recent entries</span>
+                <span className="panel-title">Recent entries · all vices</span>
               </div>
               {recentEntries.length === 0 ? (
                 <p className="text-muted">No entries yet — go to Log to add one.</p>
@@ -198,18 +290,18 @@ export default function Dashboard() {
                     const isClean = Number(e.quantity) === 0;
                     const d = new Date((e.date + '').split('T')[0] + 'T00:00:00');
                     return (
-                      <div key={e.id} className={`entry-item ${isClean ? 'clean' : ''}`}>
+                      <div key={`${e.vice.id}-${e.id}`} className={`entry-item ${isClean ? 'clean' : ''}`}>
                         <span className="entry-date">
                           {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                         {isClean ? (
                           <>
-                            <span className="text-money entry-label">Clean day</span>
+                            <span className="text-money entry-label">{e.vice.emoji} {e.vice.name} · Clean day</span>
                             <span className="text-money entry-saved">saved {fmt$(stats.avg_daily_spend)}</span>
                           </>
                         ) : (
                           <>
-                            <span className="entry-qty">{formatQuantityWithUnit(e.quantity, activeVice)}</span>
+                            <span className="entry-qty">{e.vice.emoji} {formatQuantityWithUnit(e.quantity, e.vice)}</span>
                             <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
                           </>
                         )}
@@ -223,9 +315,9 @@ export default function Dashboard() {
         </>
       )}
 
-      {!loading && !stats && activeViceId && (
+      {!loading && !stats && vices.length > 0 && (
         <div className="empty-state">
-          <div className="empty-icon">{activeVice?.emoji || '📊'}</div>
+          <div className="empty-icon">📊</div>
           <h2>No entries yet</h2>
           <p>Start logging on the <a href="/log">Log</a> page.</p>
         </div>

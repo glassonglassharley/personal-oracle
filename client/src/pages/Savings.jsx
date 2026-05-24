@@ -75,20 +75,35 @@ function fmtBig(n) {
 
 export default function Savings() {
   const api = useApi();
-  const { vices, activeViceId } = useViceContext();
+  const { vices } = useViceContext();
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [horizon, setHorizon] = useState(365);
 
-  const activeVice = vices.find(v => v.id === activeViceId);
-
   useEffect(() => {
-    if (!activeViceId) return;
+    if (vices.length === 0) {
+      setData(null);
+      return;
+    }
+
     setLoading(true);
-    api(`/api/savings/${activeViceId}?days=1825`)
-      .then(d => { setData(d); setLoading(false); })
+    Promise.all(vices.map(async vice => {
+      const savings = await api(`/api/savings/${vice.id}?days=1825`);
+      return { vice, savings };
+    }))
+      .then(results => {
+        const perDay = results.reduce((sum, { savings }) => sum + Number(savings.per_day || 0), 0);
+        setData({
+          days: 1825,
+          per_day: perDay,
+          per_week: perDay * 7,
+          per_month: perDay * 30.44,
+          byVice: results,
+        });
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  }, [activeViceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
@@ -175,19 +190,17 @@ export default function Savings() {
       <div className="crumbs">
         <span>Vice Spending</span>
         <span className="sep">›</span>
-        <span className="here">Savings</span>
-        {activeVice && (
-          <span className="crumb-pill" style={{ '--vice-c': activeVice.color }}>
-            <span className="dot" />
-            {activeVice.emoji} {activeVice.name}
-          </span>
-        )}
+        <span className="here">Combined Savings</span>
+        <span className="crumb-pill">
+          <span className="dot" />
+          All vices
+        </span>
       </div>
 
       {/* ── Hero ── */}
       <div className="sv-hero">
         <div className="sv-hero-eyebrow">
-          If you quit <em>{activeVice?.name || 'this vice'}</em> for
+          If you quit <em>all tracked vices</em> for
         </div>
         <div className="sv-horizon-row">
           {MILESTONES.map(m => (
@@ -221,6 +234,15 @@ export default function Savings() {
                 <span className="sv-chip-lbl">per month</span>{fmt$2(perDay * 30.44)}
               </span>
             </div>
+            {data?.byVice?.length > 0 && (
+              <div className="sv-chips" style={{ marginTop: 12 }}>
+                {data.byVice.map(({ vice, savings }) => (
+                  <span key={vice.id} className="sv-chip">
+                    <span className="sv-chip-lbl">{vice.emoji} {vice.name}</span>{fmt$2(savings.per_day)}/day
+                  </span>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

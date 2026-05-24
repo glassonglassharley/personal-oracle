@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ClerkProvider, SignedIn, SignedOut, SignIn, UserButton } from '@clerk/clerk-react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import LogEntry from './pages/LogEntry';
 import Savings from './pages/Savings';
@@ -90,7 +90,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, vices, activeViceId
   );
 }
 
-function MobileTopBar({ activeVice, mobileOpen, setMobileOpen }) {
+function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
   return (
     <header className="mobile-topbar">
       <button
@@ -107,9 +107,7 @@ function MobileTopBar({ activeVice, mobileOpen, setMobileOpen }) {
         <span className="brand-mark">◈</span>
         <div>
           <div className="mobile-brand-name">Vice Spending</div>
-          {activeVice && (
-            <div className="mobile-vice-name">{activeVice.emoji} {activeVice.name}</div>
-          )}
+          {subtitle && <div className="mobile-vice-name">{subtitle}</div>}
         </div>
       </div>
       <UserButton afterSignOutUrl="/" />
@@ -119,6 +117,7 @@ function MobileTopBar({ activeVice, mobileOpen, setMobileOpen }) {
 
 function AuthenticatedApp() {
   const api = useApi();
+  const location = useLocation();
   const apiRef = useRef(api);
   apiRef.current = api;
 
@@ -155,11 +154,14 @@ function AuthenticatedApp() {
 
   const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices };
   const activeVice = vices.find(v => v.id === activeViceId);
+  const mobileSubtitle = location.pathname === '/log' && activeVice
+    ? `${activeVice.emoji} ${activeVice.name}`
+    : 'All vices';
 
   return (
     <ViceContext.Provider value={ctx}>
       <div className={`shell${collapsed ? ' collapsed' : ''}`}>
-        <MobileTopBar activeVice={activeVice} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <MobileTopBar subtitle={mobileSubtitle} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
         {mobileOpen && <button className="mobile-menu-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
         <Sidebar
           theme={theme}
