@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard';
 import LogEntry from './pages/LogEntry';
 import Savings from './pages/Savings';
 import ViceManager from './pages/ViceManager';
+import Partners from './pages/Partners';
+import Support from './pages/Support';
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
@@ -15,6 +17,8 @@ const NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
+  { to: '/partners', label: 'Partners' },
+  { to: '/support', label: 'Support' },
 ];
 
 function AccountControl({ collapsed = false }) {
@@ -178,6 +182,8 @@ function AuthenticatedApp() {
           <Route path="/log" element={<LogEntry />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/vices" element={<ViceManager />} />
+          <Route path="/partners" element={<Partners />} />
+          <Route path="/support" element={<Support />} />
         </Routes>
       </div>
     </ViceContext.Provider>

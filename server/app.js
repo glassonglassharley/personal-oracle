@@ -36,7 +36,8 @@ app.use('/api/users',   require('./routes/users'));
 app.use('/api/vices',   require('./routes/vices'));
 app.use('/api/entries', require('./routes/entries'));
 app.use('/api/stats',   require('./routes/stats'));
-app.use('/api/savings', require('./routes/savings'));
+app.use('/api/savings',  require('./routes/savings'));
+app.use('/api/partners', require('./routes/partners'));
 
 app.use((err, req, res, next) => {
   console.error(err);

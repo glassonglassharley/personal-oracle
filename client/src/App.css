@@ -1064,6 +1064,99 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .form-textarea::placeholder { color: var(--ink-4); }
 .entry-note { font-size: 11px; color: var(--ink-3); font-style: italic; margin-top: 2px; padding: 0 4px; }
 
+/* ── Partners page ───────────────────────────────── */
+.ap-flash {
+  padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  margin-bottom: 16px;
+}
+.ap-flash-ok  { background: var(--money-soft); color: var(--money); border: 1px solid var(--money); }
+.ap-flash-err { background: color-mix(in srgb, var(--warn) 12%, transparent); color: var(--warn); border: 1px solid var(--warn); }
+
+.ap-search-results { display: flex; flex-direction: column; gap: 3px; }
+.ap-search-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 8px; background: var(--paper-3);
+}
+
+.ap-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: color-mix(in srgb, var(--money) 14%, var(--paper-3));
+  border: 1px solid var(--rule-2);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600; color: var(--money);
+}
+.ap-avatar.large { width: 48px; height: 48px; font-size: 16px; }
+
+.ap-name { font-size: 14px; font-weight: 500; color: var(--ink); flex: 1; }
+.ap-vices { display: flex; gap: 4px; flex-wrap: wrap; font-size: 16px; margin-top: 3px; }
+.ap-meta { font-size: 11px; color: var(--ink-3); font-family: var(--mono); margin-top: 2px; }
+
+.ap-tag {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--money-soft); color: var(--money);
+}
+.ap-tag.muted { background: var(--paper-3); color: var(--ink-3); border: 1px solid var(--rule-2); }
+
+.ap-list { display: flex; flex-direction: column; gap: 4px; }
+.ap-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px; background: var(--paper-3);
+}
+.ap-info { flex: 1; min-width: 0; }
+.ap-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.ap-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.ap-card {
+  border: 1px solid var(--rule); border-radius: 12px;
+  background: var(--paper-3); padding: 18px;
+}
+.ap-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.ap-card-info { flex: 1; min-width: 0; }
+
+.ap-stats {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--rule); padding-top: 14px; gap: 12px;
+}
+.ap-stat-val {
+  font-family: var(--serif); font-size: 26px; font-weight: 400;
+  letter-spacing: -0.02em; color: var(--money); font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.ap-stat-key {
+  font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-top: 4px; font-weight: 500;
+}
+
+/* ── Support page ────────────────────────────────── */
+.sup-steps { display: flex; flex-direction: column; }
+.sup-step {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 16px 0; border-top: 1px solid var(--rule);
+}
+.sup-step:first-of-type { border-top: none; padding-top: 0; }
+.sup-step-num {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: var(--money-soft); border: 1px solid var(--money);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--money);
+}
+.sup-step-title { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.sup-step-body { font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+
+.faq-list { display: flex; flex-direction: column; }
+.faq-item { border-top: 1px solid var(--rule); }
+.faq-item:first-of-type { border-top: none; }
+.faq-q {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; font-size: 14px; font-weight: 500; color: var(--ink);
+  text-align: left; gap: 12px; background: none; transition: color 0.12s;
+}
+.faq-q:hover { color: var(--money); }
+.faq-chevron { font-size: 20px; color: var(--ink-3); flex-shrink: 0; line-height: 1; font-family: var(--mono); }
+.faq-item.open .faq-chevron { color: var(--money); }
+.faq-a { padding: 0 0 16px; font-size: 13.5px; color: var(--ink-3); line-height: 1.65; }
+
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 940px) {
   .auth-page {

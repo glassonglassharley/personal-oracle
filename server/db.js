@@ -32,6 +32,15 @@ const SCHEMA = `
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (vice_id, date)
   );
+
+  CREATE TABLE IF NOT EXISTS friendships (
+    id SERIAL PRIMARY KEY,
+    requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (requester_id, addressee_id)
+  );
 `;
 
 pool.query(SCHEMA)
