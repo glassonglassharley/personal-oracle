@@ -494,6 +494,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .form-input:focus, .form-select:focus { border-color: var(--money); background: var(--paper-2); }
 .form-input::placeholder { color: var(--ink-4); }
 .log-form { display: flex; flex-direction: column; gap: 16px; }
+.log-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .log-total { font-size: 14px; color: var(--ink-3); padding: 4px 0; }
 .save-msg { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .save-msg-clean { color: var(--money); }
@@ -503,13 +504,21 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .entry-item {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px;
   border-radius: 8px; font-size: 13px; background: var(--paper-3);
+  border: 1px solid transparent;
 }
 .entry-item.clean { background: color-mix(in srgb, var(--good) 10%, transparent); }
+.entry-item.editing { border-color: var(--money); box-shadow: 0 0 0 2px var(--money-soft); }
 .entry-date { font-weight: 600; min-width: 52px; color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
 .entry-qty { flex: 1; }
 .entry-spend { font-weight: 600; font-family: var(--mono); }
 .entry-label { flex: 1; }
 .entry-saved { font-weight: 600; color: var(--money); }
+.entry-edit-btn {
+  margin-left: auto; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--rule-2); color: var(--ink-3);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.entry-edit-btn:hover { color: var(--ink); background: var(--paper-2); border-color: var(--money); }
 
 /* ── Old stat cards (Dashboard) ──────────────────── */
 .stat-card {

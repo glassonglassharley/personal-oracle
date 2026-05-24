@@ -4,7 +4,6 @@ import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
-const fmtQ = n => Number(n || 0) % 1 === 0 ? String(Number(n || 0)) : Number(n || 0).toFixed(1);
 
 export default function LogEntry() {
   const api = useApi();
@@ -15,9 +14,18 @@ export default function LogEntry() {
   const [quantity, setQuantity] = useState(0);
   const [pricePerUnit, setPricePerUnit] = useState('');
   const [recentEntries, setRecentEntries] = useState([]);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [initialized, setInitialized] = useState(false);
+
+  const loadRecentEntries = viceId => {
+    if (!viceId) return Promise.resolve();
+    return api(`/api/entries?vice_id=${viceId}`)
+      .then(data => setRecentEntries(data.slice(0, 7)))
+      .catch(console.error);
+  };
 
   // Init selected vice from context once vices are available
   useEffect(() => {
@@ -31,11 +39,11 @@ export default function LogEntry() {
 
   useEffect(() => {
     if (!selectedViceId) return;
-    const vice = vices.find(v => String(v.id) === String(selectedViceId));
-    if (vice) setPricePerUnit(vice.default_price);
-    api(`/api/entries?vice_id=${selectedViceId}`)
-      .then(data => setRecentEntries(data.slice(0, 7)))
-      .catch(console.error);
+    if (!editingEntry) {
+      const vice = vices.find(v => String(v.id) === String(selectedViceId));
+      if (vice) setPricePerUnit(vice.default_price);
+    }
+    loadRecentEntries(selectedViceId);
   }, [selectedViceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeVice = vices.find(v => String(v.id) === String(selectedViceId));
@@ -44,26 +52,60 @@ export default function LogEntry() {
   const handleSubmit = async e => {
     e.preventDefault();
     setSaving(true);
+    setErrorMsg('');
     try {
-      await api('/api/entries', {
-        method: 'POST',
-        body: JSON.stringify({
-          vice_id: Number(selectedViceId),
-          date,
-          quantity: Number(quantity),
-          price_per_unit: Number(pricePerUnit),
-        }),
+      const payload = {
+        vice_id: Number(selectedViceId),
+        date,
+        quantity: Number(quantity),
+        price_per_unit: Number(pricePerUnit),
+      };
+      await api(editingEntry ? `/api/entries/${editingEntry.id}` : '/api/entries', {
+        method: editingEntry ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
       });
-      const msg = Number(quantity) === 0 ? 'Clean day logged!' : 'Entry saved!';
+      const msg = editingEntry
+        ? 'Entry updated!'
+        : Number(quantity) === 0 ? 'Clean day logged!' : 'Entry saved!';
       setSavedMsg(msg);
       setTimeout(() => setSavedMsg(''), 2500);
-      api(`/api/entries?vice_id=${selectedViceId}`)
-        .then(data => setRecentEntries(data.slice(0, 7)));
+      setEditingEntry(null);
+      loadRecentEntries(selectedViceId);
     } catch (err) {
       console.error(err);
+      setErrorMsg(err.message || 'Could not save entry.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleViceChange = e => {
+    const nextViceId = e.target.value;
+    setSelectedViceId(nextViceId);
+    if (!editingEntry) {
+      const vice = vices.find(v => String(v.id) === String(nextViceId));
+      if (vice) setPricePerUnit(vice.default_price);
+    }
+  };
+
+  const startEdit = entry => {
+    const entryDate = String(entry.date || '').split('T')[0];
+    setEditingEntry(entry);
+    setSelectedViceId(String(entry.vice_id));
+    setDate(entryDate);
+    setQuantity(Number(entry.quantity || 0));
+    setPricePerUnit(entry.price_per_unit ?? '');
+    setSavedMsg('');
+    setErrorMsg('');
+  };
+
+  const cancelEdit = () => {
+    setEditingEntry(null);
+    setDate(new Date().toISOString().split('T')[0]);
+    setQuantity(0);
+    const vice = vices.find(v => String(v.id) === String(selectedViceId));
+    if (vice) setPricePerUnit(vice.default_price);
+    setErrorMsg('');
   };
 
   if (vices.length === 0) {
@@ -90,6 +132,10 @@ export default function LogEntry() {
 
       <div className="grid-log">
         <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">{editingEntry ? 'Edit Entry' : 'New Entry'}</span>
+            {editingEntry && <span className="panel-sub">Editing {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+          </div>
           <form onSubmit={handleSubmit} className="log-form">
             <div className="form-group">
               <label className="form-label">Date</label>
@@ -101,7 +147,7 @@ export default function LogEntry() {
             <div className="form-group">
               <label className="form-label">Vice</label>
               <select className="form-select" value={selectedViceId}
-                onChange={e => setSelectedViceId(e.target.value)}>
+                onChange={handleViceChange}>
                 {vices.map(v => (
                   <option key={v.id} value={v.id}>{v.emoji} {v.name}</option>
                 ))}
@@ -131,9 +177,18 @@ export default function LogEntry() {
               </div>
             )}
 
-            <button type="submit" className="btn" disabled={saving || !selectedViceId}>
-              {saving ? 'Saving…' : Number(quantity) === 0 ? 'Log Clean Day' : 'Save Entry'}
-            </button>
+            <div className="log-actions">
+              <button type="submit" className="btn" disabled={saving || !selectedViceId}>
+                {saving ? 'Saving…' : editingEntry ? 'Update Entry' : Number(quantity) === 0 ? 'Log Clean Day' : 'Save Entry'}
+              </button>
+              {editingEntry && (
+                <button type="button" className="btn ghost" onClick={cancelEdit} disabled={saving}>
+                  Cancel edit
+                </button>
+              )}
+            </div>
+
+            {errorMsg && <div className="form-error">{errorMsg}</div>}
 
             {savedMsg && (
               <div className={`save-msg${savedMsg.includes('Clean') ? ' save-msg-clean' : ''}`}>
@@ -155,18 +210,21 @@ export default function LogEntry() {
                 const isClean = Number(e.quantity) === 0;
                 const d = new Date((e.date + '').split('T')[0] + 'T00:00:00');
                 return (
-                  <div key={e.id} className={`entry-item ${isClean ? 'clean' : ''}`}>
+                  <div key={e.id} className={`entry-item ${isClean ? 'clean' : ''}${editingEntry?.id === e.id ? ' editing' : ''}`}>
                     <span className="entry-date">
                       {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     {isClean ? (
-                      <span className="text-money">Clean day</span>
+                      <span className="text-money entry-label">Clean day</span>
                     ) : (
                       <>
                         <span className="entry-qty">{formatQuantityWithUnit(e.quantity, activeVice)}</span>
                         <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
                       </>
                     )}
+                    <button type="button" className="entry-edit-btn" onClick={() => startEdit(e)}>
+                      Edit
+                    </button>
                   </div>
                 );
               })}
