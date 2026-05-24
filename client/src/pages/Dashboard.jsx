@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -211,6 +212,17 @@ export default function Dashboard() {
           <span className="dot" />
           All vices
         </span>
+      </div>
+
+      <div className="dashboard-head">
+        <div>
+          <div className="page-title">Dashboard</div>
+          <p className="page-subtitle">Combined overview across every tracked vice.</p>
+        </div>
+        <Link className="btn dashboard-log-btn" to="/log">
+          <span>＋</span>
+          Log Entry
+        </Link>
       </div>
 
       {loading ? <div className="loading">Loading…</div> : stats && (

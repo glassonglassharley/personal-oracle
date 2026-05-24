@@ -13,7 +13,6 @@ const THEMES = ['emerald', 'mint', 'plum', 'noir'];
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/log', label: 'Log Entry' },
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
 ];
