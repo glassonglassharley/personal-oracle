@@ -38,6 +38,14 @@ body.theme-noir {
   --warn: #e07a5e; --good: #5ec48a;
   --shadow: 0 1px 0 rgba(236,232,220,0.04) inset, 0 12px 30px rgba(0,0,0,0.40);
 }
+body.theme-red {
+  --paper: #1f0a0a; --paper-2: #2a1111; --paper-3: #381818;
+  --ink: #fff0ec; --ink-2: #f0c7bd; --ink-3: #b78278; --ink-4: #70413c;
+  --rule: rgba(255,240,236,0.08); --rule-2: rgba(255,240,236,0.20);
+  --money: #ff5a4f; --money-2: #c92f2f; --money-soft: rgba(255,90,79,0.14);
+  --warn: #ffb057; --good: #ff7a6f;
+  --shadow: 0 1px 0 rgba(255,240,236,0.04) inset, 0 12px 30px rgba(0,0,0,0.42);
+}
 
 /* ── Reset ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -605,6 +613,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .theme-dot-mint    { background: #52b788; }
 .theme-dot-plum    { background: #9c6fae; }
 .theme-dot-noir    { background: #6b7280; }
+.theme-dot-red     { background: #ff5a4f; }
 
 /* ── Auth page ───────────────────────────────────── */
 .auth-page {
