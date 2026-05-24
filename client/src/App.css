@@ -722,7 +722,13 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .auth-divider::before,
 .auth-divider::after { content: ""; flex: 1; height: 1px; background: rgba(12,42,31,0.12); }
-.clerk-frame { display: grid; place-items: center; }
+.clerk-frame {
+  display: grid; place-items: start center;
+  min-height: 430px;
+  width: 100%;
+  overflow-anchor: none;
+  contain: layout paint;
+}
 .clerk-frame :is(.clerk-root-box, .cl-rootBox) { width: 100%; }
 .clerk-frame :is(.clerk-card-box, .cl-card) {
   width: 100%; box-shadow: none !important; border: 1px solid rgba(12,42,31,0.10) !important;
@@ -1427,15 +1433,26 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: auto;
     touch-action: pan-y;
+    background: linear-gradient(180deg, #07120e 0%, #0d2017 54%, #050706 100%);
   }
+  .auth-bg { display: none; }
   .auth-shell {
     width: 100%;
     border-radius: 22px;
     padding: 8px;
     gap: 10px;
+    background: rgba(10,31,23,0.78);
+    box-shadow: none;
+    backdrop-filter: none;
   }
-  .auth-card-panel { padding: 22px; min-height: auto; }
+  .auth-hero-panel {
+    overflow: visible;
+    contain: layout paint;
+  }
+  .auth-hero-panel::after { display: none; }
+  .auth-card-panel { padding: 22px; min-height: auto; contain: layout paint; }
   .auth-card-panel .form-input { font-size: 16px; }
+  .clerk-frame { min-height: 520px; contain: layout paint; }
   .auth-feature-grid { grid-template-columns: 1fr; }
   .demo-card-top { flex-direction: column-reverse; align-items: flex-start; }
   .demo-login-row { grid-template-columns: 1fr; }
