@@ -325,14 +325,20 @@ function AuthenticatedApp() {
 }
 
 function WalletSignIn() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const clerk = useClerk();
+  const { isLoaded, setActive } = useSignIn();
   const [activeWallet, setActiveWallet] = useState('');
   const [error, setError] = useState('');
 
+  const walletRedirects = () => {
+    const url = typeof window !== 'undefined' ? window.location.href : '/';
+    return { redirectUrl: url, signUpContinueUrl: url };
+  };
+
   const wallets = [
-    { key: 'phantom', label: 'Phantom', sub: 'Solana wallet', icon: '◈', action: () => signIn.authenticateWithSolana({ walletName: 'phantom' }) },
-    { key: 'metamask', label: 'MetaMask', sub: 'Ethereum wallet', icon: '🦊', action: () => signIn.authenticateWithMetamask() },
-    { key: 'base', label: 'Base Wallet', sub: 'Coinbase wallet', icon: '◎', action: () => signIn.authenticateWithBase() },
+    { key: 'phantom', label: 'Phantom', sub: 'Solana wallet', icon: '◈', action: () => clerk.authenticateWithSolana({ walletName: 'Phantom', ...walletRedirects() }) },
+    { key: 'metamask', label: 'MetaMask', sub: 'Ethereum wallet', icon: '🦊', action: () => clerk.authenticateWithMetamask(walletRedirects()) },
+    { key: 'base', label: 'Base Wallet', sub: 'Coinbase wallet', icon: '◎', action: () => clerk.authenticateWithBase(walletRedirects()) },
   ];
 
   const connect = async wallet => {
@@ -341,11 +347,13 @@ function WalletSignIn() {
     setActiveWallet(wallet.key);
     try {
       const result = await wallet.action();
-      if (result.status === 'complete' && result.createdSessionId) {
+      if (result?.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         return;
       }
-      setError('Wallet connected, but sign-in needs one more step. Try email sign-in below if this keeps happening.');
+      if (result?.status && result.status !== 'complete') {
+        setError('Wallet connected, but sign-in needs one more step. Try email sign-in below if this keeps happening.');
+      }
     } catch (err) {
       setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || `Could not connect ${wallet.label}.`);
     } finally {
