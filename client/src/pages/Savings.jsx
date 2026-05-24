@@ -106,6 +106,26 @@ const BUYS = [
   { label: '10-year milestone',  sub: 'A decade of clean living',      cost: 36500 },
 ];
 
+const CUSTOM_GOALS_KEY = 'viceTracker.customSavingsGoals.v1';
+
+function normalizeCustomGoals(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((goal, index) => {
+      const label = String(goal?.label || '').trim().slice(0, 60);
+      const cost = Number(goal?.cost);
+      if (!label || !Number.isFinite(cost) || cost <= 0) return null;
+      return {
+        id: String(goal?.id || `custom-${index}`),
+        label,
+        sub: 'Custom savings goal',
+        cost,
+        custom: true,
+      };
+    })
+    .filter(Boolean);
+}
+
 function dcaFV(dailyPMT, annualRate, days) {
   const r = annualRate / 365;
   if (r === 0 || days === 0) return dailyPMT * days;
@@ -126,6 +146,16 @@ export default function Savings() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [horizon, setHorizon] = useState(365);
+  const [customGoals, setCustomGoals] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return normalizeCustomGoals(JSON.parse(window.localStorage.getItem(CUSTOM_GOALS_KEY) || '[]'));
+    } catch {
+      return [];
+    }
+  });
+  const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
+  const [customGoalError, setCustomGoalError] = useState('');
 
   useEffect(() => {
     if (vices.length === 0) {
@@ -151,6 +181,43 @@ export default function Savings() {
       })
       .catch(() => setLoading(false));
   }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(CUSTOM_GOALS_KEY, JSON.stringify(customGoals));
+  }, [customGoals]);
+
+  const handleCustomGoalSubmit = event => {
+    event.preventDefault();
+    const label = customGoalForm.label.trim();
+    const cost = Number(customGoalForm.cost);
+
+    if (!label) {
+      setCustomGoalError('Name the thing you want to compare.');
+      return;
+    }
+    if (!Number.isFinite(cost) || cost <= 0) {
+      setCustomGoalError('Enter a valid dollar amount.');
+      return;
+    }
+
+    setCustomGoals(goals => [
+      ...goals,
+      {
+        id: `custom-${Date.now()}`,
+        label: label.slice(0, 60),
+        sub: 'Custom savings goal',
+        cost,
+        custom: true,
+      },
+    ]);
+    setCustomGoalForm({ label: '', cost: '' });
+    setCustomGoalError('');
+  };
+
+  const removeCustomGoal = id => {
+    setCustomGoals(goals => goals.filter(goal => goal.id !== id));
+  };
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
@@ -217,8 +284,17 @@ export default function Savings() {
       .toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
   }));
 
-  const affordable = BUYS.filter(b => b.cost <= projected).slice(-6);
-  const nextItems  = BUYS.filter(b => b.cost > projected).slice(0, 3);
+  const allBuyComparisons = [...BUYS, ...customGoals].sort((a, b) => a.cost - b.cost);
+  const affordable = allBuyComparisons.filter(b => b.cost <= projected).slice(-6);
+  const nextItems  = allBuyComparisons.filter(b => b.cost > projected).slice(0, 3);
+  const customGoalCards = customGoals
+    .map(goal => {
+      const savedPct = goal.cost > 0 ? Math.min(100, (projected / goal.cost) * 100) : 0;
+      const remaining = Math.max(0, goal.cost - projected);
+      const daysAway = perDay > 0 && remaining > 0 ? Math.ceil(remaining / perDay) : 0;
+      return { ...goal, savedPct, remaining, daysAway };
+    })
+    .sort((a, b) => a.cost - b.cost);
   const investmentCards = ASSETS
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
@@ -380,14 +456,63 @@ export default function Savings() {
               {fmt$2(perDay)}/day × {horizon} days = {fmt$0(projected)}
             </span>
           </div>
+
+          <form className="sv-custom-goal-form" onSubmit={handleCustomGoalSubmit}>
+            <div>
+              <div className="sv-custom-goal-title">Track your own opportunity cost</div>
+              <div className="sv-custom-goal-copy">Add anything you want to compare against your avoided vice spending.</div>
+            </div>
+            <input
+              className="form-input"
+              type="text"
+              value={customGoalForm.label}
+              onChange={event => setCustomGoalForm(form => ({ ...form, label: event.target.value }))}
+              placeholder="Thing to save for"
+              maxLength={60}
+            />
+            <input
+              className="form-input"
+              type="number"
+              min="1"
+              step="1"
+              value={customGoalForm.cost}
+              onChange={event => setCustomGoalForm(form => ({ ...form, cost: event.target.value }))}
+              placeholder="Cost"
+            />
+            <button className="btn" type="submit">Add</button>
+            {customGoalError && <div className="form-error sv-custom-goal-error">{customGoalError}</div>}
+          </form>
+
+          {customGoalCards.length > 0 && (
+            <div className="sv-custom-goals">
+              {customGoalCards.map(goal => (
+                <div key={goal.id} className="sv-custom-goal-card">
+                  <div className="sv-custom-goal-main">
+                    <div className="sv-buy-name">{goal.label}</div>
+                    <div className="sv-buy-sub">
+                      {goal.remaining === 0
+                        ? 'Within reach now'
+                        : `${fmt$0(goal.remaining)} away${goal.daysAway ? ` • about ${goal.daysAway} more days` : ''}`}
+                    </div>
+                    <div className="sv-custom-progress"><span style={{ width: `${goal.savedPct}%` }} /></div>
+                  </div>
+                  <div className="sv-custom-goal-side">
+                    <div className="sv-buy-cost">{fmt$0(goal.cost)}</div>
+                    <button className="sv-custom-delete" type="button" onClick={() => removeCustomGoal(goal.id)} aria-label={`Remove ${goal.label}`}>×</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="sv-buys">
             {affordable.length > 0 && (
               <div className="sv-buys-group">
                 <div className="sv-buys-label">✓ Within reach</div>
                 {affordable.map(b => (
-                  <div key={b.label} className="sv-buy sv-buy-yes">
+                  <div key={b.id || b.label} className="sv-buy sv-buy-yes">
                     <div>
-                      <div className="sv-buy-name">{b.label}</div>
+                      <div className="sv-buy-name">{b.label}{b.custom && <span className="sv-custom-pill">Custom</span>}</div>
                       <div className="sv-buy-sub">{b.sub}</div>
                     </div>
                     <div className="sv-buy-cost">{fmt$0(b.cost)}</div>
@@ -399,9 +524,9 @@ export default function Savings() {
               <div className="sv-buys-group">
                 <div className="sv-buys-label">Almost there…</div>
                 {nextItems.map(b => (
-                  <div key={b.label} className="sv-buy sv-buy-soon">
+                  <div key={b.id || b.label} className="sv-buy sv-buy-soon">
                     <div>
-                      <div className="sv-buy-name">{b.label}</div>
+                      <div className="sv-buy-name">{b.label}{b.custom && <span className="sv-custom-pill">Custom</span>}</div>
                       <div className="sv-buy-sub">{b.sub}</div>
                     </div>
                     <div className="sv-buy-cost sv-buy-cost-locked">{fmt$0(b.cost)}</div>

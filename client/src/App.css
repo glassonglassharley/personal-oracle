@@ -805,6 +805,42 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   color: var(--money); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .sv-buy-cost-locked { color: var(--ink-4); }
+.sv-custom-goal-form {
+  display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 1fr) 120px auto;
+  gap: 10px; align-items: end;
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 14px; padding: 16px; margin-bottom: 18px;
+}
+.sv-custom-goal-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.sv-custom-goal-copy { margin-top: 2px; font-size: 11.5px; color: var(--ink-3); line-height: 1.4; }
+.sv-custom-goal-error { grid-column: 1 / -1; }
+.sv-custom-goals { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+.sv-custom-goal-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+  background: color-mix(in srgb, var(--money) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--money) 20%, transparent);
+  border-radius: 12px; padding: 14px 16px;
+}
+.sv-custom-goal-main { min-width: 0; }
+.sv-custom-goal-side { display: flex; align-items: center; gap: 12px; }
+.sv-custom-progress {
+  height: 5px; background: var(--rule); border-radius: 999px; overflow: hidden; margin-top: 10px;
+}
+.sv-custom-progress span {
+  display: block; height: 100%; background: var(--money); border-radius: inherit;
+}
+.sv-custom-delete {
+  width: 28px; height: 28px; border-radius: 999px;
+  border: 1px solid var(--rule-2); color: var(--ink-3); background: var(--paper);
+  font-size: 18px; line-height: 1;
+}
+.sv-custom-delete:hover { color: var(--warn); border-color: var(--warn); }
+.sv-custom-pill {
+  display: inline-flex; margin-left: 8px; vertical-align: 1px;
+  padding: 2px 6px; border-radius: 999px;
+  background: var(--money-soft); color: var(--money);
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+}
 
 /* ── Insights page ───────────────────────────────── */
 .insights-chat {
@@ -1006,6 +1042,9 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .vice-stats-row { flex-wrap: wrap; gap: 8px 14px; }
   .sv-ms-grid { grid-template-columns: repeat(2,1fr); }
   .sv-invest-grid { grid-template-columns: 1fr; }
+  .sv-custom-goal-form { grid-template-columns: 1fr; align-items: stretch; }
+  .sv-custom-goal-card { grid-template-columns: 1fr; }
+  .sv-custom-goal-side { justify-content: space-between; }
   .sv-big-num { font-size: clamp(54px, 15vw, 82px); }
   .sv-dollar  { font-size: 38px; }
   .sv-chart-wrap { height: 220px; padding: 16px; }
