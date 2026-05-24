@@ -62,6 +62,14 @@ body.theme-pink {
   --warn: #ff996f; --good: #ff8fc5;
   --shadow: 0 1px 0 rgba(255,240,247,0.04) inset, 0 12px 30px rgba(0,0,0,0.42);
 }
+body.theme-neon {
+  --paper: #020403; --paper-2: #061008; --paper-3: #0b1b0f;
+  --ink: #efffee; --ink-2: #c8ffc3; --ink-3: #71c96d; --ink-4: #2f6b35;
+  --rule: rgba(57,255,20,0.12); --rule-2: rgba(57,255,20,0.30);
+  --money: #39ff14; --money-2: #00d12f; --money-soft: rgba(57,255,20,0.18);
+  --warn: #ff4f6d; --good: #39ff14;
+  --shadow: 0 1px 0 rgba(57,255,20,0.08) inset, 0 14px 34px rgba(0,0,0,0.58), 0 0 28px rgba(57,255,20,0.08);
+}
 
 /* ── Reset ───────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -677,6 +685,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .theme-dot-red     { background: #ff5a4f; }
 .theme-dot-orange  { background: #ff9f3f; }
 .theme-dot-pink    { background: #ff6fb3; }
+.theme-dot-neon   { background: #39ff14; box-shadow: 0 0 0 1px #020403 inset, 0 0 10px rgba(57,255,20,0.55); }
 
 /* ── Auth page ───────────────────────────────────── */
 .auth-page {

@@ -13,7 +13,7 @@ import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink'];
+const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neon'];
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
