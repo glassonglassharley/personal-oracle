@@ -43,16 +43,6 @@ const ASSETS = [
     description: 'No market growth, just money not spent',
   },
   {
-    key: 'BTC',
-    label: 'Bitcoin (BTC)',
-    cardLabel: 'Bitcoin',
-    rate: 0.40,
-    color: ORANGE,
-    dash: [],
-    icon: '₿',
-    description: 'Illustrative 40% annualized return',
-  },
-  {
     key: 'SP500',
     label: 'S&P 500',
     cardLabel: 'S&P 500',
@@ -61,6 +51,26 @@ const ASSETS = [
     dash: [],
     icon: '📈',
     description: 'Illustrative 10% annualized return',
+  },
+  {
+    key: 'HYSA',
+    label: 'High Yield Savings Account',
+    cardLabel: 'High Yield Savings Account',
+    rate: 0.04,
+    color: TEAL_LIT,
+    dash: [],
+    icon: '🏦',
+    description: 'Illustrative 4% annualized return',
+  },
+  {
+    key: 'BTC',
+    label: 'Bitcoin (BTC)',
+    cardLabel: 'Bitcoin',
+    rate: 0.40,
+    color: ORANGE,
+    dash: [],
+    icon: '₿',
+    description: 'Illustrative 40% annualized return',
   },
   {
     key: 'Gold',
@@ -308,7 +318,7 @@ export default function Savings() {
                   <span className="sv-invest-icon">{asset.icon}</span>
                   <div>
                     <div className="sv-invest-name">{asset.cardLabel}</div>
-                    <div className="sv-invest-rate">{(asset.rate * 100).toFixed(asset.rate >= 0.1 ? 0 : 1)}% annualized</div>
+                    <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
                   </div>
                 </div>
                 <div className="sv-invest-value">{fmt$0(asset.value)}</div>
