@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { getInternalUserId, verifyViceOwnership } = require('../utils');
+const { getInternalUserId, verifyViceOwnership, resolveUnitLabel } = require('../utils');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -19,7 +19,7 @@ router.post('/', async (req, res, next) => {
     const r = await pool.query(
       `INSERT INTO vices (user_id, name, unit_label, default_price, emoji, category, monthly_budget)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [uid, name, unit_label || 'unit', default_price ?? 0, emoji || '🔴', category || 'Other', monthly_budget ?? null]
+      [uid, name, resolveUnitLabel(name, unit_label), default_price ?? 0, emoji || '🔴', category || 'Other', monthly_budget ?? null]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { next(err); }

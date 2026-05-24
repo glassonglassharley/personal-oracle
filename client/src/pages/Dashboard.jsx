@@ -6,6 +6,7 @@ import {
 } from 'chart.js';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
+import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
 
   const activeVice = vices.find(v => v.id === activeViceId);
+  const activeUnitLabel = getUnitLabel(activeVice);
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -65,7 +67,7 @@ export default function Dashboard() {
       return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
     }),
     datasets: [{
-      label: activeVice?.unit_label || 'units',
+      label: activeUnitLabel,
       data: last7.map(({ entry }) => entry ? Number(entry.quantity) : 0),
       backgroundColor: last7.map(({ entry }) =>
         entry && Number(entry.quantity) === 0 ? moneyColor : inkColor
@@ -124,7 +126,7 @@ export default function Dashboard() {
                   {'$' + Number(p.spend || 0).toFixed(0)}
                   <span className="small">.{Number(p.spend || 0).toFixed(2).split('.')[1]}</span>
                 </div>
-                <div className="stat-delta">{fmtQ(p.quantity)} {activeVice?.unit_label}</div>
+                <div className="stat-delta">{formatQuantityWithUnit(p.quantity, activeVice)}</div>
               </div>
             ))}
           </div>
@@ -137,8 +139,8 @@ export default function Dashboard() {
               <div className="savings-rows">
                 <div className="savings-row"><span>Clean days logged</span><strong className="text-money">{stats.clean_days} days</strong></div>
                 <div className="savings-row"><span>Saved from clean days</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
-                <div className="savings-row"><span>Avg {activeVice?.unit_label}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
-                <div className="savings-row"><span>Avg price/unit</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
+                <div className="savings-row"><span>Avg {activeUnitLabel}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
+                <div className="savings-row"><span>Avg price/{activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
                 <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-divider" />
                 <div className="savings-row"><span>Quit · 30 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 30)}</strong></div>
@@ -163,8 +165,8 @@ export default function Dashboard() {
                 <span className="panel-title">Averages</span>
               </div>
               <div className="savings-rows">
-                <div className="savings-row"><span>Per unit</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
-                <div className="savings-row"><span>{activeVice?.unit_label}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
+                <div className="savings-row"><span>Per {activeUnitLabel}</span><strong>{fmt$(stats.avg_price_per_unit)}</strong></div>
+                <div className="savings-row"><span>{activeUnitLabel}/day</span><strong>{fmtQ(stats.avg_quantity_per_day)}</strong></div>
                 <div className="savings-row"><span>Daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-row"><span>Total clean days</span><strong className="text-money">{stats.clean_days}</strong></div>
                 <div className="savings-row"><span>Active days logged</span><strong>{stats.total_logged_days}</strong></div>
@@ -194,7 +196,7 @@ export default function Dashboard() {
                           </>
                         ) : (
                           <>
-                            <span className="entry-qty">{fmtQ(e.quantity)} {activeVice?.unit_label}</span>
+                            <span className="entry-qty">{formatQuantityWithUnit(e.quantity, activeVice)}</span>
                             <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
                           </>
                         )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
+import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
 const fmtQ = n => Number(n || 0) % 1 === 0 ? String(Number(n || 0)) : Number(n || 0).toFixed(1);
@@ -38,6 +39,7 @@ export default function LogEntry() {
   }, [selectedViceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeVice = vices.find(v => String(v.id) === String(selectedViceId));
+  const activeUnitLabel = getUnitLabel(activeVice);
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -108,7 +110,7 @@ export default function LogEntry() {
 
             <div className="form-group">
               <label className="form-label">
-                Quantity ({activeVice?.unit_label || 'units'})
+                Quantity ({activeUnitLabel})
                 <span className="form-hint"> — 0 to log a clean day</span>
               </label>
               <input type="number" className="form-input" value={quantity}
@@ -117,7 +119,7 @@ export default function LogEntry() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Price per {activeVice?.unit_label || 'unit'} ($)</label>
+              <label className="form-label">Price per {activeUnitLabel} ($)</label>
               <input type="number" className="form-input" value={pricePerUnit}
                 min="0" step="0.01"
                 onChange={e => setPricePerUnit(e.target.value)} />
@@ -161,7 +163,7 @@ export default function LogEntry() {
                       <span className="text-money">Clean day</span>
                     ) : (
                       <>
-                        <span className="entry-qty">{fmtQ(e.quantity)} {activeVice?.unit_label}</span>
+                        <span className="entry-qty">{formatQuantityWithUnit(e.quantity, activeVice)}</span>
                         <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
                       </>
                     )}

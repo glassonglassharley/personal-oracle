@@ -25,4 +25,21 @@ async function verifyEntryOwnership(entryId, clerkUserId) {
   return r.rows.length > 0;
 }
 
-module.exports = { getInternalUserId, verifyViceOwnership, verifyEntryOwnership };
+function pluralizeUnitLabel(label) {
+  const value = String(label || '').trim();
+  if (!value) return 'units';
+
+  const lower = value.toLowerCase();
+  if (lower.endsWith('s')) return lower;
+  if (lower.endsWith('y') && !/[aeiou]y$/.test(lower)) return `${lower.slice(0, -1)}ies`;
+  if (/(ch|sh|x|z)$/.test(lower)) return `${lower}es`;
+  return `${lower}s`;
+}
+
+function resolveUnitLabel(name, unitLabel) {
+  const explicit = String(unitLabel || '').trim();
+  if (explicit && explicit.toLowerCase() !== 'unit' && explicit.toLowerCase() !== 'units') return explicit;
+  return pluralizeUnitLabel(name);
+}
+
+module.exports = { getInternalUserId, verifyViceOwnership, verifyEntryOwnership, resolveUnitLabel };

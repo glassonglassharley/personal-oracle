@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
+import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 
 const EMOJI_CHOICES = ['🍺','🚬','☕','🍷','🎰','🍕','🎮','💊','🍫','🛒','💸','🔴'];
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
@@ -31,6 +32,7 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
     ? Math.min(100, ((stats.month?.spend || 0) / vice.monthly_budget) * 100)
     : 0;
   const overBudget = stats && vice.monthly_budget && (stats.month?.spend || 0) > vice.monthly_budget;
+  const unitLabel = getUnitLabel(vice);
 
   return (
     <div className="vice-card">
@@ -40,7 +42,7 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
           <div>
             <div className="vice-name-text">{vice.name}</div>
             <div className="vice-meta">
-              {vice.unit_label} · {fmt$(vice.default_price)}/unit · {vice.category}
+              {unitLabel} · {fmt$(vice.default_price)}/{unitLabel} · {vice.category}
               {vice.monthly_budget ? ` · ${fmt$(vice.monthly_budget)}/mo budget` : ''}
             </div>
           </div>
@@ -53,8 +55,8 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
 
       {stats && (
         <div className="vice-stats-row">
-          <span>{Number(stats.avg_quantity_per_day || 0).toFixed(1)} {vice.unit_label}/day</span>
-          <span>{fmt$(stats.avg_price_per_unit)}/unit</span>
+          <span>{formatQuantityWithUnit(stats.avg_quantity_per_day || 0, vice)}/day</span>
+          <span>{fmt$(stats.avg_price_per_unit)}/{unitLabel}</span>
           <span>{stats.total_logged_days} active days</span>
           {stats.clean_days > 0 && <span className="text-teal">{stats.clean_days} clean days</span>}
         </div>
@@ -120,7 +122,7 @@ export default function ViceManager() {
   const [showAdd, setShowAdd] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [addForm, setAddForm] = useState({
-    name: '', unit_label: 'unit', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: ''
+    name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: ''
   });
   const setAdd = (k, v) => setAddForm(f => ({ ...f, [k]: v }));
 
@@ -165,7 +167,7 @@ export default function ViceManager() {
         monthly_budget: addForm.monthly_budget === '' ? null : Number(addForm.monthly_budget),
       }),
     });
-    setAddForm({ name: '', unit_label: 'unit', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '' });
+    setAddForm({ name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '' });
     setShowAdd(false);
     loadVices();
     ctxLoadVices();
@@ -200,7 +202,7 @@ export default function ViceManager() {
             <div className="edit-grid">
               {[
                 ['name', 'Name *', 'text', true],
-                ['unit_label', 'Unit label', 'text', false],
+                ['unit_label', 'Unit label (optional)', 'text', false],
                 ['default_price', 'Default price ($)', 'number', false],
                 ['category', 'Category', 'text', false],
                 ['monthly_budget', 'Monthly budget ($)', 'number', false],
@@ -209,6 +211,7 @@ export default function ViceManager() {
                   <label className="form-label">{label}</label>
                   <input type={type} className="form-input" value={addForm[key]}
                     required={required}
+                    placeholder={key === 'unit_label' && addForm.name ? getUnitLabel({ name: addForm.name }) : undefined}
                     min={type === 'number' ? 0 : undefined}
                     step={type === 'number' ? '0.01' : undefined}
                     onChange={e => setAdd(key, e.target.value)} />

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useViceContext } from '../ViceContext';
+import { getUnitLabel } from '../formatUnits';
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
 const fmtBig = n => {
@@ -146,6 +147,7 @@ export default function Savings() {
   const [pricePerUnit, setPricePerUnit] = useState(5);
 
   const activeVice = vices.find(v => v.id === activeViceId);
+  const activeUnitLabel = getUnitLabel(activeVice);
   const stats = activeViceId ? viceStats[activeViceId] : null;
   const viceColor = activeVice?.color || 'var(--money)';
 
@@ -247,10 +249,10 @@ export default function Savings() {
 
           <div className="field">
             <div className="field-head">
-              <span className="field-label">{activeVice?.unit_label || 'units'}/day</span>
+              <span className="field-label">{activeUnitLabel}/day</span>
               <span className="field-val">
                 {Number(qtyPerDay).toFixed(1)}
-                <span className="unit"> {activeVice?.unit_label || 'units'}</span>
+                <span className="unit"> {activeUnitLabel}</span>
               </span>
             </div>
             <input type="range" className="slider" min={0.5} max={20} step={0.5} value={qtyPerDay}
@@ -260,7 +262,7 @@ export default function Savings() {
 
           <div className="field">
             <div className="field-head">
-              <span className="field-label">Price / {activeVice?.unit_label || 'unit'}</span>
+              <span className="field-label">Price / {activeUnitLabel}</span>
               <span className="field-val">{fmt$(pricePerUnit)}</span>
             </div>
             <input type="range" className="slider" min={1} max={50} step={0.5} value={pricePerUnit}
