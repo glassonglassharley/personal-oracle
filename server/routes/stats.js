@@ -35,7 +35,7 @@ router.get('/:vice_id', async (req, res, next) => {
     ]);
 
     const all = await pool.query(
-      'SELECT quantity::float, price_per_unit::float FROM entries WHERE vice_id = $1',
+      'SELECT date, quantity::float, price_per_unit::float FROM entries WHERE vice_id = $1 ORDER BY date ASC',
       [vice_id]
     );
     const rows = all.rows;
@@ -49,12 +49,23 @@ router.get('/:vice_id', async (req, res, next) => {
     const avgQPD   = totalDays > 0 ? totalQty / totalDays : 0;
     const avgDSpend = totalDays > 0 ? totalSpend / totalDays : 0;
     const savings  = cleanDays * avgDSpend;
+    const firstEntry = rows[0]?.date || null;
+    const lastEntry = rows[rows.length - 1]?.date || null;
 
     res.json({
       today: todayS, week: weekS, month: monthS, year: yearS,
+      all_time: { quantity: round2(totalQty), spend: round2(totalSpend) },
+      averages: {
+        day: { quantity: round2(avgQPD), spend: round2(avgDSpend) },
+        week: { quantity: round2(avgQPD * 7), spend: round2(avgDSpend * 7) },
+        month: { quantity: round2(avgQPD * 30.44), spend: round2(avgDSpend * 30.44) },
+        year: { quantity: round2(avgQPD * 365), spend: round2(avgDSpend * 365) },
+      },
       avg_price_per_unit:   round2(avgPPU),
       avg_quantity_per_day: round2(avgQPD),
       avg_daily_spend:      round2(avgDSpend),
+      first_entry_date:     firstEntry,
+      last_entry_date:      lastEntry,
       total_logged_days:    loggedDays,
       clean_days:           cleanDays,
       savings_from_clean_days: round2(savings),

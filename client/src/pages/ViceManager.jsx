@@ -5,9 +5,31 @@ import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 
 const EMOJI_CHOICES = ['🍺','🚬','☕','🍷','🎰','🍕','🎮','💊','🍫','🛒','💸','🔴'];
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
+const fmtDate = value => value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not logged yet';
+
+function DetailStat({ label, value, sub }) {
+  return (
+    <div className="vice-detail-stat">
+      <span className="vice-detail-label">{label}</span>
+      <span className="vice-detail-value">{value}</span>
+      {sub && <span className="vice-detail-sub">{sub}</span>}
+    </div>
+  );
+}
+
+function PeriodDetail({ label, data, vice }) {
+  return (
+    <div className="vice-period-card">
+      <span className="vice-period-label">{label}</span>
+      <span className="vice-period-spend">{fmt$(data?.spend)}</span>
+      <span className="vice-period-qty">{formatQuantityWithUnit(data?.quantity || 0, vice)}</span>
+    </div>
+  );
+}
 
 function ViceCard({ vice, stats, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [form, setForm] = useState({
     name: vice.name,
     unit_label: vice.unit_label,
@@ -48,6 +70,10 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
           </div>
         </div>
         <div className="vice-actions">
+          <button className="vice-expand-btn" onClick={() => setExpanded(e => !e)}>
+            {expanded ? 'Hide details' : 'Full details'}
+            <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span>
+          </button>
           <button className="icon-btn" onClick={() => setEditing(e => !e)} title="Edit">✏️</button>
           <button className="icon-btn danger" onClick={() => onDelete(vice)} title="Delete">🗑️</button>
         </div>
@@ -73,6 +99,42 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
           <div className="budget-bar">
             <div className="budget-bar-fill"
               style={{ width: `${budgetPct}%`, background: overBudget ? '#E53535' : '#0F6E56' }} />
+          </div>
+        </div>
+      )}
+
+      {expanded && stats && (
+        <div className="vice-details-panel">
+          <div className="vice-details-section">
+            <div className="vice-details-heading">Totals</div>
+            <div className="vice-detail-grid">
+              <DetailStat label="Default price" value={`${fmt$(vice.default_price)}/${unitLabel}`} />
+              <DetailStat label="Average price" value={`${fmt$(stats.avg_price_per_unit)}/${unitLabel}`} />
+              <DetailStat label="All-time spent" value={fmt$(stats.all_time?.spend)} />
+              <DetailStat label="All-time quantity" value={formatQuantityWithUnit(stats.all_time?.quantity || 0, vice)} />
+              <DetailStat label="Active days" value={stats.total_logged_days || 0} sub={`${stats.clean_days || 0} clean days`} />
+              <DetailStat label="Logged range" value={fmtDate(stats.first_entry_date)} sub={`Last: ${fmtDate(stats.last_entry_date)}`} />
+            </div>
+          </div>
+
+          <div className="vice-details-section">
+            <div className="vice-details-heading">Current spend + quantity</div>
+            <div className="vice-period-grid">
+              <PeriodDetail label="Today" data={stats.today} vice={vice} />
+              <PeriodDetail label="This week" data={stats.week} vice={vice} />
+              <PeriodDetail label="This month" data={stats.month} vice={vice} />
+              <PeriodDetail label="This year" data={stats.year} vice={vice} />
+            </div>
+          </div>
+
+          <div className="vice-details-section">
+            <div className="vice-details-heading">Average pace</div>
+            <div className="vice-period-grid">
+              <PeriodDetail label="Per day" data={stats.averages?.day} vice={vice} />
+              <PeriodDetail label="Per week" data={stats.averages?.week} vice={vice} />
+              <PeriodDetail label="Per month" data={stats.averages?.month} vice={vice} />
+              <PeriodDetail label="Per year" data={stats.averages?.year} vice={vice} />
+            </div>
           </div>
         </div>
       )}
