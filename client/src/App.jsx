@@ -200,9 +200,12 @@ function DemoLogin() {
 
   return (
     <div className="demo-login-card">
-      <div>
-        <div className="demo-login-title">Demo mode</div>
-        <p className="demo-login-copy">Enter any username to try Vice Spending without an email.</p>
+      <div className="demo-card-top">
+        <span className="demo-badge">No email needed</span>
+        <div>
+          <div className="demo-login-title">Try demo mode</div>
+          <p className="demo-login-copy">Pick any username and explore the full app instantly.</p>
+        </div>
       </div>
       <form className="demo-login-form" onSubmit={handleSubmit}>
         <label className="form-label" htmlFor="demo-username">Username</label>
@@ -229,11 +232,75 @@ function SignedOutContent() {
 
   return (
     <div className="auth-page">
-      <div className="auth-brand">Vice Spending</div>
-      <p className="auth-tagline">Track your spending habits. Own your choices.</p>
-      <DemoLogin />
-      <div className="auth-divider"><span>or sign in with email</span></div>
-      <SignIn />
+      <div className="auth-bg auth-bg-one" />
+      <div className="auth-bg auth-bg-two" />
+
+      <section className="auth-shell" aria-label="Vice Spending sign in">
+        <div className="auth-hero-panel">
+          <div className="auth-logo-row">
+            <span className="auth-logo-mark">◈</span>
+            <span className="auth-logo-text">Vice Spending</span>
+          </div>
+
+          <div className="auth-hero-copy">
+            <div className="auth-kicker">Premium habit intelligence</div>
+            <h1>See what your vices really cost — then turn that money into goals.</h1>
+            <p>Track spending, clean days, savings projections, and custom opportunity costs in one polished dashboard.</p>
+          </div>
+
+          <div className="auth-preview-card">
+            <div className="auth-preview-top">
+              <span>Monthly savings forecast</span>
+              <strong>$842</strong>
+            </div>
+            <div className="auth-preview-bars" aria-hidden="true">
+              <span style={{ height: '38%' }} />
+              <span style={{ height: '54%' }} />
+              <span style={{ height: '71%' }} />
+              <span style={{ height: '48%' }} />
+              <span style={{ height: '86%' }} />
+              <span style={{ height: '64%' }} />
+            </div>
+            <div className="auth-preview-foot">
+              <span>Clean streak</span>
+              <b>12 days</b>
+            </div>
+          </div>
+
+          <div className="auth-feature-grid">
+            <span>✓ Combined dashboard</span>
+            <span>✓ Editable entries</span>
+            <span>✓ Savings goals</span>
+            <span>✓ Demo mode</span>
+          </div>
+        </div>
+
+        <div className="auth-card-panel">
+          <div className="auth-card-head">
+            <span className="auth-pill">App Store quality tracker</span>
+            <h2>Welcome back</h2>
+            <p>Start with a username demo or sign in securely with email.</p>
+          </div>
+
+          <DemoLogin />
+          <div className="auth-divider"><span>or continue with email</span></div>
+          <div className="clerk-frame">
+            <SignIn
+              appearance={{
+                elements: {
+                  rootBox: 'clerk-root-box',
+                  card: 'clerk-card-box',
+                  headerTitle: 'clerk-title',
+                  headerSubtitle: 'clerk-subtitle',
+                  socialButtonsBlockButton: 'clerk-social-button',
+                  formButtonPrimary: 'clerk-primary-button',
+                  footerActionLink: 'clerk-link',
+                },
+              }}
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
