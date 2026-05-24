@@ -340,7 +340,7 @@ export default function Dashboard() {
               <div className="panel-head">
                 <span className="panel-title">Last 7 days · combined spend</span>
               </div>
-              <div style={{ height: 220 }}>
+              <div className="dashboard-chart-wrap">
                 <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
               </div>
             </div>

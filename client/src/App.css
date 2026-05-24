@@ -753,6 +753,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .dashboard-head .page-title { margin-bottom: 16px; }
 .dashboard-log-btn { text-decoration: none; white-space: nowrap; }
+.dashboard-chart-wrap { height: 220px; min-width: 0; }
 
 /* ── Savings dark page ───────────────────────────── */
 .sv-page { background: var(--paper); }
@@ -1316,10 +1317,24 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .hero-amount .cents { font-size: 20px; }
   .grid-4 { grid-template-columns: repeat(2,1fr); }
   .stats-strip { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .stat { padding: 16px 14px; }
+  .stat { padding: 16px 14px; min-width: 0; }
   .stat-val { font-size: 25px; overflow-wrap: anywhere; }
-  .panel, .card { padding: 18px 16px; }
+  .stat-delta { overflow-wrap: anywhere; line-height: 1.35; }
+  .panel, .card { padding: 18px 16px; min-width: 0; }
   .panel-head, .card-header { gap: 10px; flex-wrap: wrap; }
+  .dashboard-chart-wrap { height: 205px; margin: 0 -6px; }
+  .savings-row { gap: 12px; align-items: baseline; }
+  .savings-row span { min-width: 0; }
+  .savings-row strong { text-align: right; overflow-wrap: anywhere; }
+  .goal-form-row { display: grid; grid-template-columns: 1fr; align-items: stretch; }
+  .goal-form-row .form-input,
+  .goal-form-row .btn { width: 100%; }
+  .goals-grid { grid-template-columns: 1fr; gap: 10px; }
+  .goal-achieved-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+  .goal-achieved-date { grid-column: 2 / -1; }
+  .celeb-overlay { padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
+  .celeb-card { padding: 30px 22px; border-radius: 20px; }
+  .celeb-amount { font-size: clamp(38px, 14vw, 52px); }
   .cat-bars { gap: 10px; }
   .edit-grid { grid-template-columns: 1fr; }
   .grid-log { grid-template-columns: 1fr; }
@@ -1353,4 +1368,134 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .ins-msg { max-width: 95%; }
   .yir-year-head { flex-wrap: wrap; gap: 8px; }
   .member-since { gap: 10px; }
+}
+
+@media (max-width: 520px) {
+  .main {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .crumbs {
+    gap: 7px;
+    margin-bottom: 16px;
+    font-size: 11px;
+  }
+  .crumbs .crumb-pill {
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+  .dashboard-head {
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .dashboard-head > div,
+  .dashboard-log-btn {
+    width: 100%;
+  }
+  .dashboard-log-btn {
+    justify-content: center;
+    min-height: 44px;
+  }
+  .dashboard-head .page-title {
+    margin-bottom: 14px;
+    font-size: 26px;
+  }
+  .page-subtitle {
+    line-height: 1.45;
+  }
+  .stats-strip {
+    grid-template-columns: 1fr;
+    border-radius: 14px;
+  }
+  .stat {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+    padding: 16px;
+  }
+  .stat:first-child {
+    border-top: none;
+  }
+  .stat-key {
+    margin-bottom: 6px;
+  }
+  .stat-val {
+    font-size: 32px;
+    line-height: 1;
+  }
+  .grid-2 {
+    gap: 14px;
+  }
+  .panel, .card {
+    border-radius: 14px;
+    padding: 16px 14px;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-size: 19px;
+    line-height: 1.2;
+  }
+  .dashboard-chart-wrap {
+    height: 190px;
+    margin: 0 -8px;
+  }
+  .savings-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+  .entry-list {
+    gap: 8px;
+  }
+  .entry-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    padding: 10px;
+  }
+  .entry-date {
+    min-width: 0;
+  }
+  .entry-qty,
+  .entry-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .entry-saved,
+  .entry-spend {
+    justify-self: end;
+    white-space: nowrap;
+  }
+  .entry-edit-btn {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    margin-left: 0;
+    text-align: center;
+    padding: 7px 10px;
+  }
+  .goal-card {
+    padding: 14px;
+  }
+  .goal-bar-foot {
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .goal-days {
+    text-align: right;
+  }
+  .goal-achieved-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .goal-achieved-amt,
+  .goal-achieved-date {
+    grid-column: 2;
+  }
+  .celeb-actions {
+    flex-direction: column;
+  }
+  .celeb-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
