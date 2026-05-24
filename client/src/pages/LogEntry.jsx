@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
@@ -7,6 +8,8 @@ const fmt$ = n => '$' + Number(n || 0).toFixed(2);
 
 export default function LogEntry() {
   const api = useApi();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { vices, activeViceId } = useViceContext();
 
   const [selectedViceId, setSelectedViceId] = useState('');
@@ -98,6 +101,13 @@ export default function LogEntry() {
     setSavedMsg('');
     setErrorMsg('');
   };
+
+  useEffect(() => {
+    const entry = location.state?.editEntry;
+    if (!entry || vices.length === 0) return;
+    startEdit(entry);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, vices.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cancelEdit = () => {
     setEditingEntry(null);

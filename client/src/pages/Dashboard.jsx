@@ -317,6 +317,13 @@ export default function Dashboard() {
                             <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
                           </>
                         )}
+                        <Link
+                          className="entry-edit-btn"
+                          to="/log"
+                          state={{ editEntry: { ...e, vice_id: e.vice_id || e.vice.id } }}
+                        >
+                          Edit
+                        </Link>
                       </div>
                     );
                   })}
