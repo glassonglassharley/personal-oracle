@@ -42,6 +42,15 @@ const SCHEMA = `
     completed_at TIMESTAMPTZ
   );
 
+  CREATE TABLE IF NOT EXISTS challenges (
+    id SERIAL PRIMARY KEY,
+    challenger_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    challengee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    month_year TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (challenger_id, challengee_id, month_year)
+  );
+
   CREATE TABLE IF NOT EXISTS friendships (
     id SERIAL PRIMARY KEY,
     requester_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

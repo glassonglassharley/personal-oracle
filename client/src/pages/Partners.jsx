@@ -7,6 +7,7 @@ export default function Partners() {
   const [partners, setPartners] = useState([]);
   const [pending, setPending] = useState([]);
   const [sent, setSent] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [searchQ, setSearchQ] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -25,10 +26,12 @@ export default function Partners() {
       api('/api/partners'),
       api('/api/partners/pending'),
       api('/api/partners/sent'),
-    ]).then(([p, pend, s]) => {
+      api('/api/partners/leaderboard'),
+    ]).then(([p, pend, s, lb]) => {
       setPartners(p);
       setPending(pend);
       setSent(s);
+      setLeaderboard(lb);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [api, isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -68,6 +71,14 @@ export default function Partners() {
     } catch (e) { showFlash(e.message, true); }
   };
 
+  const sendChallenge = async (partnerId) => {
+    try {
+      await api(`/api/partners/${partnerId}/challenge`, { method: 'POST' });
+      showFlash('Challenge sent! May the cleanest month win 🏆');
+      load();
+    } catch (e) { showFlash(e.message, true); }
+  };
+
   if (isDemo) {
     return (
       <main className="main">
@@ -81,6 +92,9 @@ export default function Partners() {
     );
   }
 
+  const thisMonthLabel = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const hasLeaderboard = leaderboard.length > 1; // need at least 2 to be interesting
+
   return (
     <main className="main">
       <div className="page-header">
@@ -93,7 +107,63 @@ export default function Partners() {
       {flashErr && <div className="ap-flash ap-flash-err">{flashErr}</div>}
       {flash    && <div className="ap-flash ap-flash-ok">{flash}</div>}
 
-      {/* Search */}
+      {/* ── This Month Leaderboard ── */}
+      {hasLeaderboard && (
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">
+              This month <span className="small">{thisMonthLabel}</span>
+            </span>
+          </div>
+          <div className="lb-table">
+            <div className="lb-head">
+              <span>#</span>
+              <span>Name</span>
+              <span className="lb-cell-right">Clean days</span>
+              <span className="lb-cell-right">Spent</span>
+              <span />
+            </div>
+            {leaderboard.map(row => (
+              <div key={row.id} className={`lb-row${row.is_me ? ' lb-me' : ''}`}>
+                <span className="lb-rank">
+                  {row.rank === 1 ? '🥇' : row.rank === 2 ? '🥈' : row.rank === 3 ? '🥉' : `#${row.rank}`}
+                </span>
+                <div className="lb-name-cell">
+                  <div className="lb-name">
+                    {row.name}
+                    {row.is_me && <span className="lb-you-badge">you</span>}
+                  </div>
+                  <div className="ap-vices">
+                    {(row.vices || []).slice(0, 5).map((v, i) => <span key={i}>{v.emoji}</span>)}
+                  </div>
+                  {/* Last month winner badge */}
+                  {row.last_month_winner === 'them' && (
+                    <div className="lb-trophy">🏆 Won last month</div>
+                  )}
+                  {row.last_month_winner === 'me' && (
+                    <div className="lb-trophy lb-trophy-me">🏆 You won last month</div>
+                  )}
+                </div>
+                <span className="lb-cell-right lb-clean">{row.clean_days}</span>
+                <span className="lb-cell-right lb-spent">${Number(row.spent_this_month || 0).toFixed(0)}</span>
+                <span className="lb-actions">
+                  {!row.is_me && (
+                    row.challenge
+                      ? <span className="lb-challenged">⚔️ Challenged</span>
+                      : <button
+                          className="btn ghost"
+                          style={{ fontSize: 11, padding: '5px 10px', whiteSpace: 'nowrap' }}
+                          onClick={() => sendChallenge(row.id)}
+                        >Challenge</button>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Search ── */}
       <div className="panel">
         <div className="panel-head">
           <span className="panel-title">Find a partner <span className="small">by name</span></span>
@@ -128,13 +198,11 @@ export default function Partners() {
         )}
       </div>
 
-      {/* Incoming requests */}
+      {/* ── Incoming requests ── */}
       {pending.length > 0 && (
         <div className="panel">
           <div className="panel-head">
-            <span className="panel-title">
-              Incoming requests <span className="small">{pending.length}</span>
-            </span>
+            <span className="panel-title">Incoming requests <span className="small">{pending.length}</span></span>
           </div>
           <div className="ap-list">
             {pending.map(u => (
@@ -143,9 +211,7 @@ export default function Partners() {
                 <div className="ap-info">
                   <div className="ap-name">{u.name}</div>
                   {u.vices?.length > 0 && (
-                    <div className="ap-vices">
-                      {u.vices.slice(0, 6).map((v, i) => <span key={i}>{v.emoji}</span>)}
-                    </div>
+                    <div className="ap-vices">{u.vices.slice(0, 6).map((v, i) => <span key={i}>{v.emoji}</span>)}</div>
                   )}
                 </div>
                 <div className="ap-actions">
@@ -158,12 +224,10 @@ export default function Partners() {
         </div>
       )}
 
-      {/* Active partners */}
+      {/* ── Active partners ── */}
       <div className="panel">
         <div className="panel-head">
-          <span className="panel-title">
-            Your partners <span className="small">{partners.length}</span>
-          </span>
+          <span className="panel-title">Your partners <span className="small">{partners.length}</span></span>
         </div>
         {loading ? (
           <div className="loading">Loading…</div>
@@ -182,9 +246,7 @@ export default function Partners() {
                   <div className="ap-card-info">
                     <div className="ap-name">{p.name}</div>
                     {p.vices?.length > 0 && (
-                      <div className="ap-vices">
-                        {p.vices.map((v, i) => <span key={i} title={v.name}>{v.emoji}</span>)}
-                      </div>
+                      <div className="ap-vices">{p.vices.map((v, i) => <span key={i} title={v.name}>{v.emoji}</span>)}</div>
                     )}
                   </div>
                   <button
@@ -209,13 +271,11 @@ export default function Partners() {
         )}
       </div>
 
-      {/* Sent requests */}
+      {/* ── Sent requests ── */}
       {sent.length > 0 && (
         <div className="panel">
           <div className="panel-head">
-            <span className="panel-title">
-              Sent requests <span className="small">{sent.length}</span>
-            </span>
+            <span className="panel-title">Sent requests <span className="small">{sent.length}</span></span>
           </div>
           <div className="ap-list">
             {sent.map(u => (
@@ -225,11 +285,7 @@ export default function Partners() {
                   <div className="ap-name">{u.name}</div>
                   <div className="ap-meta">Awaiting response</div>
                 </div>
-                <button
-                  className="btn ghost"
-                  style={{ fontSize: 12, padding: '7px 13px' }}
-                  onClick={() => removePartner(u.friendship_id)}
-                >Cancel</button>
+                <button className="btn ghost" style={{ fontSize: 12, padding: '7px 13px' }} onClick={() => removePartner(u.friendship_id)}>Cancel</button>
               </div>
             ))}
           </div>

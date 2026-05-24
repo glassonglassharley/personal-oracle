@@ -150,4 +150,136 @@ router.delete('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/partners/leaderboard — you + accepted partners ranked by this month
+router.get('/leaderboard', async (req, res, next) => {
+  try {
+    const myId = await getMyId(req.auth.userId);
+    if (!myId) return res.json([]);
+
+    const now        = new Date();
+    const thisMonth  = now.toISOString().slice(0, 7);
+    const lastD      = new Date(now.getFullYear(), now.getMonth(), 0); // last day of prev month
+    const lastMonth  = lastD.toISOString().slice(0, 7);
+    const monthStart = `${thisMonth}-01`;
+
+    // Collect all user IDs: self + accepted partners
+    const idRows = await pool.query(`
+      SELECT u.id FROM users u
+      JOIN friendships f
+        ON (f.requester_id = $1 AND f.addressee_id = u.id)
+        OR (f.addressee_id = $1 AND f.requester_id = u.id)
+      WHERE f.status = 'accepted'
+      UNION SELECT $1::int
+    `, [myId]);
+
+    const ids = idRows.rows.map(r => r.id);
+
+    const rows = await Promise.all(ids.map(async uid => {
+      const [uRow, cleanRow, spentRow, vicesRow] = await Promise.all([
+        pool.query('SELECT id, name FROM users WHERE id = $1', [uid]),
+        pool.query(`
+          SELECT COUNT(DISTINCT e.date)::int AS cnt
+          FROM entries e JOIN vices v ON v.id = e.vice_id
+          WHERE v.user_id = $1 AND e.quantity = 0 AND e.date >= $2
+        `, [uid, monthStart]),
+        pool.query(`
+          SELECT COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS total
+          FROM entries e JOIN vices v ON v.id = e.vice_id
+          WHERE v.user_id = $1 AND e.date >= $2
+        `, [uid, monthStart]),
+        pool.query(`
+          SELECT json_agg(json_build_object('emoji', emoji) ORDER BY id) AS vices
+          FROM vices WHERE user_id = $1
+        `, [uid]),
+      ]);
+
+      // last month clean days (for challenge winner calc)
+      const prevStart = `${lastMonth}-01`;
+      const prevEnd   = lastD.toISOString().split('T')[0];
+      const lastClean = await pool.query(`
+        SELECT COUNT(DISTINCT e.date)::int AS cnt
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1 AND e.quantity = 0 AND e.date >= $2 AND e.date <= $3
+      `, [uid, prevStart, prevEnd]);
+
+      // active challenge between me and this user this month
+      const chalRow = await pool.query(`
+        SELECT id, challenger_id FROM challenges
+        WHERE month_year = $1
+          AND ((challenger_id = $2 AND challengee_id = $3) OR (challenger_id = $3 AND challengee_id = $2))
+        LIMIT 1
+      `, [thisMonth, myId, uid]);
+
+      return {
+        id:               uRow.rows[0].id,
+        name:             uRow.rows[0].name,
+        is_me:            uid === myId,
+        vices:            vicesRow.rows[0].vices || [],
+        clean_days:       cleanRow.rows[0].cnt,
+        spent_this_month: spentRow.rows[0].total,
+        last_month_clean: lastClean.rows[0].cnt,
+        challenge:        chalRow.rows[0] || null,
+      };
+    }));
+
+    // Rank: most clean days first, then least spent
+    rows.sort((a, b) => b.clean_days - a.clean_days || a.spent_this_month - b.spent_this_month);
+    rows.forEach((r, i) => { r.rank = i + 1; });
+
+    // Annotate last month winner for each challenged pair
+    const myLastClean = rows.find(r => r.is_me)?.last_month_clean ?? 0;
+    rows.forEach(r => {
+      if (!r.is_me && r.challenge) {
+        if (r.last_month_clean > myLastClean)      r.last_month_winner = 'them';
+        else if (myLastClean > r.last_month_clean) r.last_month_winner = 'me';
+        else                                        r.last_month_winner = 'tie';
+      }
+    });
+
+    res.json(rows);
+  } catch (err) { next(err); }
+});
+
+// POST /api/partners/:id/challenge — challenge a partner for this month
+router.post('/:id/challenge', async (req, res, next) => {
+  try {
+    const myId     = await getMyId(req.auth.userId);
+    const partnerId = Number(req.params.id);
+    const monthYear = new Date().toISOString().slice(0, 7);
+
+    // Verify they are actually an accepted partner
+    const check = await pool.query(`
+      SELECT 1 FROM friendships
+      WHERE status = 'accepted'
+        AND ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+    `, [myId, partnerId]);
+    if (!check.rows.length) return res.status(403).json({ error: 'Not a partner' });
+
+    await pool.query(`
+      INSERT INTO challenges (challenger_id, challengee_id, month_year)
+      VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+    `, [myId, partnerId, monthYear]);
+
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// GET /api/partners/challenges — active challenges this month (for dashboard banner)
+router.get('/challenges', async (req, res, next) => {
+  try {
+    const myId     = await getMyId(req.auth.userId);
+    const monthYear = new Date().toISOString().slice(0, 7);
+
+    const r = await pool.query(`
+      SELECT c.id, c.month_year, c.challenger_id,
+        uc.name AS challenger_name
+      FROM challenges c
+      JOIN users uc ON uc.id = c.challenger_id
+      WHERE c.challengee_id = $1 AND c.month_year = $2
+    `, [myId, monthYear]);
+
+    res.json(r.rows);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

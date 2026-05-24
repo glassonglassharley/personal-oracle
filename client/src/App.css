@@ -1195,6 +1195,55 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   text-transform: uppercase; margin-top: 4px; font-weight: 500;
 }
 
+/* ── Challenge banner (Dashboard) ───────────────── */
+.challenge-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 10px; margin-bottom: 16px;
+  background: color-mix(in srgb, var(--money) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--money) 30%, transparent);
+  flex-wrap: wrap;
+}
+.challenge-icon { font-size: 18px; flex-shrink: 0; }
+.challenge-text { flex: 1; font-size: 13.5px; color: var(--ink-2); }
+
+/* ── Leaderboard ─────────────────────────────────── */
+.lb-table { display: flex; flex-direction: column; }
+.lb-head {
+  display: grid; grid-template-columns: 36px 1fr 80px 80px 110px;
+  gap: 12px; align-items: center;
+  padding: 0 0 10px; border-bottom: 1px solid var(--rule);
+  font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 500;
+}
+.lb-row {
+  display: grid; grid-template-columns: 36px 1fr 80px 80px 110px;
+  gap: 12px; align-items: center;
+  padding: 12px 0; border-top: 1px solid var(--rule); border-radius: 6px;
+  transition: background 0.12s;
+}
+.lb-row.lb-me {
+  background: color-mix(in srgb, var(--money) 6%, transparent);
+  margin: 0 -8px; padding: 12px 8px;
+}
+.lb-rank { font-family: var(--mono); font-size: 13px; color: var(--ink-3); text-align: center; }
+.lb-name-cell { min-width: 0; }
+.lb-name { font-size: 14px; font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.lb-you-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 999px;
+  background: var(--money-soft); color: var(--money);
+}
+.lb-trophy    { font-size: 11px; color: var(--money); margin-top: 3px; }
+.lb-trophy-me { color: #0F6E56; }
+.lb-cell-right { text-align: right; }
+.lb-clean { font-family: var(--serif); font-size: 20px; color: var(--money); font-variant-numeric: tabular-nums; }
+.lb-spent { font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.lb-actions { display: flex; justify-content: flex-end; }
+.lb-challenged { font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+@media (max-width: 600px) {
+  .lb-head, .lb-row { grid-template-columns: 28px 1fr 52px 52px auto; gap: 6px; }
+}
+
 /* ── Support page ────────────────────────────────── */
 .sup-steps { display: flex; flex-direction: column; }
 .sup-step {

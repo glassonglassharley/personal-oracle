@@ -114,6 +114,9 @@ export default function Dashboard() {
   const [goalAmt, setGoalAmt] = useState('');
   const celebratedRef = useRef(new Set());
 
+  // Challenge notifications
+  const [challenges, setChallenges] = useState([]);
+
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -121,9 +124,10 @@ export default function Dashboard() {
     ? (getComputedStyle(document.body).getPropertyValue('--ink-3').trim() || '#8e9a85')
     : '#8e9a85';
 
-  // Load goals once on mount
+  // Load goals + challenges once on mount
   useEffect(() => {
     apiRef.current('/api/goals').then(setGoals).catch(() => {});
+    apiRef.current('/api/partners/challenges').then(setChallenges).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Celebrate when a goal is first reached
@@ -277,6 +281,16 @@ export default function Dashboard() {
           Log Entry
         </Link>
       </div>
+
+      {challenges.map(c => (
+        <div key={c.id} className="challenge-banner">
+          <span className="challenge-icon">⚔️</span>
+          <span className="challenge-text">
+            <strong>{c.challenger_name}</strong> challenged you to a clean month!
+          </span>
+          <a className="btn ghost" style={{ fontSize: 12, padding: '6px 12px' }} href="/partners">View leaderboard</a>
+        </div>
+      ))}
 
       {celebGoal && (
         <CelebOverlay
