@@ -9,6 +9,7 @@ import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit } from '../formatUnits';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
+import CompanionCard from '../companions/CompanionCard';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -100,7 +101,7 @@ export default function Dashboard() {
   const apiRef = useRef(api);
   apiRef.current = api;
 
-  const { vices } = useViceContext();
+  const { vices, companion, setShowOnboarding } = useViceContext();
   const [stats, setStats] = useState(null);
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -310,6 +311,14 @@ export default function Dashboard() {
           goal={celebGoal}
           onComplete={() => markGoalDone(celebGoal.id)}
           onDismiss={() => setCelebGoal(null)}
+        />
+      )}
+
+      {companion?.companion_type && (
+        <CompanionCard
+          companion={companion}
+          growth={companion?.growth}
+          onEditCompanion={() => setShowOnboarding(true)}
         />
       )}
 

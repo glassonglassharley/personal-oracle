@@ -61,7 +61,13 @@ const SCHEMA = `
   );
 `;
 
+const MIGRATIONS = `
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS companion_type TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS companion_state JSONB;
+`;
+
 pool.query(SCHEMA)
+  .then(() => pool.query(MIGRATIONS))
   .then(() => console.log('DB schema ready'))
   .catch(err => console.error('DB schema error:', err.message));
 

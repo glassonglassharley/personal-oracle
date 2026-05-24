@@ -8,6 +8,7 @@ import ViceManager from './pages/ViceManager';
 import Partners from './pages/Partners';
 import Support from './pages/Support';
 import Wrapped from './pages/Wrapped';
+import CompanionOnboarding from './pages/CompanionOnboarding';
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
@@ -139,6 +140,9 @@ function AuthenticatedApp() {
   const [theme, setTheme] = useState(() => localStorage.getItem('vt-theme') || 'emerald');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('vt-sidebar') === '1');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [companion, setCompanion] = useState(null);
+  const [companionLoaded, setCompanionLoaded] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     document.body.className = `theme-${theme}${mobileOpen ? ' mobile-menu-open' : ''}`;
@@ -164,7 +168,21 @@ function AuthenticatedApp() {
 
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices };
+  useEffect(() => {
+    apiRef.current('/api/companion').then(data => {
+      setCompanion(data);
+      setCompanionLoaded(true);
+      if (!data.companion_type) setShowOnboarding(true);
+    }).catch(() => setCompanionLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOnboardingComplete = (data) => {
+    setCompanion(prev => ({ ...prev, ...data }));
+    setShowOnboarding(false);
+    apiRef.current('/api/companion').then(setCompanion).catch(() => {});
+  };
+
+  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, companion, setCompanion, setShowOnboarding };
   const activeVice = vices.find(v => v.id === activeViceId);
   const mobileSubtitle = location.pathname === '/log' && activeVice
     ? `${activeVice.emoji} ${activeVice.name}`
@@ -192,6 +210,12 @@ function AuthenticatedApp() {
           <Route path="/support" element={<Support />} />
           <Route path="/wrapped/:year" element={<Wrapped />} />
         </Routes>
+        {companionLoaded && showOnboarding && (
+          <CompanionOnboarding
+            onComplete={handleOnboardingComplete}
+            existingType={companion?.companion_type || null}
+          />
+        )}
       </div>
     </ViceContext.Provider>
   );

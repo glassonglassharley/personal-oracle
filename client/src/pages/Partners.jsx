@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi, useDemoAuth } from '../useApi';
 
+const SPECIES_EMOJIS = { oak:'🌳', cherry_blossom:'🌸', pine:'🌲', willow:'🌿', maple:'🍁', baobab:'🌍', avocado:'🥑', bonsai:'🎋', palm:'🌴', cactus:'🌵', apple:'🍎', lemon:'🍋', banana:'🍌', redwood:'🏔️', bamboo:'🎍', olive:'🫒', mango:'🥭', weeping_willow:'🌾', rainbow_eucalyptus:'🌈', dragon_blood:'🔮' };
+const ARCHETYPE_EMOJIS = { warrior:'⚔️', wizard:'🧙', knight:'🏰', archer:'🏹', monk:'🧘', bodybuilder:'💪', athlete:'🏆', ninja:'🥷', samurai:'⛩️', viking:'🪓', pirate:'🏴‍☠️', explorer:'🧭', scientist:'🔬', artist:'🎨', chef:'👨‍🍳', astronaut:'🚀', superhero:'🦸', rockstar:'🎸', dancer:'💃', alchemist:'⚗️' };
+const getSpeciesEmoji = id => SPECIES_EMOJIS[id] || '🌱';
+const getArchetypeEmoji = id => ARCHETYPE_EMOJIS[id] || '⚔️';
+
 export default function Partners() {
   const api = useApi();
   const { isDemo } = useDemoAuth();
@@ -247,6 +252,14 @@ export default function Partners() {
                     <div className="ap-name">{p.name}</div>
                     {p.vices?.length > 0 && (
                       <div className="ap-vices">{p.vices.map((v, i) => <span key={i} title={v.name}>{v.emoji}</span>)}</div>
+                    )}
+                    {p.companion_type && p.companion_state && (
+                      <div className="ap-companion-chip">
+                        {p.companion_type === 'tree'
+                          ? (p.companion_state.species ? getSpeciesEmoji(p.companion_state.species) : '🌱')
+                          : (p.companion_state.archetype ? getArchetypeEmoji(p.companion_state.archetype) : '⚔️')}
+                        {' '}{p.companion_state.name || (p.companion_type === 'tree' ? 'Tree' : 'Hero')}
+                      </div>
                     )}
                   </div>
                   <button

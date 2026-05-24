@@ -16,6 +16,7 @@ router.get('/', async (req, res, next) => {
     const r = await pool.query(`
       SELECT
         u.id, u.name,
+        u.companion_type, u.companion_state,
         f.id AS friendship_id, f.requester_id,
         (SELECT json_agg(json_build_object('emoji', v.emoji, 'name', v.name) ORDER BY v.id)
          FROM vices v WHERE v.user_id = u.id) AS vices,
