@@ -11,6 +11,7 @@ import Wrapped from './pages/Wrapped';
 import CompanionOnboarding from './pages/CompanionOnboarding';
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
+import { VtvLogo, VtvMark } from './Logo';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neon'];
@@ -89,8 +90,9 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
     <aside className={`side${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="side-top">
         <div className="brand">
-          <span className="brand-mark">◈</span>
-          {!collapsed && <span className="brand-name">Vice Spending</span>}
+          {collapsed
+            ? <VtvMark className="brand-mark-svg" />
+            : <VtvLogo className="brand-logo-svg" />}
         </div>
         <button className="side-collapse" onClick={() => setCollapsed(c => !c)} aria-label="Toggle sidebar">
           {collapsed ? '›' : '‹'}
@@ -239,9 +241,9 @@ function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
         <span />
       </button>
       <div className="mobile-brand">
-        <span className="brand-mark">◈</span>
+        <VtvMark className="brand-mark-svg" />
         <div>
-          <div className="mobile-brand-name">Vice Spending</div>
+          <div className="mobile-brand-name">Vice to Value</div>
           {subtitle && <div className="mobile-vice-name">{subtitle}</div>}
         </div>
       </div>
@@ -363,6 +365,10 @@ function getPhantomProvider() {
   return null;
 }
 
+function isMobile() {
+  return typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
 function WalletSignIn() {
   const clerk = useClerk();
   const { isLoaded, setActive } = useSignIn();
@@ -371,6 +377,7 @@ function WalletSignIn() {
   const [error, setError] = useState('');
 
   const phantomInstalled = Boolean(getPhantomProvider());
+  const onMobile = isMobile();
 
   const walletRedirects = () => {
     const url = typeof window !== 'undefined' ? window.location.href : '/';
@@ -457,6 +464,18 @@ function WalletSignIn() {
               <span className="wallet-sub">Solana wallet</span>
             </span>
           </button>
+        ) : onMobile ? (
+          <a
+            href={`https://phantom.app/ul/browse/${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '/')}`}
+            className="wallet-connect-btn"
+            style={{ textDecoration: 'none' }}
+          >
+            <span className="wallet-icon wallet-icon-phantom">◈</span>
+            <span>
+              <span className="wallet-name">Open in Phantom</span>
+              <span className="wallet-sub">Opens this page in Phantom's browser</span>
+            </span>
+          </a>
         ) : (
           <a
             href="https://phantom.app"
@@ -715,8 +734,7 @@ function SignedOutContent() {
       <section className="auth-shell" aria-label="Vice Spending sign in">
         <div className="auth-hero-panel">
           <div className="auth-logo-row">
-            <span className="auth-logo-mark">◈</span>
-            <span className="auth-logo-text">Vice Spending</span>
+            <VtvLogo className="auth-logo-svg" />
           </div>
 
           <div className="auth-hero-copy">

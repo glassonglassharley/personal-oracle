@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -118,33 +118,12 @@ function fmtBig(n) {
   return fmt$0(n);
 }
 
-function resolveCssColor(value) {
-  if (typeof window === 'undefined') return value;
-  const probe = document.createElement('span');
-  probe.style.color = value;
-  probe.style.position = 'absolute';
-  probe.style.opacity = '0';
-  probe.style.pointerEvents = 'none';
-  document.body.appendChild(probe);
-  const resolved = getComputedStyle(probe).color;
-  probe.remove();
-  return resolved || value;
-}
-
-function readThemeColor(name, fallback) {
-  if (typeof window === 'undefined') return fallback;
-  const value = getComputedStyle(document.body).getPropertyValue(name).trim();
-  return resolveCssColor(value ? `var(${name})` : fallback);
-}
-
-function applyThemeClass(theme) {
-  if (typeof document === 'undefined' || !theme) return;
-  const nextClass = `theme-${theme}`;
-  if (document.body.classList.contains(nextClass)) return;
-  [...document.body.classList]
-    .filter(className => className.startsWith('theme-'))
-    .forEach(className => document.body.classList.remove(className));
-  document.body.classList.add(nextClass);
+// Read a CSS custom property directly from the body at render time.
+// Safe because handleSetTheme (App.jsx) pre-applies the body class before
+// calling setTheme, so by the time Savings re-renders the new values are live.
+function readCssVar(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
 }
 
 function withAlpha(color, alpha) {
@@ -159,24 +138,6 @@ function withAlpha(color, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   return color;
-}
-
-function buildThemeColors() {
-  return {
-    paper:  readThemeColor('--paper',   '#111111'),
-    paper2: readThemeColor('--paper-2', '#1a1a1a'),
-    ink1:   readThemeColor('--ink-1',   '#f5f5f5'),
-    ink:    readThemeColor('--ink',     '#f5f5f5'),
-    ink2:   readThemeColor('--ink-2',   '#d4d4d4'),
-    ink3:   readThemeColor('--ink-3',   '#9ca3af'),
-    ink4:   readThemeColor('--ink-4',   '#6b7280'),
-    rule:   readThemeColor('--rule',    'rgba(232,239,224,0.08)'),
-    rule2:  readThemeColor('--rule-2',  'rgba(232,239,224,0.20)'),
-    money:  readThemeColor('--money',   '#ff9f3f'),
-    money2: readThemeColor('--money-2', '#d76a00'),
-    accent: readThemeColor('--accent',  '#ff9f3f'),
-    warn:   readThemeColor('--warn',    '#ff5f4f'),
-  };
 }
 
 export default function Savings() {
@@ -195,15 +156,21 @@ export default function Savings() {
   });
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
-  const [themeColors, setThemeColors] = useState(buildThemeColors);
 
-  useLayoutEffect(() => {
-    applyThemeClass(theme);
-    setThemeColors(buildThemeColors());
-    const observer = new MutationObserver(() => setThemeColors(buildThemeColors()));
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, [theme]);
+  // Read directly from CSS custom properties at render time — always in sync
+  // with the active theme because handleSetTheme (App.jsx) pre-applies the
+  // body class before calling setTheme, triggering this re-render.
+  const themeColors = {
+    paper2: readCssVar('--paper-2', '#1a1a1a'),
+    ink:    readCssVar('--ink',     '#f5f5f5'),
+    ink2:   readCssVar('--ink-2',   '#d4d4d4'),
+    ink3:   readCssVar('--ink-3',   '#9ca3af'),
+    rule:   readCssVar('--rule',    'rgba(232,239,224,0.08)'),
+    rule2:  readCssVar('--rule-2',  'rgba(232,239,224,0.20)'),
+    money:  readCssVar('--money',   '#5ec48a'),
+    money2: readCssVar('--money-2', '#2f8a52'),
+    warn:   readCssVar('--warn',    '#d9583a'),
+  };
 
   useEffect(() => {
     if (vices.length === 0) {
@@ -270,15 +237,15 @@ export default function Savings() {
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
   const assetColors = {
-    primary: themeColors.accent,
+    primary:   '#6a92c4',           // HYSA — fixed blue; accent==money so this was always a duplicate
     secondary: themeColors.money,
-    muted: themeColors.ink3,
-    hot: themeColors.warn,
-    warm: themeColors.money2,
+    muted:     themeColors.ink3,
+    hot:       themeColors.warn,
+    warm:      themeColors.money2,
   };
   const themedAssets = ASSETS.map(asset => ({
     ...asset,
-    color: assetColors[asset.colorKey] || themeColors.accent,
+    color: assetColors[asset.colorKey] || themeColors.money,
   }));
 
   // Chart: monthly data points up to horizon
@@ -320,7 +287,7 @@ export default function Savings() {
         borderColor: themeColors.rule2,
         borderWidth: 1,
         titleColor: themeColors.ink2,
-        bodyColor: themeColors.ink1,
+        bodyColor: themeColors.ink,
         callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtBig(ctx.parsed.y)}` },
       },
     },
@@ -575,7 +542,7 @@ export default function Savings() {
             <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
           </div>
           <div className="sv-chart-wrap">
-            <Line data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
+            <Line key={theme} data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
           </div>
         </div>
       )}
