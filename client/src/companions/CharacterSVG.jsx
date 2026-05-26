@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { CHARACTER_ARCHETYPES, SKIN_TONES, HAIR_COLORS, BODY_TYPES, EYE_COLORS, BACKGROUNDS, getLevelTier } from './companionData';
 
 function CharBackground({ bgId }) {
@@ -540,6 +541,12 @@ export default function CharacterSVG({
   width = 200,
   height = 280,
 }) {
+  const artId = useId().replace(/:/g, '');
+  const ids = {
+    softShadow: `character-soft-shadow-${artId}`,
+    skinGrad: `skin-face-grad-${artId}`,
+    outfitSheen: `outfit-sheen-${artId}`,
+  };
   const skinData = SKIN_TONES.find(s => s.id === skinTone) || SKIN_TONES[1];
   const bt = BODY_TYPES.find(b => b.id === bodyType) || BODY_TYPES[1];
   const headR = 28 * bt.hs;
@@ -548,10 +555,25 @@ export default function CharacterSVG({
   const isLowHealth = level === 1;
 
   return (
-    <svg viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg">
+    <svg className="companion-art companion-character-art" viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision">
+      <defs>
+        <filter id={ids.softShadow} x="-35%" y="-35%" width="170%" height="170%">
+          <feDropShadow dx="0" dy="6" stdDeviation="4.5" floodColor="#000000" floodOpacity="0.28" />
+        </filter>
+        <radialGradient id={ids.skinGrad} cx="38%" cy="30%" r="72%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+          <stop offset="46%" stopColor={skinData.color} />
+          <stop offset="100%" stopColor={skinData.shadow} />
+        </radialGradient>
+        <linearGradient id={ids.outfitSheen} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.24" />
+          <stop offset="45%" stopColor={outfitColor} stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.18" />
+        </linearGradient>
+      </defs>
       <CharBackground bgId={background} />
 
-      <g transform={isLowHealth ? 'rotate(-4, 100, 160)' : ''}>
+      <g filter={`url(#${ids.softShadow})`} transform={isLowHealth ? 'rotate(-4, 100, 160)' : ''}>
         {/* Shadow */}
         <ellipse cx="100" cy="222" rx="32" ry="8" fill="rgba(0,0,0,0.18)" />
 
@@ -566,7 +588,9 @@ export default function CharacterSVG({
           width={14 * bt.sw * 0.5} height={14} rx={5} fill={skinData.color} />
 
         {/* Head */}
-        <ellipse cx={charCX.x} cy={charCX.y} rx={headR} ry={headR * 1.05} fill={skinData.color} />
+        <ellipse cx={charCX.x} cy={charCX.y} rx={headR} ry={headR * 1.05} fill={`url(#${ids.skinGrad})`} />
+        <ellipse cx={charCX.x - headR * 0.26} cy={charCX.y - headR * 0.34} rx={headR * 0.42} ry={headR * 0.25}
+          fill="white" opacity="0.18" />
         {/* Ear left */}
         <ellipse cx={charCX.x - headR * 0.95} cy={charCX.y} rx={headR * 0.15} ry={headR * 0.22} fill={skinData.color} />
         {/* Ear right */}
@@ -583,14 +607,20 @@ export default function CharacterSVG({
 
         {/* Face features */}
         <Eyes cx={charCX} headR={headR} eyeColorId={eyeColor} />
+        <path d={`M${charCX.x - headR * 0.58} ${charCX.y - headR * 0.27} Q${charCX.x - headR * 0.36} ${charCX.y - headR * 0.36} ${charCX.x - headR * 0.16} ${charCX.y - headR * 0.28}`}
+          stroke="rgba(0,0,0,0.32)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+        <path d={`M${charCX.x + headR * 0.16} ${charCX.y - headR * 0.28} Q${charCX.x + headR * 0.36} ${charCX.y - headR * 0.36} ${charCX.x + headR * 0.58} ${charCX.y - headR * 0.27}`}
+          stroke="rgba(0,0,0,0.32)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
 
         {/* Mouth */}
         <path d={`M${charCX.x - headR * 0.25} ${charCX.y + headR * 0.38} Q${charCX.x} ${charCX.y + headR * 0.52} ${charCX.x + headR * 0.25} ${charCX.y + headR * 0.38}`}
           fill="none" stroke={skinData.lip} strokeWidth="2.2" strokeLinecap="round" />
 
         {/* Nose */}
-        <ellipse cx={charCX.x} cy={charCX.y + headR * 0.15} rx={headR * 0.1} ry={headR * 0.07}
-          fill={skinData.shadow} opacity="0.45" />
+        <path d={`M${charCX.x + headR * 0.04} ${charCX.y - headR * 0.02} Q${charCX.x + headR * 0.13} ${charCX.y + headR * 0.13} ${charCX.x + headR * 0.02} ${charCX.y + headR * 0.24}`}
+          fill="none" stroke={skinData.shadow} strokeWidth="1.7" strokeLinecap="round" opacity="0.48" />
+        <ellipse cx={charCX.x - headR * 0.04} cy={charCX.y + headR * 0.2} rx={headR * 0.09} ry={headR * 0.045}
+          fill={skinData.shadow} opacity="0.36" />
 
         {/* Freckles */}
         {freckles && <Freckles cx={charCX} headR={headR} skinData={skinData} />}
@@ -600,7 +630,7 @@ export default function CharacterSVG({
       </g>
 
       {/* Level badge */}
-      <g>
+      <g filter={`url(#${ids.softShadow})`}>
         <circle cx="174" cy="26" r="16" fill="rgba(0,0,0,0.55)" />
         <text x="174" y="22" textAnchor="middle" fontSize="8" fill="#b0b0b0">LVL</text>
         <text x="174" y="33" textAnchor="middle" fontSize="10" fontWeight="bold" fill="white">{level}</text>

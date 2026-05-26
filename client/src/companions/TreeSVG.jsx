@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { TREE_SPECIES, POT_STYLES, BACKGROUNDS } from './companionData';
 
 const GROWTH_SCALE = [0, 0.28, 0.48, 0.68, 0.85, 1.0];
@@ -113,7 +114,11 @@ function Snow({ x, y, r }) {
 
 function Flowers({ positions }) {
   return <g>{positions.map(([fx, fy], i) => (
-    <circle key={i} cx={fx} cy={fy} r={4.5} fill="#FFB7C5" opacity="0.95" />
+    <g key={i}>
+      <circle cx={fx} cy={fy} r={5.2} fill="#FFB7C5" opacity="0.96" />
+      <circle cx={fx - 2.2} cy={fy - 1.8} r={1.8} fill="white" opacity="0.52" />
+      <circle cx={fx + 1.8} cy={fy + 1.6} r={1.5} fill="#F06292" opacity="0.45" />
+    </g>
   ))}</g>;
 }
 
@@ -161,27 +166,40 @@ function Decoration({ type, x, y, trunkH, canopyR }) {
 
 // ── Shape renderers ──
 
-function RoundTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function RoundTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 78 * s, tW = Math.max(4, 11 * s), cR = 55 * s;
   const cY = y - tH - cR * 0.65;
   const isRainbow = sp.id === 'rainbow_eucalyptus';
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     {isRainbow && <defs>
-      <linearGradient id="rainbow-trunk" x1="0" y1="0" x2="1" y2="0">
+      <linearGradient id={ids.rainbowTrunk} x1="0" y1="0" x2="1" y2="0">
         {['#e53935', '#f9a825', '#43a047', '#1e88e5', '#8e24aa'].map((c, i) => (
           <stop key={i} offset={`${i * 25}%`} stopColor={c} />
         ))}
       </linearGradient>
     </defs>}
-    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 2.5}
-      fill={isRainbow ? 'url(#rainbow-trunk)' : sp.trunkColor} />
+    <path d={`M${x - tW * 0.56} ${y} Q${x - tW * 0.2} ${y - tH * 0.55} ${x - tW * 0.35} ${y - tH} L${x + tW * 0.35} ${y - tH} Q${x + tW * 0.18} ${y - tH * 0.48} ${x + tW * 0.56} ${y}Z`}
+      fill={isRainbow ? `url(#${ids.rainbowTrunk})` : 'url(#tree-trunk-grad)'} />
+    {s > 0.35 && [0.25, 0.52, 0.78].map((t, i) => (
+      <path key={i} d={`M${x - tW * 0.18 + i * tW * 0.12} ${y - tH * 0.08} Q${x - tW * 0.34 + i * tW * 0.18} ${y - tH * t} ${x - tW * 0.05 + i * tW * 0.08} ${y - tH * 0.94}`}
+        fill="none" stroke="rgba(255,255,255,0.20)" strokeWidth={Math.max(0.9, tW * 0.14)} strokeLinecap="round" />
+    ))}
     {s > 0.45 && <>
       <circle cx={x - cR * 0.52} cy={cY + cR * 0.22} r={cR * 0.72} fill={sp.leafDark} opacity="0.88" />
       <circle cx={x + cR * 0.52} cy={cY + cR * 0.22} r={cR * 0.72} fill={sp.leafDark} opacity="0.88" />
     </>}
-    <circle cx={x} cy={cY} r={cR} fill={sp.leafColor} />
-    <circle cx={x - cR * 0.28} cy={cY - cR * 0.28} r={cR * 0.38} fill={sp.leafColor} opacity="0.45" />
+    <circle cx={x} cy={cY} r={cR} fill={`url(#${ids.leafGrad})`} />
+    {s > 0.35 && Array.from({ length: 18 }, (_, i) => {
+      const ang = (i / 18) * Math.PI * 2;
+      const rr = cR * (0.2 + ((i * 17) % 10) / 18);
+      const lx = x + Math.cos(ang) * rr * 0.92;
+      const ly = cY + Math.sin(ang) * rr * 0.68;
+      return <ellipse key={i} cx={lx} cy={ly} rx={Math.max(3, cR * 0.09)} ry={Math.max(2, cR * 0.045)}
+        fill={i % 3 === 0 ? 'rgba(255,255,255,0.24)' : sp.leafDark} opacity={i % 3 === 0 ? 0.55 : 0.28}
+        transform={`rotate(${(i * 41) % 180},${lx},${ly})`} />;
+    })}
+    <circle cx={x - cR * 0.28} cy={cY - cR * 0.28} r={cR * 0.38} fill="white" opacity="0.15" />
     {/* Fruit for apple/lemon/mango/olive/avocado */}
     {s > 0.65 && ['apple','lemon','mango','olive','avocado'].includes(sp.id) && [
       [-0.5, 0.3], [0.4, 0.2], [0, 0.5], [-0.3, -0.2], [0.5, -0.1]
@@ -197,14 +215,14 @@ function RoundTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function UprightTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function UprightTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 65 * s, tW = Math.max(4, 8 * s);
   const H = 115 * s, W = 68 * s;
   const baseY = y - tH;
   const layers = Math.min(5, Math.max(2, Math.round(s * 5)));
 
-  return <g>
-    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 2.5} fill={sp.trunkColor} />
+  return <g filter={`url(#${ids.softShadow})`}>
+    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 2.5} fill={`url(#${ids.trunkGrad})`} />
     {Array.from({ length: layers }, (_, i) => {
       const f = (layers - i) / layers;
       const lw = W * f * 0.9;
@@ -212,7 +230,8 @@ function UprightTree({ sp, s, x, y, hasFlowers, isDecember }) {
       const by = baseY - i * lh * 0.68;
       const tip = by - lh;
       return <g key={i}>
-        <polygon points={`${x},${tip} ${x - lw / 2},${by} ${x + lw / 2},${by}`} fill={sp.leafColor} />
+        <polygon points={`${x},${tip} ${x - lw / 2},${by} ${x + lw / 2},${by}`} fill={`url(#${ids.leafGrad})`} />
+        <path d={`M${x},${tip + lh * 0.18} L${x},${by - 4}`} stroke="rgba(255,255,255,0.22)" strokeWidth="1.1" strokeLinecap="round" />
         {isDecember && i === layers - 1 && (
           <polygon points={`${x},${tip - 3} ${x - lw * 0.18},${tip + 8} ${x + lw * 0.18},${tip + 8}`}
             fill="white" opacity="0.65" />
@@ -224,14 +243,14 @@ function UprightTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function DroopingTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function DroopingTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 80 * s, tW = Math.max(4, 8 * s);
   const bLen = 52 * s;
   const tipY = y - tH;
   const num = s > 0.65 ? 5 : s > 0.45 ? 4 : 3;
   const angles = [-68, -38, -8, 22, 52].slice(0, num);
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     <path d={`M${x} ${y} Q${x + 6 * s} ${y - tH * 0.5} ${x} ${y - tH}`}
       fill="none" stroke={sp.trunkColor} strokeWidth={tW} strokeLinecap="round" />
     {angles.map((ang, i) => {
@@ -246,7 +265,7 @@ function DroopingTree({ sp, s, x, y, hasFlowers, isDecember }) {
         {[0.3, 0.65, 1.0].map((t, j) => {
           const lx = x + (ex - x) * t, ly = by + (ey - by) * t * t;
           return <ellipse key={j} cx={lx} cy={ly} rx={6 * s} ry={3 * s}
-            fill={sp.leafColor} opacity="0.92" transform={`rotate(-30,${lx},${ly})`} />;
+            fill={`url(#${ids.leafGrad})`} opacity="0.92" transform={`rotate(-30,${lx},${ly})`} />;
         })}
         {hasFlowers && <circle cx={ex} cy={ey} r={3.5} fill="#FFB7C5" />}
       </g>;
@@ -255,12 +274,12 @@ function DroopingTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function PalmTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function PalmTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 98 * s, lLen = 50 * s;
   const tipX = x + 6 * s, tipY = y - tH;
   const num = s > 0.65 ? 7 : s > 0.45 ? 6 : 5;
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     <path d={`M${x} ${y} Q${x + 14 * s} ${y - tH * 0.5} ${tipX} ${tipY}`}
       fill="none" stroke={sp.trunkColor} strokeWidth={Math.max(6, 14 * s)} strokeLinecap="round" />
     {/* Trunk segments */}
@@ -276,7 +295,7 @@ function PalmTree({ sp, s, x, y, hasFlowers, isDecember }) {
       const ey = tipY + Math.sin(rad) * lLen * 0.55 + lLen * 0.28;
       return <path key={i}
         d={`M${tipX} ${tipY} Q${(tipX + ex) / 2} ${tipY - 14 * s} ${ex} ${ey}`}
-        fill="none" stroke={sp.leafColor} strokeWidth={Math.max(2.5, 5 * s)} strokeLinecap="round" />;
+        fill="none" stroke={`url(#${ids.leafGrad})`} strokeWidth={Math.max(3.2, 6.5 * s)} strokeLinecap="round" />;
     })}
     {sp.id === 'banana' && s > 0.55 && <ellipse cx={tipX} cy={tipY + 10} rx={12} ry={6} fill="#F9A825" />}
     {sp.id === 'palm' && s > 0.55 && <>
@@ -287,11 +306,11 @@ function PalmTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function BonsaiTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function BonsaiTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 50 * s, tW = Math.max(7, 15 * s);
   const tipY = y - tH;
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     <path d={`M${x - 2} ${y} Q${x - 10 * s} ${y - tH * 0.4} ${x - 5 * s} ${tipY}`}
       fill="none" stroke={sp.trunkColor} strokeWidth={tW} strokeLinecap="round" />
     <path d={`M${x - 5 * s} ${tipY} Q${x + 22 * s} ${tipY - 8 * s} ${x + 36 * s} ${tipY + 4 * s}`}
@@ -305,7 +324,7 @@ function BonsaiTree({ sp, s, x, y, hasFlowers, isDecember }) {
       s > 0.45 ? [x - 28 * s, tipY - 4 * s, 15 * s] : null,
       s > 0.65 ? [x + 22 * s, tipY + 4 * s, 11 * s] : null,
     ].filter(Boolean).map(([cx, cy, r], i) => (
-      <circle key={i} cx={cx} cy={cy} r={r} fill={sp.leafColor} opacity="0.92" />
+      <circle key={i} cx={cx} cy={cy} r={r} fill={`url(#${ids.leafGrad})`} opacity="0.94" />
     ))}
     {hasFlowers && <circle cx={x - 5 * s} cy={tipY - 27 * s} r={4.5} fill="#FFB7C5" />}
     {isDecember && [
@@ -315,12 +334,12 @@ function BonsaiTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function CactusTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function CactusTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 80 * s, tW = Math.max(8, 18 * s);
   const aH = 40 * s, aW = Math.max(5, 12 * s);
 
-  return <g>
-    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 2} fill={sp.leafColor} />
+  return <g filter={`url(#${ids.softShadow})`}>
+    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 2} fill={`url(#${ids.leafGrad})`} />
     {/* Ridges */}
     {[-1, 0, 1].map(d => (
       <line key={d} x1={x + d * tW * 0.25} y1={y} x2={x + d * tW * 0.25} y2={y - tH}
@@ -345,18 +364,18 @@ function CactusTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function BambooTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function BambooTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const num = s > 0.65 ? 3 : 2;
   const H = 98 * s, tW = Math.max(4, 8 * s);
   const xs = num === 3 ? [-14 * s, 0, 14 * s] : [-9 * s, 9 * s];
   const hs = num === 3 ? [H, H * 0.83, H * 0.68] : [H, H * 0.83];
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     {xs.map((dx, i) => {
       const h = hs[i];
       const segs = Math.max(2, Math.floor(h / 15));
       return <g key={i}>
-        <rect x={x + dx - tW / 2} y={y - h} width={tW} height={h} rx={tW / 2} fill={sp.leafColor} />
+        <rect x={x + dx - tW / 2} y={y - h} width={tW} height={h} rx={tW / 2} fill={`url(#${ids.leafGrad})`} />
         {Array.from({ length: segs }, (_, j) => (
           <rect key={j} x={x + dx - tW / 2} y={y - h + j * (h / segs)} width={tW} height={2.5}
             rx="1" fill="rgba(0,0,0,0.18)" />
@@ -371,13 +390,13 @@ function BambooTree({ sp, s, x, y, hasFlowers, isDecember }) {
   </g>;
 }
 
-function BaobabTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function BaobabTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 68 * s, tW = Math.max(14, 30 * s);
   const cY = y - tH;
 
-  return <g>
+  return <g filter={`url(#${ids.softShadow})`}>
     <path d={`M${x - tW / 2} ${y} Q${x - tW * 0.58} ${y - tH * 0.5} ${x - tW * 0.28} ${y - tH} L${x + tW * 0.28} ${y - tH} Q${x + tW * 0.58} ${y - tH * 0.5} ${x + tW / 2} ${y}Z`}
-      fill={sp.trunkColor} />
+      fill={`url(#${ids.trunkGrad})`} />
     {/* Texture */}
     {s > 0.45 && <>
       <path d={`M${x - 5} ${y} Q${x - 3} ${y - tH * 0.5} ${x - 2} ${y - tH}`}
@@ -400,14 +419,14 @@ function BaobabTree({ sp, s, x, y, hasFlowers, isDecember }) {
       [x + 5 * s, cY - 31 * s, 20 * s],
       s > 0.65 ? [x - 10 * s, cY - 40 * s, 15 * s] : null,
     ].filter(Boolean).map(([cx, cy, r], i) => (
-      <circle key={i} cx={cx} cy={cy} r={r} fill={sp.leafColor} opacity="0.92" />
+      <circle key={i} cx={cx} cy={cy} r={r} fill={`url(#${ids.leafGrad})`} opacity="0.94" />
     ))}
     {hasFlowers && <circle cx={x} cy={cY - 42 * s} r={5} fill="#FFB7C5" />}
     {isDecember && <ellipse cx={x} cy={cY - 44 * s} rx={16 * s} ry={5 * s} fill="white" opacity="0.65" />}
   </g>;
 }
 
-function FanTree({ sp, s, x, y, hasFlowers, isDecember }) {
+function FanTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   const tH = 58 * s, tW = Math.max(4, 8 * s);
   const fW = 116 * s, fH = 58 * s;
   const tipY = y - tH;
@@ -415,8 +434,8 @@ function FanTree({ sp, s, x, y, hasFlowers, isDecember }) {
   const isCherry = sp.id === 'cherry_blossom';
   const num = s > 0.65 ? 7 : s > 0.45 ? 5 : 3;
 
-  return <g>
-    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 3} fill={sp.trunkColor} />
+  return <g filter={`url(#${ids.softShadow})`}>
+    <rect x={x - tW / 2} y={y - tH} width={tW} height={tH} rx={tW / 3} fill={`url(#${ids.trunkGrad})`} />
     {Array.from({ length: num }, (_, i) => {
       const t = num > 1 ? i / (num - 1) : 0.5;
       const ang = (-58 + t * 116) * Math.PI / 180;
@@ -425,8 +444,8 @@ function FanTree({ sp, s, x, y, hasFlowers, isDecember }) {
       return <path key={i} d={`M${x} ${tipY} Q${(x + bx) / 2} ${tipY - 18 * s} ${bx} ${by}`}
         fill="none" stroke={sp.trunkColor} strokeWidth={Math.max(2, tW * 0.48)} strokeLinecap="round" />;
     })}
-    <ellipse cx={x} cy={tipY - fH * 0.32} rx={fW * 0.52} ry={fH * 0.42} fill={sp.leafColor} opacity="0.92" />
-    {s > 0.65 && <ellipse cx={x} cy={tipY - fH * 0.18} rx={fW * 0.42} ry={fH * 0.3} fill={sp.leafColor} opacity="0.72" />}
+    <ellipse cx={x} cy={tipY - fH * 0.32} rx={fW * 0.52} ry={fH * 0.42} fill={`url(#${ids.leafGrad})`} opacity="0.94" />
+    {s > 0.65 && <ellipse cx={x} cy={tipY - fH * 0.18} rx={fW * 0.42} ry={fH * 0.3} fill="white" opacity="0.16" />}
     {(isCherry || hasFlowers) && [
       [-0.42, -0.8], [0.42, -0.8], [0, -0.5], [-0.62, -0.38], [0.62, -0.38]
     ].map(([dx, dy], i) => (
@@ -452,6 +471,13 @@ export default function TreeSVG({
   hasFlowers = false, isDecember = false,
   width = 200, height = 280,
 }) {
+  const artId = useId().replace(/:/g, '');
+  const ids = {
+    softShadow: `tree-soft-shadow-${artId}`,
+    leafGrad: `tree-leaf-grad-${artId}`,
+    trunkGrad: `tree-trunk-grad-${artId}`,
+    rainbowTrunk: `rainbow-trunk-${artId}`,
+  };
   const sp = TREE_SPECIES.find(t => t.id === species) || TREE_SPECIES[0];
   const ShapeRenderer = SHAPE_MAP[sp.shape] || RoundTree;
   const s = GROWTH_SCALE[Math.max(1, Math.min(5, growthState))];
@@ -460,10 +486,26 @@ export default function TreeSVG({
   const canopyR = 55 * s;
 
   return (
-    <svg viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg">
+    <svg className="companion-art companion-tree-art" viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision">
+      <defs>
+        <filter id={ids.softShadow} x="-35%" y="-35%" width="170%" height="170%">
+          <feDropShadow dx="0" dy="6" stdDeviation="5" floodColor="#000000" floodOpacity="0.28" />
+        </filter>
+        <linearGradient id={ids.leafGrad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
+          <stop offset="38%" stopColor={sp.leafColor} />
+          <stop offset="100%" stopColor={sp.leafDark || sp.leafColor} />
+        </linearGradient>
+        <linearGradient id={ids.trunkGrad} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#2d160d" stopOpacity="0.95" />
+          <stop offset="46%" stopColor={sp.trunkColor} />
+          <stop offset="100%" stopColor="#140a05" stopOpacity="0.82" />
+        </linearGradient>
+      </defs>
       <Background bgId={background} />
+      <ellipse cx="100" cy="232" rx="68" ry="17" fill="rgba(0,0,0,0.18)" />
       <Pot style={potStyle} x={x} y={potY} />
-      <ShapeRenderer sp={sp} s={s} x={x} y={potY} hasFlowers={hasFlowers} isDecember={isDecember} />
+      <ShapeRenderer sp={sp} s={s} x={x} y={potY} hasFlowers={hasFlowers} isDecember={isDecember} ids={ids} />
       {decoration !== 'none' && s > 0.45 && (
         <Decoration type={decoration} x={x} y={potY} trunkH={trunkH} canopyR={canopyR} />
       )}

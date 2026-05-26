@@ -1974,15 +1974,16 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 
 /* -- Companion Card */
-.comp-card { background:var(--paper-2); border:1px solid var(--rule-2); border-radius:12px; padding:18px; margin-bottom:18px; }
-.comp-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
-.comp-card-name { display:block; font-weight:700; font-size:16px; color:var(--ink); line-height:1.2; }
+.comp-card { background:linear-gradient(145deg,var(--paper-2),var(--paper)); border:1px solid var(--rule-2); border-radius:18px; padding:20px; margin-bottom:18px; box-shadow:0 18px 42px rgba(0,0,0,0.18); }
+.comp-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; }
+.comp-card-name { display:block; font-weight:800; font-size:18px; color:var(--ink); line-height:1.2; letter-spacing:-.01em; }
 .comp-card-label { display:block; font-size:12px; color:var(--ink-3); margin-top:2px; }
 .comp-card-actions { display:flex; gap:6px; flex-shrink:0; }
 .comp-btn-ghost { background:var(--paper-3); border:1px solid var(--rule); border-radius:7px; color:var(--ink-3); cursor:pointer; font-size:14px; line-height:1; padding:6px 10px; transition:background .15s,color .15s; }
 .comp-btn-ghost:hover { background:var(--rule-2); color:var(--ink); }
-.comp-card-body { display:flex; gap:16px; align-items:flex-start; }
-.comp-svg-wrap { flex-shrink:0; border-radius:10px; overflow:hidden; border:1px solid var(--rule); }
+.comp-card-body { display:flex; gap:20px; align-items:flex-start; }
+.comp-svg-wrap { flex-shrink:0; border-radius:18px; overflow:hidden; border:1px solid color-mix(in srgb,var(--money) 34%,var(--rule)); background:radial-gradient(circle at 30% 18%,rgba(255,255,255,0.20),transparent 34%),var(--paper-3); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12),0 16px 34px rgba(0,0,0,0.22); }
+.companion-art { display:block; image-rendering:auto; shape-rendering:geometricPrecision; text-rendering:geometricPrecision; }
 .comp-card-stats { flex:1; min-width:0; }
 .comp-stat-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; gap:8px; }
 .comp-stat-label { font-size:12px; color:var(--ink-3); }
@@ -2085,4 +2086,6 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .onb-step-panel { padding:20px 16px; }
   .onb-type-cards { grid-template-columns:1fr; }
   .comp-card-body { flex-direction:column; align-items:center; }
+  .comp-svg-wrap { width:min(100%,184px); }
+  .companion-art { width:100%; height:auto; }
 }

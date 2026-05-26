@@ -98,8 +98,8 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
               background={state.background || 'day'}
               hasFlowers={g.hasFlowers}
               isDecember={g.isDecember}
-              width={140}
-              height={196}
+              width={184}
+              height={258}
             />
           ) : (
             <CharacterSVG
@@ -116,8 +116,8 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
               outfitColor={state.outfitColor || '#c62828'}
               level={g.charLevel || 1}
               background={state.background || 'day'}
-              width={140}
-              height={196}
+              width={184}
+              height={258}
             />
           )}
         </div>
