@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -157,10 +157,12 @@ export default function Savings() {
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
 
-  // Read directly from CSS custom properties at render time — always in sync
-  // with the active theme because handleSetTheme (App.jsx) pre-applies the
-  // body class before calling setTheme, triggering this re-render.
-  const themeColors = {
+  // Store resolved CSS vars in state so the chart always reflects the active
+  // theme. useLayoutEffect fires synchronously after DOM commit, before paint,
+  // so getComputedStyle reads the already-applied body class (set by
+  // handleSetTheme in App.jsx). Any render within useLayoutEffect is also
+  // processed before the browser paints, so the user never sees stale colors.
+  const [themeColors, setThemeColors] = useState(() => ({
     paper2: readCssVar('--paper-2', '#1a1a1a'),
     ink:    readCssVar('--ink',     '#f5f5f5'),
     ink2:   readCssVar('--ink-2',   '#d4d4d4'),
@@ -170,7 +172,21 @@ export default function Savings() {
     money:  readCssVar('--money',   '#5ec48a'),
     money2: readCssVar('--money-2', '#2f8a52'),
     warn:   readCssVar('--warn',    '#d9583a'),
-  };
+  }));
+
+  useLayoutEffect(() => {
+    setThemeColors({
+      paper2: readCssVar('--paper-2', '#1a1a1a'),
+      ink:    readCssVar('--ink',     '#f5f5f5'),
+      ink2:   readCssVar('--ink-2',   '#d4d4d4'),
+      ink3:   readCssVar('--ink-3',   '#9ca3af'),
+      rule:   readCssVar('--rule',    'rgba(232,239,224,0.08)'),
+      rule2:  readCssVar('--rule-2',  'rgba(232,239,224,0.20)'),
+      money:  readCssVar('--money',   '#5ec48a'),
+      money2: readCssVar('--money-2', '#2f8a52'),
+      warn:   readCssVar('--warn',    '#d9583a'),
+    });
+  }, [theme]);
 
   useEffect(() => {
     if (vices.length === 0) {
@@ -511,7 +527,7 @@ export default function Savings() {
           </div>
           <div className="sv-invest-grid">
             {investmentCards.map(asset => (
-              <div key={asset.key} className="sv-invest-card" style={{ '--asset-c': asset.color }}>
+              <div key={asset.key} className="sv-invest-card" data-asset={asset.key}>
                 <div className="sv-invest-top">
                   <span className="sv-invest-icon">{asset.icon}</span>
                   <div>

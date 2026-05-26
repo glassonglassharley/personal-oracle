@@ -980,6 +980,12 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-invest-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
 }
+/* Asset-specific colors via CSS cascade — no JS needed, updates with theme */
+.sv-invest-card[data-asset="SP500"] { --asset-c: var(--money); }
+.sv-invest-card[data-asset="HYSA"]  { --asset-c: #6a92c4; }
+.sv-invest-card[data-asset="BTC"]   { --asset-c: var(--warn); }
+.sv-invest-card[data-asset="Gold"]  { --asset-c: var(--money-2); }
+.sv-invest-card[data-asset="Cash"]  { --asset-c: var(--ink-3); }
 .sv-invest-card {
   background:
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--asset-c) 18%, transparent), transparent 54%),
