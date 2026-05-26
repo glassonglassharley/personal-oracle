@@ -94,6 +94,16 @@ const MIGRATIONS = `
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   );
+
+  CREATE TABLE IF NOT EXISTS partner_messages (
+    id SERIAL PRIMARY KEY,
+    friendship_id INTEGER NOT NULL REFERENCES friendships(id) ON DELETE CASCADE,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL CHECK (char_length(trim(body)) > 0 AND char_length(body) <= 1000),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS partner_messages_friendship_created_idx
+    ON partner_messages (friendship_id, created_at DESC, id DESC);
 `;
 
 pool.query(SCHEMA)

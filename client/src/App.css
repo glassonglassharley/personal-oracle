@@ -1347,6 +1347,9 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   display: grid; grid-template-columns: 1fr 1fr;
   border-top: 1px solid var(--rule); padding-top: 14px; gap: 12px;
 }
+.ap-card-actions {
+  display: flex; flex-direction: column; gap: 8px; margin-left: auto; align-self: flex-start;
+}
 .ap-stat-val {
   font-family: var(--serif); font-size: 26px; font-weight: 400;
   letter-spacing: -0.02em; color: var(--money); font-variant-numeric: tabular-nums;
@@ -1355,6 +1358,49 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .ap-stat-key {
   font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.08em;
   text-transform: uppercase; margin-top: 4px; font-weight: 500;
+}
+.ap-chat {
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--rule);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.ap-chat-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 12px; font-weight: 700; color: var(--ink); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ap-chat-refresh {
+  font-size: 11px; color: var(--ink-3); border: 1px solid var(--rule-2);
+  border-radius: 999px; padding: 5px 10px; background: var(--paper-2);
+}
+.ap-chat-refresh:hover:not(:disabled) { color: var(--ink); background: var(--paper); }
+.ap-chat-refresh:disabled { opacity: 0.55; cursor: default; }
+.ap-chat-messages {
+  display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto;
+  padding: 10px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper-2);
+}
+.ap-chat-empty { font-size: 12px; color: var(--ink-3); text-align: center; padding: 18px 6px; }
+.ap-chat-bubble { max-width: 86%; display: flex; flex-direction: column; gap: 4px; }
+.ap-chat-bubble.me { align-self: flex-end; align-items: flex-end; }
+.ap-chat-bubble.them { align-self: flex-start; align-items: flex-start; }
+.ap-chat-body {
+  padding: 9px 11px; border-radius: 12px; font-size: 13px; line-height: 1.45;
+  color: var(--ink); background: var(--paper-3); border: 1px solid var(--rule);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.ap-chat-bubble.me .ap-chat-body {
+  background: var(--money-soft); border-color: color-mix(in srgb, var(--money) 36%, transparent);
+}
+.ap-chat-meta { font-size: 10px; color: var(--ink-4); font-family: var(--mono); }
+.ap-chat-compose { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.ap-chat-input {
+  width: 100%; min-width: 0; resize: vertical; max-height: 140px;
+  border: 1px solid var(--rule-2); border-radius: 10px; background: var(--paper-2);
+  color: var(--ink); padding: 9px 10px; font: inherit; font-size: 13px; line-height: 1.4;
+}
+.ap-chat-input:focus { outline: none; border-color: var(--money); box-shadow: 0 0 0 3px var(--money-soft); }
+@media (max-width: 560px) {
+  .ap-card-top { align-items: flex-start; flex-wrap: wrap; }
+  .ap-card-actions { width: 100%; flex-direction: row; margin-left: 60px; }
+  .ap-chat-compose { grid-template-columns: 1fr; }
 }
 
 /* ── Challenge banner (Dashboard) ───────────────── */

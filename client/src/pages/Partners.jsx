@@ -19,6 +19,11 @@ export default function Partners() {
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState('');
   const [flashErr, setFlashErr] = useState('');
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [chatMessages, setChatMessages] = useState({});
+  const [chatDrafts, setChatDrafts] = useState({});
+  const [chatLoading, setChatLoading] = useState({});
+  const [chatSending, setChatSending] = useState({});
 
   const showFlash = (msg, isErr = false) => {
     if (isErr) { setFlashErr(msg); setTimeout(() => setFlashErr(''), 3500); }
@@ -82,6 +87,49 @@ export default function Partners() {
       showFlash('Challenge sent! May the cleanest month win 🏆');
       load();
     } catch (e) { showFlash(e.message, true); }
+  };
+
+  const loadChat = async (partnerId) => {
+    setChatLoading(prev => ({ ...prev, [partnerId]: true }));
+    try {
+      const messages = await api(`/api/partners/${partnerId}/messages`);
+      setChatMessages(prev => ({ ...prev, [partnerId]: messages }));
+    } catch (e) {
+      showFlash(e.message || 'Could not load chat.', true);
+    } finally {
+      setChatLoading(prev => ({ ...prev, [partnerId]: false }));
+    }
+  };
+
+  const toggleChat = (partnerId) => {
+    const next = activeChatId === partnerId ? null : partnerId;
+    setActiveChatId(next);
+    if (next && !chatMessages[next]) loadChat(next);
+  };
+
+  const setChatDraft = (partnerId, value) => {
+    setChatDrafts(prev => ({ ...prev, [partnerId]: value }));
+  };
+
+  const sendChat = async (partnerId) => {
+    const body = String(chatDrafts[partnerId] || '').trim();
+    if (!body) return;
+    setChatSending(prev => ({ ...prev, [partnerId]: true }));
+    try {
+      const message = await api(`/api/partners/${partnerId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+      setChatMessages(prev => ({
+        ...prev,
+        [partnerId]: [...(prev[partnerId] || []), message],
+      }));
+      setChatDraft(partnerId, '');
+    } catch (e) {
+      showFlash(e.message || 'Could not send message.', true);
+    } finally {
+      setChatSending(prev => ({ ...prev, [partnerId]: false }));
+    }
   };
 
   if (isDemo) {
@@ -262,11 +310,20 @@ export default function Partners() {
                       </div>
                     )}
                   </div>
-                  <button
-                    className="btn ghost"
-                    style={{ fontSize: 11, padding: '5px 10px', marginLeft: 'auto', alignSelf: 'flex-start' }}
-                    onClick={() => removePartner(p.friendship_id)}
-                  >Remove</button>
+                  <div className="ap-card-actions">
+                    <button
+                      className={`btn ${activeChatId === p.id ? '' : 'ghost'}`}
+                      type="button"
+                      style={{ fontSize: 11, padding: '5px 10px' }}
+                      onClick={() => toggleChat(p.id)}
+                    >{activeChatId === p.id ? 'Close chat' : 'Chat'}</button>
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      style={{ fontSize: 11, padding: '5px 10px' }}
+                      onClick={() => removePartner(p.friendship_id)}
+                    >Remove</button>
+                  </div>
                 </div>
                 <div className="ap-stats">
                   <div className="ap-stat">
@@ -278,6 +335,48 @@ export default function Partners() {
                     <div className="ap-stat-key">Spent this month</div>
                   </div>
                 </div>
+                {activeChatId === p.id && (
+                  <div className="ap-chat">
+                    <div className="ap-chat-head">
+                      <span>Chat with {p.name}</span>
+                      <button className="ap-chat-refresh" type="button" onClick={() => loadChat(p.id)} disabled={chatLoading[p.id]}>
+                        {chatLoading[p.id] ? 'Refreshing…' : 'Refresh'}
+                      </button>
+                    </div>
+                    <div className="ap-chat-messages" aria-live="polite">
+                      {chatLoading[p.id] && !chatMessages[p.id] ? (
+                        <div className="ap-chat-empty">Loading chat…</div>
+                      ) : (chatMessages[p.id] || []).length === 0 ? (
+                        <div className="ap-chat-empty">No messages yet. Send a quick check-in.</div>
+                      ) : (
+                        chatMessages[p.id].map(message => (
+                          <div key={message.id} className={`ap-chat-bubble ${message.is_me ? 'me' : 'them'}`}>
+                            <div className="ap-chat-body">{message.body}</div>
+                            <div className="ap-chat-meta">
+                              {message.is_me ? 'You' : (message.sender_name || p.name)} · {formatMessageTime(message.created_at)}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <form
+                      className="ap-chat-compose"
+                      onSubmit={event => { event.preventDefault(); sendChat(p.id); }}
+                    >
+                      <textarea
+                        className="ap-chat-input"
+                        value={chatDrafts[p.id] || ''}
+                        maxLength={1000}
+                        rows={2}
+                        placeholder={`Message ${p.name}…`}
+                        onChange={event => setChatDraft(p.id, event.target.value)}
+                      />
+                      <button className="btn" type="submit" disabled={chatSending[p.id] || !String(chatDrafts[p.id] || '').trim()}>
+                        {chatSending[p.id] ? 'Sending…' : 'Send'}
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -306,6 +405,15 @@ export default function Partners() {
       )}
     </main>
   );
+}
+
+function formatMessageTime(value) {
+  if (!value) return 'now';
+  try {
+    return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return 'now';
+  }
 }
 
 function initials(name) {

@@ -7,6 +7,17 @@ async function getMyId(clerkUserId) {
   return r.rows[0]?.id;
 }
 
+async function getAcceptedFriendship(myId, partnerId) {
+  if (!myId || !partnerId || Number(partnerId) === Number(myId)) return null;
+  const result = await pool.query(`
+    SELECT id FROM friendships
+    WHERE status = 'accepted'
+      AND ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+    LIMIT 1
+  `, [myId, partnerId]);
+  return result.rows[0] || null;
+}
+
 // GET /api/partners — accepted partners with summary stats
 router.get('/', async (req, res, next) => {
   try {
@@ -107,6 +118,51 @@ router.get('/search', async (req, res, next) => {
     `, [myId, `%${q}%`]);
 
     res.json(r.rows);
+  } catch (err) { next(err); }
+});
+
+// GET /api/partners/:id/messages — recent chat with an accepted partner
+router.get('/:id/messages', async (req, res, next) => {
+  try {
+    const myId = await getMyId(req.auth.userId);
+    const partnerId = Number(req.params.id);
+    const friendship = await getAcceptedFriendship(myId, partnerId);
+    if (!friendship) return res.status(403).json({ error: 'Not a partner' });
+
+    const result = await pool.query(`
+      SELECT pm.id, pm.body, pm.created_at, pm.sender_id,
+        u.name AS sender_name,
+        (pm.sender_id = $2) AS is_me
+      FROM partner_messages pm
+      JOIN users u ON u.id = pm.sender_id
+      WHERE pm.friendship_id = $1
+      ORDER BY pm.created_at DESC, pm.id DESC
+      LIMIT 100
+    `, [friendship.id, myId]);
+
+    res.json(result.rows.reverse());
+  } catch (err) { next(err); }
+});
+
+// POST /api/partners/:id/messages — send a chat message to an accepted partner
+router.post('/:id/messages', async (req, res, next) => {
+  try {
+    const myId = await getMyId(req.auth.userId);
+    const partnerId = Number(req.params.id);
+    const friendship = await getAcceptedFriendship(myId, partnerId);
+    if (!friendship) return res.status(403).json({ error: 'Not a partner' });
+
+    const body = String(req.body?.body || '').trim();
+    if (!body) return res.status(400).json({ error: 'Message required' });
+    if (body.length > 1000) return res.status(400).json({ error: 'Message must be 1000 characters or less' });
+
+    const result = await pool.query(`
+      INSERT INTO partner_messages (friendship_id, sender_id, body)
+      VALUES ($1, $2, $3)
+      RETURNING id, body, created_at, sender_id, true AS is_me
+    `, [friendship.id, myId, body]);
+
+    res.json(result.rows[0]);
   } catch (err) { next(err); }
 });
 
