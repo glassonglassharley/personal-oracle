@@ -1,7 +1,13 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { Pool } = require('pg');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// rejectUnauthorized: false is required for Neon (and most cloud Postgres providers)
+// because their cert chain may not be trusted by Node's built-in CA store on Vercel.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 8000,
+});
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
@@ -110,7 +116,11 @@ const { backupEntries } = require('./backup');
 
 async function initDb() {
   await pool.query(SCHEMA);
-  await backupEntries(pool).catch(err => console.error('Pre-migration backup failed:', err.stack || err.message));
+  // Skip backup on Vercel — /tmp is ephemeral (wiped on every cold start) so
+  // the file never survives long enough to be useful as a migration safety net.
+  if (!process.env.VERCEL) {
+    await backupEntries(pool).catch(err => console.error('Pre-migration backup failed:', err.stack || err.message));
+  }
   await pool.query(MIGRATIONS);
   await pool.query('ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_vice_id_date_key');
   await pool.query('DROP INDEX IF EXISTS entries_vice_id_date_key');

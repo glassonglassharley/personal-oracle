@@ -94,6 +94,16 @@ async function usernameOrClerkAuth(req, res, next) {
 app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
+
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ ok: true, db: 'connected', ts: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ ok: false, db: 'error', error: err.message });
+  }
+});
+
 app.use('/api/cron', require('./routes/cron'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/auth/username', usernameAuthRouter);
