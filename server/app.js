@@ -79,6 +79,7 @@ app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
 app.use('/api/cron', require('./routes/cron'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api/auth/username', usernameAuthRouter);
 app.use('/api/auth/phantom', phantomAuthRouter);
 app.use('/api', usernameOrClerkAuth, ensureUser);

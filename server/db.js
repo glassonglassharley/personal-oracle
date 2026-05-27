@@ -106,9 +106,19 @@ const MIGRATIONS = `
     ON partner_messages (friendship_id, created_at DESC, id DESC);
 `;
 
-pool.query(SCHEMA)
-  .then(() => pool.query(MIGRATIONS))
-  .then(() => console.log('DB schema ready'))
-  .catch(err => console.error('DB schema error:', err.message));
+const { backupEntries } = require('./backup');
+
+async function initDb() {
+  await pool.query(SCHEMA);
+  await backupEntries(pool).catch(err => console.error('Pre-migration backup failed:', err.message));
+  await pool.query(MIGRATIONS);
+  await pool.query('ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_vice_id_date_key');
+  await pool.query('DROP INDEX IF EXISTS entries_vice_id_date_key');
+  await pool.query('DROP INDEX IF EXISTS entries_vice_id_date_idx');
+  await pool.query('DROP INDEX IF EXISTS entries_vice_id_date_unique');
+  console.log('DB schema ready');
+}
+
+initDb().catch(err => console.error('DB schema error:', err.message));
 
 module.exports = pool;
