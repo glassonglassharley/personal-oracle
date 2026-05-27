@@ -114,6 +114,7 @@ export default function Dashboard() {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [goalTitle, setGoalTitle] = useState('');
   const [goalAmt, setGoalAmt] = useState('');
+  const [goalError, setGoalError] = useState('');
   const celebratedRef = useRef(new Set());
 
   // Challenge notifications
@@ -146,6 +147,7 @@ export default function Dashboard() {
 
   const createGoal = async (e) => {
     e.preventDefault();
+    setGoalError('');
     try {
       const g = await apiRef.current('/api/goals', {
         method: 'POST',
@@ -153,7 +155,9 @@ export default function Dashboard() {
       });
       setGoals(gs => [g, ...gs]);
       setGoalTitle(''); setGoalAmt(''); setShowGoalForm(false);
-    } catch {}
+    } catch (err) {
+      setGoalError(err.message || 'Could not create goal.');
+    }
   };
 
   const markGoalDone = async (id) => {
@@ -161,14 +165,18 @@ export default function Dashboard() {
       await apiRef.current(`/api/goals/${id}/complete`, { method: 'PUT' });
       setGoals(gs => gs.map(g => g.id === id ? { ...g, completed_at: new Date().toISOString() } : g));
       setCelebGoal(null);
-    } catch {}
+    } catch (err) {
+      console.error('markGoalDone failed:', err);
+    }
   };
 
   const deleteGoal = async (id) => {
     try {
       await apiRef.current(`/api/goals/${id}`, { method: 'DELETE' });
       setGoals(gs => gs.filter(g => g.id !== id));
-    } catch {}
+    } catch (err) {
+      console.error('deleteGoal failed:', err);
+    }
   };
 
   useEffect(() => {
@@ -342,6 +350,7 @@ export default function Dashboard() {
             setGoalTitle={setGoalTitle}
             goalAmt={goalAmt}
             setGoalAmt={setGoalAmt}
+            goalError={goalError}
             onCreateGoal={createGoal}
             onDeleteGoal={deleteGoal}
           />

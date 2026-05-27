@@ -5,6 +5,7 @@ export function GoalsSection({
   showForm, setShowForm,
   goalTitle, setGoalTitle,
   goalAmt, setGoalAmt,
+  goalError,
   onCreateGoal, onDeleteGoal,
 }) {
   const active = goals.filter(g => !g.completed_at);
@@ -49,6 +50,7 @@ export function GoalsSection({
             <button className="btn" type="submit" disabled={!goalTitle.trim() || !goalAmt}>Save</button>
             <button className="btn ghost" type="button" onClick={() => setShowForm(false)}>Cancel</button>
           </div>
+          {goalError && <div className="form-error" style={{ marginTop: 6 }}>{goalError}</div>}
         </form>
       )}
 

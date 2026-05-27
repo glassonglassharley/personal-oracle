@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
@@ -224,22 +224,27 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
 
 export default function ViceManager() {
   const api = useApi();
+  const apiRef = useRef(api);
+  apiRef.current = api;
   const { loadVices: ctxLoadVices } = useViceContext();
   const [vices, setVices] = useState([]);
   const [viceStats, setViceStats] = useState({});
   const [showAdd, setShowAdd] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [addForm, setAddForm] = useState({
     name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: ''
   });
   const setAdd = (k, v) => setAddForm(f => ({ ...f, [k]: v }));
 
   const loadVices = useCallback(async () => {
-    const data = await api('/api/vices');
+    const data = await apiRef.current('/api/vices');
     setVices(data);
     const statsMap = {};
     await Promise.all(data.map(async v => {
-      try { statsMap[v.id] = await api(`/api/stats/${v.id}`); } catch (_) {}
+      try { statsMap[v.id] = await apiRef.current(`/api/stats/${v.id}`); } catch (_) {}
     }));
     setViceStats(statsMap);
   }, []);
@@ -247,9 +252,14 @@ export default function ViceManager() {
   useEffect(() => { loadVices().catch(console.error); }, []);
 
   const handleUpdate = async (id, fields) => {
-    await api(`/api/vices/${id}`, { method: 'PUT', body: JSON.stringify(fields) });
-    loadVices();
-    ctxLoadVices();
+    try {
+      await apiRef.current(`/api/vices/${id}`, { method: 'PUT', body: JSON.stringify(fields) });
+      loadVices();
+      ctxLoadVices();
+    } catch (err) {
+      console.error('Update failed:', err);
+      alert(err.message || 'Could not save changes. Please try again.');
+    }
   };
 
   const handleDeleteClick = (vice) => {
@@ -259,26 +269,43 @@ export default function ViceManager() {
   };
 
   const handleDeleteConfirm = async () => {
-    await api(`/api/vices/${deleteTarget.id}`, { method: 'DELETE' });
-    setDeleteTarget(null);
-    loadVices();
-    ctxLoadVices();
+    setDeleting(true);
+    try {
+      await apiRef.current(`/api/vices/${deleteTarget.id}`, { method: 'DELETE' });
+      setDeleteTarget(null);
+      loadVices();
+      ctxLoadVices();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(err.message || 'Could not delete vice. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleAdd = async e => {
     e.preventDefault();
-    await api('/api/vices', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...addForm,
-        default_price: Number(addForm.default_price) || 0,
-        monthly_budget: addForm.monthly_budget === '' ? null : Number(addForm.monthly_budget),
-      }),
-    });
-    setAddForm({ name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '' });
-    setShowAdd(false);
-    loadVices();
-    ctxLoadVices();
+    setAddSaving(true);
+    setAddError('');
+    try {
+      await apiRef.current('/api/vices', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...addForm,
+          default_price: Number(addForm.default_price) || 0,
+          monthly_budget: addForm.monthly_budget === '' ? null : Number(addForm.monthly_budget),
+        }),
+      });
+      setAddForm({ name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '' });
+      setShowAdd(false);
+      loadVices();
+      ctxLoadVices();
+    } catch (err) {
+      console.error('Add vice failed:', err);
+      setAddError(err.message || 'Could not add vice. Please try again.');
+    } finally {
+      setAddSaving(false);
+    }
   };
 
   return (
@@ -320,8 +347,11 @@ export default function ViceManager() {
               ))}
             </div>
             <div className="edit-actions">
-              <button type="submit" className="btn btn-primary">Add vice</button>
+              <button type="submit" className="btn btn-primary" disabled={addSaving}>
+                {addSaving ? 'Saving…' : 'Add vice'}
+              </button>
             </div>
+            {addError && <div className="form-error" style={{ marginTop: 8 }}>{addError}</div>}
           </form>
         </div>
       )}
@@ -360,7 +390,9 @@ export default function ViceManager() {
                 : ' All logged entries will be lost.'}
             </p>
             <div className="modal-actions">
-              <button className="btn btn-danger" onClick={handleDeleteConfirm}>Yes, delete</button>
+              <button className="btn btn-danger" onClick={handleDeleteConfirm} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </button>
               <button className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>Cancel</button>
             </div>
           </div>

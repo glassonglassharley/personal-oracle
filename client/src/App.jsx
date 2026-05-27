@@ -150,7 +150,10 @@ function urlBase64ToUint8Array(base64String) {
 
 function NightlyReminder({ collapsed = false }) {
   const api = useApi();
-  const [status, setStatus] = useState('idle');
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const [status, setStatus] = useState('loading');
+  const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState('');
 
   const canPush = typeof window !== 'undefined'
@@ -158,11 +161,20 @@ function NightlyReminder({ collapsed = false }) {
     && 'serviceWorker' in navigator
     && 'PushManager' in window;
 
+  useEffect(() => {
+    apiRef.current('/api/users/me')
+      .then(user => {
+        setEnabled(Boolean(user?.nightly_reminders_enabled));
+        setStatus('idle');
+      })
+      .catch(() => setStatus('idle'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const enableReminder = async () => {
     setStatus('loading');
     setMessage('');
     try {
-      await api('/api/notifications/settings', {
+      await apiRef.current('/api/notifications/settings', {
         method: 'PUT',
         body: JSON.stringify({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
@@ -170,23 +182,25 @@ function NightlyReminder({ collapsed = false }) {
         }),
       });
 
+      setEnabled(true);
+
       if (!canPush) {
         setStatus('ready');
         setMessage('Nightly zero-day tracking is on. Push reminders are not supported here.');
         return;
       }
 
-      const config = await api('/api/notifications/config');
+      const config = await apiRef.current('/api/notifications/config');
       if (!config.publicKey || !config.pushEnabled) {
         setStatus('ready');
-        setMessage('Nightly zero-day tracking is on. Push keys still need to be configured.');
+        setMessage('Nightly zero-day tracking is on.');
         return;
       }
 
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setStatus('ready');
-        setMessage('Zero-day tracking is on. Allow notifications to get nightly reminders.');
+        setMessage('Tracking is on. Allow notifications for nightly reminders.');
         return;
       }
 
@@ -197,7 +211,7 @@ function NightlyReminder({ collapsed = false }) {
         applicationServerKey: urlBase64ToUint8Array(config.publicKey),
       });
 
-      await api('/api/notifications/subscriptions', {
+      await apiRef.current('/api/notifications/subscriptions', {
         method: 'POST',
         body: JSON.stringify({ subscription: subscription.toJSON() }),
       });
@@ -212,6 +226,22 @@ function NightlyReminder({ collapsed = false }) {
   };
 
   if (collapsed) return null;
+
+  if (status === 'loading') return null;
+
+  if (enabled && status !== 'error') {
+    return (
+      <div className="nightly-reminder-card">
+        <div>
+          <div className="nightly-reminder-title">Nightly tracking</div>
+          <p style={{ color: 'var(--money, #5ec48a)', margin: 0, fontSize: 13 }}>
+            ✓ Enabled — missed days auto-count as 0
+          </p>
+        </div>
+        {message && <div className="nightly-reminder-msg">{message}</div>}
+      </div>
+    );
+  }
 
   return (
     <div className="nightly-reminder-card">
