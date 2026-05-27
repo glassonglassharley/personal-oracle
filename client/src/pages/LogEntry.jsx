@@ -15,7 +15,7 @@ export default function LogEntry() {
   const [selectedViceId, setSelectedViceId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [quantity, setQuantity] = useState(0);
-  const [pricePerUnit, setPricePerUnit] = useState('');
+  const [totalSpent, setTotalSpent] = useState('');
   const [recentEntries, setRecentEntries] = useState([]);
   const [editingEntry, setEditingEntry] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -35,17 +35,13 @@ export default function LogEntry() {
     if (initialized || vices.length === 0) return;
     const initId = activeViceId ? String(activeViceId) : String(vices[0].id);
     setSelectedViceId(initId);
-    const v = vices.find(x => String(x.id) === initId);
-    if (v) setPricePerUnit(v.default_price);
+    // totalSpent depends on quantity, so leave it blank on init
     setInitialized(true);
   }, [vices, activeViceId, initialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selectedViceId) return;
-    if (!editingEntry) {
-      const vice = vices.find(v => String(v.id) === String(selectedViceId));
-      if (vice) setPricePerUnit(vice.default_price);
-    }
+    if (!editingEntry) setTotalSpent('');
     loadRecentEntries(selectedViceId);
   }, [selectedViceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -57,11 +53,13 @@ export default function LogEntry() {
     setSaving(true);
     setErrorMsg('');
     try {
+      const qty = Number(quantity);
+      const total = Number(totalSpent) || 0;
       const payload = {
         vice_id: Number(selectedViceId),
         date,
-        quantity: Number(quantity),
-        price_per_unit: Number(pricePerUnit),
+        quantity: qty,
+        price_per_unit: qty > 0 ? total / qty : 0,
       };
       await api(editingEntry ? `/api/entries/${editingEntry.id}` : '/api/entries', {
         method: editingEntry ? 'PUT' : 'POST',
@@ -83,12 +81,8 @@ export default function LogEntry() {
   };
 
   const handleViceChange = e => {
-    const nextViceId = e.target.value;
-    setSelectedViceId(nextViceId);
-    if (!editingEntry) {
-      const vice = vices.find(v => String(v.id) === String(nextViceId));
-      if (vice) setPricePerUnit(vice.default_price);
-    }
+    setSelectedViceId(e.target.value);
+    if (!editingEntry) setTotalSpent('');
   };
 
   const startEdit = entry => {
@@ -97,7 +91,9 @@ export default function LogEntry() {
     setSelectedViceId(String(entry.vice_id));
     setDate(entryDate);
     setQuantity(Number(entry.quantity || 0));
-    setPricePerUnit(entry.price_per_unit ?? '');
+    setTotalSpent(Number(entry.quantity || 0) > 0
+      ? String((Number(entry.quantity) * Number(entry.price_per_unit || 0)).toFixed(2))
+      : '');
     setSavedMsg('');
     setErrorMsg('');
   };
@@ -113,8 +109,7 @@ export default function LogEntry() {
     setEditingEntry(null);
     setDate(new Date().toISOString().split('T')[0]);
     setQuantity(0);
-    const vice = vices.find(v => String(v.id) === String(selectedViceId));
-    if (vice) setPricePerUnit(vice.default_price);
+    setTotalSpent('');
     setErrorMsg('');
   };
 
@@ -175,15 +170,15 @@ export default function LogEntry() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Price per {activeUnitLabel} ($)</label>
-              <input type="number" className="form-input" value={pricePerUnit}
-                min="0" step="0.01"
-                onChange={e => setPricePerUnit(e.target.value)} />
+              <label className="form-label">Total spent ($)</label>
+              <input type="number" className="form-input" value={totalSpent}
+                min="0" step="0.01" placeholder="0.00"
+                onChange={e => setTotalSpent(e.target.value)} />
             </div>
 
-            {Number(quantity) > 0 && (
+            {Number(quantity) > 0 && Number(totalSpent) > 0 && (
               <div className="log-total">
-                Total: <strong>{fmt$(Number(quantity) * Number(pricePerUnit))}</strong>
+                Total: <strong>{fmt$(Number(totalSpent))}</strong>
               </div>
             )}
 
