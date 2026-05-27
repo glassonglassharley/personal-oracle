@@ -110,7 +110,7 @@ const { backupEntries } = require('./backup');
 
 async function initDb() {
   await pool.query(SCHEMA);
-  await backupEntries(pool).catch(err => console.error('Pre-migration backup failed:', err.message));
+  await backupEntries(pool).catch(err => console.error('Pre-migration backup failed:', err.stack || err.message));
   await pool.query(MIGRATIONS);
   await pool.query('ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_vice_id_date_key');
   await pool.query('DROP INDEX IF EXISTS entries_vice_id_date_key');
@@ -119,6 +119,6 @@ async function initDb() {
   console.log('DB schema ready');
 }
 
-initDb().catch(err => console.error('DB schema error:', err.message));
+initDb().catch(err => console.error('[DB INIT ERROR]', err.stack || err.message));
 
 module.exports = pool;

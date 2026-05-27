@@ -1,4 +1,20 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
+// Log missing critical env vars at startup so Vercel Function logs show the root cause
+const REQUIRED_ENV = ['DATABASE_URL', 'CLERK_SECRET_KEY', 'CLERK_PUBLISHABLE_KEY'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error('[STARTUP] Missing required environment variables:', missing.join(', '));
+}
+const OPTIONAL_ENV = [
+  'VITE_CLERK_PUBLISHABLE_KEY', 'PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV',
+  'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'ANTHROPIC_API_KEY', 'CRON_SECRET', 'ADMIN_SECRET',
+];
+const missingOptional = OPTIONAL_ENV.filter(k => !process.env[k]);
+if (missingOptional.length) {
+  console.warn('[STARTUP] Optional env vars not set (some features may fail):', missingOptional.join(', '));
+}
+
 const express = require('express');
 const cors = require('cors');
 const { clerkMiddleware, requireAuth } = require('@clerk/express');
@@ -98,8 +114,14 @@ app.use('/api/plaid',    require('./routes/plaid'));
 app.use('/api/badges',   require('./routes/badges'));
 
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  const status = err.status || err.statusCode || 500;
+  console.error(
+    `[API ERROR] ${req.method} ${req.path}`,
+    `status=${status}`,
+    `user=${req.auth?.userId ?? 'unauthenticated'}`,
+    '\n' + (err.stack || err.message || err),
+  );
+  res.status(status).json({ error: err.message || 'Internal server error' });
 });
 
 module.exports = app;
