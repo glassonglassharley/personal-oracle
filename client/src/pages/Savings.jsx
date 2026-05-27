@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -118,14 +118,6 @@ function fmtBig(n) {
   return fmt$0(n);
 }
 
-// Read a CSS custom property directly from the body at render time.
-// Safe because handleSetTheme (App.jsx) pre-applies the body class before
-// calling setTheme, so by the time Savings re-renders the new values are live.
-function readCssVar(name, fallback) {
-  if (typeof document === 'undefined') return fallback;
-  return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
-}
-
 function withAlpha(color, alpha) {
   const rgba = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
   if (rgba) return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
@@ -157,35 +149,28 @@ export default function Savings() {
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
 
-  // Store resolved CSS vars in state so the chart always reflects the active
-  // theme. useLayoutEffect fires synchronously after DOM commit, before paint,
-  // so getComputedStyle reads the already-applied body class (set by
-  // handleSetTheme in App.jsx). Any render within useLayoutEffect is also
-  // processed before the browser paints, so the user never sees stale colors.
-  const [themeColors, setThemeColors] = useState(() => ({
-    paper2: readCssVar('--paper-2', '#1a1a1a'),
-    ink:    readCssVar('--ink',     '#f5f5f5'),
-    ink2:   readCssVar('--ink-2',   '#d4d4d4'),
-    ink3:   readCssVar('--ink-3',   '#9ca3af'),
-    rule:   readCssVar('--rule',    'rgba(232,239,224,0.08)'),
-    rule2:  readCssVar('--rule-2',  'rgba(232,239,224,0.20)'),
-    money:  readCssVar('--money',   '#5ec48a'),
-    money2: readCssVar('--money-2', '#2f8a52'),
-    warn:   readCssVar('--warn',    '#d9583a'),
-  }));
-
-  useLayoutEffect(() => {
-    setThemeColors({
-      paper2: readCssVar('--paper-2', '#1a1a1a'),
-      ink:    readCssVar('--ink',     '#f5f5f5'),
-      ink2:   readCssVar('--ink-2',   '#d4d4d4'),
-      ink3:   readCssVar('--ink-3',   '#9ca3af'),
-      rule:   readCssVar('--rule',    'rgba(232,239,224,0.08)'),
-      rule2:  readCssVar('--rule-2',  'rgba(232,239,224,0.20)'),
-      money:  readCssVar('--money',   '#5ec48a'),
-      money2: readCssVar('--money-2', '#2f8a52'),
-      warn:   readCssVar('--warn',    '#d9583a'),
-    });
+  // Resolve CSS vars synchronously during render — useMemo runs in the render
+  // phase, so by the time this fires the body class is already updated and
+  // getComputedStyle returns the correct values for the active theme.
+  const chartColors = useMemo(() => {
+    if (typeof document === 'undefined') return {
+      paper2: '#1a1a1a', ink: '#f5f5f5', ink2: '#d4d4d4', ink3: '#9ca3af',
+      rule: 'rgba(232,239,224,0.08)', rule2: 'rgba(232,239,224,0.20)',
+      money: '#5ec48a', money2: '#2f8a52', warn: '#d9583a',
+    };
+    const cs = getComputedStyle(document.body);
+    const g = v => cs.getPropertyValue(v).trim();
+    return {
+      paper2: g('--paper-2') || '#1a1a1a',
+      ink:    g('--ink')     || '#f5f5f5',
+      ink2:   g('--ink-2')   || '#d4d4d4',
+      ink3:   g('--ink-3')   || '#9ca3af',
+      rule:   g('--rule')    || 'rgba(232,239,224,0.08)',
+      rule2:  g('--rule-2')  || 'rgba(232,239,224,0.20)',
+      money:  g('--money')   || '#5ec48a',
+      money2: g('--money-2') || '#2f8a52',
+      warn:   g('--warn')    || '#d9583a',
+    };
   }, [theme]);
 
   useEffect(() => {
@@ -253,15 +238,15 @@ export default function Savings() {
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
   const assetColors = {
-    primary:   '#6a92c4',           // HYSA — fixed blue; accent==money so this was always a duplicate
-    secondary: themeColors.money,
-    muted:     themeColors.ink3,
-    hot:       themeColors.warn,
-    warm:      themeColors.money2,
+    primary:   '#6a92c4',
+    secondary: chartColors.money,
+    muted:     chartColors.ink3,
+    hot:       chartColors.warn,
+    warm:      chartColors.money2,
   };
   const themedAssets = ASSETS.map(asset => ({
     ...asset,
-    color: assetColors[asset.colorKey] || themeColors.money,
+    color: assetColors[asset.colorKey] || chartColors.money,
   }));
 
   // Chart: monthly data points up to horizon
@@ -296,25 +281,25 @@ export default function Savings() {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: themeColors.ink3, boxWidth: 16, padding: 20, font: { size: 12 } },
+        labels: { color: chartColors.ink3, boxWidth: 16, padding: 20, font: { size: 12 } },
       },
       tooltip: {
-        backgroundColor: themeColors.paper2,
-        borderColor: themeColors.rule2,
+        backgroundColor: chartColors.paper2,
+        borderColor: chartColors.rule2,
         borderWidth: 1,
-        titleColor: themeColors.ink2,
-        bodyColor: themeColors.ink,
+        titleColor: chartColors.ink2,
+        bodyColor: chartColors.ink,
         callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtBig(ctx.parsed.y)}` },
       },
     },
     scales: {
       x: {
-        grid: { color: themeColors.rule },
-        ticks: { color: themeColors.ink3, maxTicksLimit: 8 },
+        grid: { color: chartColors.rule },
+        ticks: { color: chartColors.ink3, maxTicksLimit: 8 },
       },
       y: {
-        grid: { color: themeColors.rule },
-        ticks: { color: themeColors.ink3, callback: v => fmtBig(v) },
+        grid: { color: chartColors.rule },
+        ticks: { color: chartColors.ink3, callback: v => fmtBig(v) },
       },
     },
   };

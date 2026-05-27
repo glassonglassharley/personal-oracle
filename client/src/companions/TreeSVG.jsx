@@ -3,10 +3,20 @@ import { TREE_SPECIES, POT_STYLES, BACKGROUNDS } from './companionData';
 
 const GROWTH_SCALE = [0, 0.28, 0.48, 0.68, 0.85, 1.0];
 
-function Background({ bgId }) {
+function adj(hex, amt) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  const r = Math.min(255, Math.max(0, parseInt(hex.slice(1, 3), 16) + amt));
+  const g = Math.min(255, Math.max(0, parseInt(hex.slice(3, 5), 16) + amt));
+  const b = Math.min(255, Math.max(0, parseInt(hex.slice(5, 7), 16) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+function Background({ bgId, artId }) {
   const bg = BACKGROUNDS.find(b => b.id === bgId) || BACKGROUNDS[0];
   const isNight = bgId === 'night_stars' || bgId === 'space' || bgId === 'mystical_forest';
   const isSnowy = bgId === 'snowy';
+  const skyGradId = `sky-${artId}`;
+  const gndGradId = `gnd-${artId}`;
 
   const stars = isNight ? Array.from({ length: 22 }, (_, i) => ({
     cx: (i * 37 + 11) % 196 + 2,
@@ -18,21 +28,40 @@ function Background({ bgId }) {
   return (
     <g>
       <defs>
-        <linearGradient id="tree-sky" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={skyGradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={bg.sky1} />
           <stop offset="100%" stopColor={bg.sky2} />
         </linearGradient>
+        <linearGradient id={gndGradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={adj(bg.ground, 20)} />
+          <stop offset="100%" stopColor={adj(bg.ground, -20)} />
+        </linearGradient>
       </defs>
-      <rect width="200" height="215" fill="url(#tree-sky)" />
-      <rect x="0" y="215" width="200" height="65" fill={bg.ground} />
+      <rect width="200" height="215" fill={`url(#${skyGradId})`} />
+      <rect x="0" y="215" width="200" height="65" fill={`url(#${gndGradId})`} />
+      <line x1="0" y1="215" x2="200" y2="215" stroke={adj(bg.ground, -30)} strokeWidth="1.5" opacity="0.45" />
 
-      {stars.map((s, i) => <circle key={i} cx={s.cx} cy={s.cy} r={s.r} fill="white" opacity={s.op} />)}
+      {stars.map((s, i) => (
+        <g key={i}>
+          <circle cx={s.cx} cy={s.cy} r={s.r} fill="white" opacity={s.op} />
+          {i % 4 === 0 && <circle cx={s.cx} cy={s.cy} r={s.r * 2.8} fill="white" opacity={s.op * 0.22} />}
+        </g>
+      ))}
 
       {bgId === 'day' && <>
-        <ellipse cx="38" cy="48" rx="24" ry="14" fill="white" opacity="0.75" />
-        <ellipse cx="56" cy="43" rx="18" ry="12" fill="white" opacity="0.75" />
-        <ellipse cx="158" cy="58" rx="20" ry="12" fill="white" opacity="0.65" />
-        <circle cx="168" cy="36" r="16" fill="#FDD835" opacity="0.9" />
+        <g opacity="0.88">
+          <ellipse cx="38" cy="47" rx="26" ry="14" fill="white" />
+          <ellipse cx="54" cy="40" rx="20" ry="13" fill="white" />
+          <ellipse cx="28" cy="52" rx="14" ry="9" fill="white" />
+          <ellipse cx="44" cy="58" rx="24" ry="5" fill="rgba(0,0,0,0.05)" />
+        </g>
+        <g opacity="0.7">
+          <ellipse cx="158" cy="56" rx="21" ry="12" fill="white" />
+          <ellipse cx="170" cy="50" rx="15" ry="9" fill="white" />
+        </g>
+        <circle cx="168" cy="34" r="16" fill="#FDD835" opacity="0.93" />
+        <circle cx="168" cy="34" r="23" fill="#FDD835" opacity="0.15" />
+        <circle cx="162" cy="28" r="7" fill="#fff9c4" opacity="0.42" />
       </>}
 
       {bgId === 'sunset' && <>
@@ -83,28 +112,53 @@ function Background({ bgId }) {
   );
 }
 
-function Pot({ style = 'terracotta', x = 100, y = 225 }) {
+function Pot({ style = 'terracotta', x = 100, y = 225, artId = '' }) {
   const p = POT_STYLES.find(ps => ps.id === style) || POT_STYLES[0];
+  const potGId = `pot-g-${artId}`;
 
   if (style === 'floating') {
-    return <ellipse cx={x} cy={y + 6} rx="26" ry="10" fill="#4a3728" />;
+    return <g>
+      <ellipse cx={x} cy={y + 7} rx="28" ry="11" fill="#4a3728" />
+      <ellipse cx={x} cy={y + 5} rx="25" ry="9" fill="#5a4738" />
+      <ellipse cx={x - 5} cy={y + 4} rx="8" ry="4" fill="rgba(255,255,255,0.1)" />
+      <ellipse cx={x} cy={y + 14} rx="22" ry="5" fill="rgba(100,200,255,0.18)" />
+    </g>;
   }
 
   if (style === 'wooden_barrel') {
     return <g>
-      <rect x={x - 22} y={y} width="44" height="36" rx="4" fill={p.color} />
-      {[5, 16, 27].map(dy => (
-        <rect key={dy} x={x - 22} y={y + dy} width="44" height="3" rx="1" fill={p.dark} />
+      <defs>
+        <linearGradient id={potGId} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={adj(p.color, -22)} />
+          <stop offset="38%" stopColor={adj(p.color, 18)} />
+          <stop offset="100%" stopColor={adj(p.color, -18)} />
+        </linearGradient>
+      </defs>
+      <rect x={x - 22} y={y} width="44" height="36" rx="4" fill={`url(#${potGId})`} />
+      {[5, 15, 26].map(dy => (
+        <rect key={dy} x={x - 22} y={y + dy} width="44" height="3.5" rx="1" fill={p.dark} opacity="0.7" />
       ))}
-      <rect x={x - 24} y={y - 3} width="48" height="7" rx="3" fill={p.rim} />
-      <ellipse cx={x} cy={y} rx="22" ry="5" fill="#5d4037" />
+      <rect x={x - 25} y={y - 4} width="50" height="8" rx="3.5" fill={p.rim} />
+      <ellipse cx={x} cy={y} rx="23" ry="5.5" fill="#5d4037" />
+      <ellipse cx={x} cy={y} rx="17" ry="3.5" fill={adj(p.color, 22)} opacity="0.5" />
     </g>;
   }
 
   return <g>
-    <path d={`M${x - 19} ${y + 37} L${x - 23} ${y + 2} L${x + 23} ${y + 2} L${x + 19} ${y + 37}Z`} fill={p.color} />
-    <rect x={x - 25} y={y - 3} width="50" height="8" rx="3" fill={p.rim} />
-    <ellipse cx={x} cy={y} rx="21" ry="5" fill="#4a3728" />
+    <defs>
+      <linearGradient id={potGId} x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor={adj(p.color, -28)} />
+        <stop offset="32%" stopColor={adj(p.color, 22)} />
+        <stop offset="100%" stopColor={adj(p.color, -22)} />
+      </linearGradient>
+    </defs>
+    <path d={`M${x - 21} ${y + 37} L${x - 25} ${y + 2} L${x + 25} ${y + 2} L${x + 21} ${y + 37}Z`}
+      fill={`url(#${potGId})`} />
+    <rect x={x - 27} y={y - 4} width="54" height="9" rx="3.5" fill={p.rim} />
+    <ellipse cx={x} cy={y - 0.5} rx="24" ry="5.5" fill="#3e2b1f" />
+    <ellipse cx={x} cy={y - 0.5} rx="18" ry="3.8" fill="#5a3a28" opacity="0.6" />
+    <path d={`M${x - 15} ${y + 5} L${x - 17} ${y + 33}`}
+      stroke="rgba(255,255,255,0.22)" strokeWidth="3.5" strokeLinecap="round" />
   </g>;
 }
 
@@ -489,22 +543,23 @@ export default function TreeSVG({
     <svg className="companion-art companion-tree-art" viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision">
       <defs>
         <filter id={ids.softShadow} x="-35%" y="-35%" width="170%" height="170%">
-          <feDropShadow dx="0" dy="6" stdDeviation="5" floodColor="#000000" floodOpacity="0.28" />
+          <feDropShadow dx="0" dy="5" stdDeviation="4.5" floodColor="#000000" floodOpacity="0.30" />
         </filter>
-        <linearGradient id={ids.leafGrad} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
-          <stop offset="38%" stopColor={sp.leafColor} />
-          <stop offset="100%" stopColor={sp.leafDark || sp.leafColor} />
-        </linearGradient>
+        <radialGradient id={ids.leafGrad} cx="38%" cy="28%" r="72%">
+          <stop offset="0%" stopColor={adj(sp.leafColor, 42)} />
+          <stop offset="44%" stopColor={sp.leafColor} />
+          <stop offset="100%" stopColor={sp.leafDark || adj(sp.leafColor, -38)} />
+        </radialGradient>
         <linearGradient id={ids.trunkGrad} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#2d160d" stopOpacity="0.95" />
-          <stop offset="46%" stopColor={sp.trunkColor} />
-          <stop offset="100%" stopColor="#140a05" stopOpacity="0.82" />
+          <stop offset="0%" stopColor={adj(sp.trunkColor, -30)} />
+          <stop offset="32%" stopColor={adj(sp.trunkColor, 24)} />
+          <stop offset="68%" stopColor={sp.trunkColor} />
+          <stop offset="100%" stopColor={adj(sp.trunkColor, -25)} />
         </linearGradient>
       </defs>
-      <Background bgId={background} />
+      <Background bgId={background} artId={artId} />
       <ellipse cx="100" cy="232" rx="68" ry="17" fill="rgba(0,0,0,0.18)" />
-      <Pot style={potStyle} x={x} y={potY} />
+      <Pot style={potStyle} x={x} y={potY} artId={artId} />
       <ShapeRenderer sp={sp} s={s} x={x} y={potY} hasFlowers={hasFlowers} isDecember={isDecember} ids={ids} />
       {decoration !== 'none' && s > 0.45 && (
         <Decoration type={decoration} x={x} y={potY} trunkH={trunkH} canopyR={canopyR} />
