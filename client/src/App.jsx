@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback, useRef, Component } from 'react';
+import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
 import { ClerkProvider, SignedIn, SignedOut, UserButton, useClerk, useSignIn, useSignUp, useUser } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import LogEntry from './pages/LogEntry';
-import Savings from './pages/Savings';
-import ViceManager from './pages/ViceManager';
-import Partners from './pages/Partners';
-import Support from './pages/Support';
-import Wrapped from './pages/Wrapped';
-import CompanionOnboarding from './pages/CompanionOnboarding';
+const LogEntry          = lazy(() => import('./pages/LogEntry'));
+const Savings           = lazy(() => import('./pages/Savings'));
+const ViceManager       = lazy(() => import('./pages/ViceManager'));
+const Partners          = lazy(() => import('./pages/Partners'));
+const Support           = lazy(() => import('./pages/Support'));
+const Wrapped           = lazy(() => import('./pages/Wrapped'));
+const CompanionOnboarding = lazy(() => import('./pages/CompanionOnboarding'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 import { VtvLogo, VtvMark } from './Logo';
@@ -366,21 +366,23 @@ function AuthenticatedApp() {
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/log" element={<LogEntry />} />
-          <Route path="/savings" element={<Savings />} />
-          <Route path="/vices" element={<ViceManager />} />
-          <Route path="/partners" element={<Partners />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/wrapped/:year" element={<Wrapped />} />
-        </Routes>
-        {companionLoaded && showOnboarding && (
-          <CompanionOnboarding
-            onComplete={handleOnboardingComplete}
-            existingType={companion?.companion_type || null}
-          />
-        )}
+        <Suspense fallback={<div className="main"><div className="skeleton skeleton-card" style={{ height: 200, margin: '32px 0' }} /></div>}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/log" element={<LogEntry />} />
+            <Route path="/savings" element={<Savings />} />
+            <Route path="/vices" element={<ViceManager />} />
+            <Route path="/partners" element={<Partners />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/wrapped/:year" element={<Wrapped />} />
+          </Routes>
+          {companionLoaded && showOnboarding && (
+            <CompanionOnboarding
+              onComplete={handleOnboardingComplete}
+              existingType={companion?.companion_type || null}
+            />
+          )}
+        </Suspense>
       </div>
     </ViceContext.Provider>
   );

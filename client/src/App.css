@@ -2112,7 +2112,15 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .comp-btn-ghost:hover { background:var(--rule-2); color:var(--ink); }
 .comp-card-body { display:flex; gap:20px; align-items:flex-start; }
 .comp-svg-wrap { flex-shrink:0; border-radius:18px; overflow:hidden; border:1px solid color-mix(in srgb,var(--money) 34%,var(--rule)); background:radial-gradient(circle at 30% 18%,rgba(255,255,255,0.20),transparent 34%),var(--paper-3); box-shadow:inset 0 1px 0 rgba(255,255,255,0.12),0 16px 34px rgba(0,0,0,0.22); }
-.companion-art { display:block; image-rendering:auto; shape-rendering:geometricPrecision; text-rendering:geometricPrecision; }
+.companion-art {
+  display:block; image-rendering:auto; shape-rendering:geometricPrecision; text-rendering:geometricPrecision;
+  animation: companion-breathe 4s ease-in-out infinite;
+  transform-origin: center 80%;
+}
+@keyframes companion-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%       { transform: scale(1.025) translateY(-2px); }
+}
 .comp-card-stats { flex:1; min-width:0; }
 .comp-stat-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; gap:8px; }
 .comp-stat-label { font-size:12px; color:var(--ink-3); }
