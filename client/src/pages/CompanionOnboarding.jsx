@@ -101,20 +101,32 @@ function Step2({ type, state, setState, onNext, onBack }) {
   const items = type === 'tree' ? TREE_SPECIES : CHARACTER_ARCHETYPES;
   const key = type === 'tree' ? 'species' : 'archetype';
   const selected = state[key];
+  const selectedItem = items.find(i => i.id === selected);
 
   return (
     <div className="onb-step">
       <h2 className="onb-title">{type === 'tree' ? 'Pick your tree' : 'Choose your archetype'}</h2>
-      <p className="onb-sub">{type === 'tree' ? '20 species, each with its own shape and personality.' : '20 archetypes — from warriors to astronauts.'}</p>
-      <div className="onb-grid">
+      <p className="onb-sub">{type === 'tree' ? '20 species — each with its own personality and growth style.' : '20 archetypes — from warriors to astronauts.'}</p>
+
+      {selectedItem && (
+        <div className="onb-selected-hint">
+          <span className="onb-selected-emoji">{selectedItem.emoji}</span>
+          <span className="onb-selected-name">{selectedItem.name}</span>
+          <span className="onb-selected-desc">{selectedItem.description}</span>
+        </div>
+      )}
+
+      <div className="onb-grid-illustrated">
         {items.map(item => (
           <button
             key={item.id}
-            className={`onb-grid-item${selected === item.id ? ' selected' : ''}`}
+            className={`onb-grid-card${selected === item.id ? ' selected' : ''}`}
             onClick={() => setState(s => ({ ...s, [key]: item.id }))}
+            style={{ '--card-color': item.primaryColor || item.leafColor || '#5ec48a' }}
+            title={item.description}
           >
-            <span className="onb-grid-emoji">{item.emoji}</span>
-            <span className="onb-grid-name">{item.name}</span>
+            <span className="onb-grid-card-emoji">{item.emoji}</span>
+            <span className="onb-grid-card-name">{item.name}</span>
           </button>
         ))}
       </div>
@@ -430,8 +442,11 @@ function Step5({ type, state, onBegin, saving }) {
           />
         )}
       </div>
-      <button className="btn btn-primary onb-begin-btn" onClick={onBegin} disabled={saving}>
-        {saving ? 'Saving…' : `Begin the journey →`}
+      <button className="btn btn-lg onb-begin-btn" onClick={onBegin} disabled={saving}>
+        {saving
+          ? <><div className="btn-spinner" />Saving your companion…</>
+          : <>Begin the journey <span style={{ fontSize: '1.2em' }}>→</span></>
+        }
       </button>
     </div>
   );
@@ -440,12 +455,13 @@ function Step5({ type, state, onBegin, saving }) {
 export default function CompanionOnboarding({ onComplete, existingType }) {
   const api = useApi();
   const [step, setStep] = useState(existingType ? 2 : 0);
+  const [prevStep, setPrevStep] = useState(-1);
   const [type, setType] = useState(existingType || null);
   const [state, setState] = useState(existingType ? getDefaultState(existingType) : {});
   const [saving, setSaving] = useState(false);
 
-  const next = () => setStep(s => s + 1);
-  const back = () => setStep(s => s - 1);
+  const next = () => { setPrevStep(step); setStep(s => s + 1); };
+  const back = () => { setPrevStep(step); setStep(s => s - 1); };
 
   const selectType = (t) => {
     setType(t);
@@ -488,11 +504,13 @@ export default function CompanionOnboarding({ onComplete, existingType }) {
           <div className="onb-step-panel">
             <StepDots current={step} />
 
-            {step === 0 && <Step1 type={type} setType={selectType} onNext={next} />}
-            {step === 1 && <Step2 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
-            {step === 2 && <Step3 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
-            {step === 3 && <Step4 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
-            {step === 4 && <Step5 type={type} state={state} onBegin={handleBegin} saving={saving} />}
+            <div className={`onb-step-anim onb-step-anim-${prevStep < step ? 'forward' : 'back'}`} key={step}>
+              {step === 0 && <Step1 type={type} setType={selectType} onNext={next} />}
+              {step === 1 && <Step2 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
+              {step === 2 && <Step3 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
+              {step === 3 && <Step4 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
+              {step === 4 && <Step5 type={type} state={state} onBegin={handleBegin} saving={saving} />}
+            </div>
           </div>
         </div>
       </div>
