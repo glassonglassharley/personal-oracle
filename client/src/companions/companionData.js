@@ -5,7 +5,7 @@ export const TREE_SPECIES = [
   { id: 'willow', name: 'Willow', emoji: '🌿', shape: 'drooping', leafColor: '#5aaa3a', leafDark: '#3a8a1a', trunkColor: '#795548', description: 'Graceful and flowing. Bends but never breaks.' },
   { id: 'maple', name: 'Maple', emoji: '🍁', shape: 'round', leafColor: '#c0392b', leafDark: '#922b21', trunkColor: '#5d4037', description: 'Bold and transformative. Shows its true colors in time.' },
   { id: 'baobab', name: 'Baobab', emoji: '🌍', shape: 'baobab', leafColor: '#388e3c', leafDark: '#1b5e20', trunkColor: '#8d6e63', description: 'Ancient and enduring. Survives where others cannot.' },
-  { id: 'avocado', name: 'Avocado', emoji: '🥑', shape: 'round', leafColor: '#558b2f', leafDark: '#33691e', trunkColor: '#6d4c41', description: 'Lush and nourishing. Worth the wait.' },
+  { id: 'avocado', name: 'Avocado', emoji: '🥑', shape: 'avocado', leafColor: '#4a7c2f', leafDark: '#2d5a1a', trunkColor: '#6d4c41', description: 'Lush and nourishing. Worth the wait.' },
   { id: 'bonsai', name: 'Bonsai', emoji: '🎋', shape: 'bonsai', leafColor: '#43a047', leafDark: '#2e7d32', trunkColor: '#4e342e', description: 'Patient and refined. Beauty through discipline.' },
   { id: 'palm', name: 'Palm Tree', emoji: '🌴', shape: 'palm', leafColor: '#4caf50', leafDark: '#2e7d32', trunkColor: '#bcaaa4', description: 'Free and tropical. Thrives in the sunshine.' },
   { id: 'cactus', name: 'Cactus', emoji: '🌵', shape: 'cactus', leafColor: '#4caf50', leafDark: '#388e3c', trunkColor: '#4caf50', description: 'Tough and resourceful. Thrives where others wither.' },

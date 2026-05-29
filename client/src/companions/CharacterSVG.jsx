@@ -455,9 +455,16 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
         fill={ocDark} rx="2" />
       <path d={`M${bx + hw - 2} ${legY + legH} L${bx + hw - legW - 4} ${legY + legH} L${bx + hw - legW - 8} ${legY + legH + 11} L${bx + hw + 10} ${legY + legH + 11}Z`}
         fill={ocDark} />
-      {/* Shoe highlight */}
-      <ellipse cx={bx - hw - 3} cy={legY + legH + 5} rx={6} ry={2.5} fill="rgba(255,255,255,0.18)" />
-      <ellipse cx={bx + hw + 3} cy={legY + legH + 5} rx={6} ry={2.5} fill="rgba(255,255,255,0.18)" />
+      {/* Boot sole */}
+      <rect x={bx - hw - 12} y={legY + legH + 12} width={legW + 22} height={3.5} rx="1.8" fill="rgba(0,0,0,0.45)" />
+      <rect x={bx + hw - legW - 8} y={legY + legH + 12} width={legW + 22} height={3.5} rx="1.8" fill="rgba(0,0,0,0.45)" />
+      {/* Boot highlight */}
+      <ellipse cx={bx - hw - 4} cy={legY + legH + 5} rx={6} ry={2.2} fill="rgba(255,255,255,0.20)" />
+      <ellipse cx={bx + hw + 4} cy={legY + legH + 5} rx={6} ry={2.2} fill="rgba(255,255,255,0.20)" />
+      {/* Belt */}
+      <rect x={bx - hw + 2} y={by + th * 0.56} width={hw * 2 - 4} height={7} rx="3.2" fill={ocDark} />
+      <rect x={bx - 5.5} y={by + th * 0.56 - 1.5} width={11} height={10} rx="2.2" fill={adj(oc, -8)} />
+      <rect x={bx - 3.5} y={by + th * 0.56 - 0.5} width={7} height={8} rx="1.5" fill="rgba(255,255,255,0.22)" />
       {/* Body depth shading */}
       <path d={`M${bx - sw} ${by} Q${bx - sw * 1.06} ${by + th * 0.5} ${bx - hw} ${by + th} L${bx + hw} ${by + th} Q${bx + sw * 1.06} ${by + th * 0.5} ${bx + sw} ${by}Z`}
         fill={`url(#${bodyShadeId})`} />
@@ -493,9 +500,11 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
           fill="#9e9e9e" />
       </> : <>
         <rect x={bx + sw + armW + 4} y={by - 32} width={4.5} height={68} rx={2.2}
-          fill={tier === 'legendary' ? '#B8860B' : '#b0b0b0'} />
-        <rect x={bx + sw + armW} y={by + 7} width={12} height={4.5} rx={2} fill="#78909c" />
-        {tier === 'legendary' && <ellipse cx={bx + sw + armW + 6} cy={by - 34} rx={4} ry={6} fill="#FFD700" opacity="0.8" />}
+          fill={tier === 'legendary' ? '#B8860B' : '#c8c8c8'} />
+        <line x1={bx + sw + armW + 6.2} y1={by - 28} x2={bx + sw + armW + 6.2} y2={by + 30}
+          stroke="rgba(0,0,0,0.22)" strokeWidth="1.2" strokeLinecap="round" />
+        <rect x={bx + sw + armW} y={by + 7} width={13} height={5} rx={2.5} fill={tier === 'legendary' ? '#B8860B' : '#78909c'} />
+        {tier === 'legendary' && <ellipse cx={bx + sw + armW + 6} cy={by - 34} rx={4.5} ry={6.5} fill="#FFD700" opacity="0.88" />}
       </>}
       {(archetype === 'knight' || archetype === 'warrior') && (
         <path d={`M${bx - sw - armW - 2} ${by + 5} L${bx - sw - armW - 18} ${by + 9} L${bx - sw - armW - 20} ${by + 30} L${bx - sw - armW - 9} ${by + 43} L${bx - sw - armW - 2} ${by + 38}Z`}
@@ -512,6 +521,8 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
       <path d={`M${bx - sw * 0.84} ${by + 5} L${bx - hw * 1.22} ${by + th + 22} L${bx + hw * 1.22} ${by + th + 22} L${bx + sw * 0.84} ${by + 5}Z`}
         fill={ocDark} opacity="0.68" />
       <rect x={bx - hw} y={by + th * 0.60} width={hw * 2} height={7.5} rx={3.5} fill={ocDark} />
+      <path d={`M${bx - hw * 0.94} ${by + th * 0.56} Q${bx} ${by + th * 0.58} ${bx + hw * 0.94} ${by + th * 0.56}`}
+        fill="none" stroke={adj(oc, 18)} strokeWidth="3.5" strokeLinecap="round" opacity="0.62" />
       <rect x={bx + sw + armW + 3} y={by - 52} width={4.5} height={93} rx={2} fill="#8d6e63" />
       <circle cx={bx + sw + armW + 5} cy={by - 56} r={10}
         fill={tier === 'legendary' ? '#FDD835' : archetype === 'alchemist' ? '#66bb6a' : '#ce93d8'} />
@@ -564,6 +575,12 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
       {archetype === 'bodybuilder' && <>
         <rect x={bx - sw * 0.3} y={by} width={sw * 0.26} height={th} rx={4} fill={ocDark} />
         <rect x={bx + sw * 0.04} y={by} width={sw * 0.26} height={th} rx={4} fill={ocDark} />
+        <path d={`M${bx - sw * 0.52} ${by + 4} L${bx} ${by + th * 0.36} L${bx + sw * 0.52} ${by + 4}`}
+          fill="none" stroke={adj(oc, -18)} strokeWidth="2.5" strokeLinecap="round" opacity="0.72" />
+        <ellipse cx={bx - sw * 0.62} cy={by + th * 0.28} rx={sw * 0.22} ry={th * 0.14}
+          fill="rgba(255,255,255,0.10)" />
+        <ellipse cx={bx + sw * 0.62} cy={by + th * 0.28} rx={sw * 0.22} ry={th * 0.14}
+          fill="rgba(255,255,255,0.10)" />
         <text x={bx + sw + armW + 7} y={by + 22} fontSize="22">🏆</text>
       </>}
       {archetype === 'monk' && <>
@@ -571,6 +588,12 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
           fill={ocDark} opacity="0.62" />
         <path d={`M${bx - 13} ${by + 13} Q${bx} ${by + 37} ${bx + 13} ${by + 13}`}
           fill="none" stroke="#fdd835" strokeWidth="3.5" strokeDasharray="4.5 3" />
+        {Array.from({ length: 12 }, (_, mi) => {
+          const t = mi / 11;
+          const mx = bx - 13 + t * 26;
+          const my = by + th * 0.72 + Math.sin(t * Math.PI) * 7;
+          return <circle key={mi} cx={mx} cy={my} r={2.2} fill="#795548" opacity="0.86" />;
+        })}
       </>}
       {tier === 'legendary' && archetype === 'bodybuilder' &&
         <text x={bx} y={by - 44} textAnchor="middle" fontSize="15">💎</text>}
@@ -648,10 +671,16 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
       <Glow />
       <Body />
       <rect x={bx - sw * 0.12} y={by + 3} width={sw * 0.24} height={th} rx={3.5} fill={ocDark} opacity="0.72" />
-      {archetype === 'dancer' && (
+      <rect x={bx - sw * 0.88} y={by + 8} width={sw * 0.18} height={th * 0.72} rx={2.5} fill={ocDark} opacity="0.38" />
+      <rect x={bx + sw * 0.70} y={by + 8} width={sw * 0.18} height={th * 0.72} rx={2.5} fill={ocDark} opacity="0.38" />
+      {archetype === 'dancer' && <>
         <path d={`M${bx + sw + 3} ${by + 6} Q${bx + sw + 24} ${by + 22} ${bx + sw + 20} ${by + 44} Q${bx + sw + 10} ${by + 56} ${bx + sw + 26} ${by + 64}`}
           fill="none" stroke={oc} strokeWidth="3.2" strokeLinecap="round" />
-      )}
+        <path d={`M${bx - hw * 1.35} ${by + th * 0.70} Q${bx} ${by + th * 0.74} ${bx + hw * 1.35} ${by + th * 0.70}`}
+          fill="none" stroke={adj(oc, 28)} strokeWidth="9" strokeLinecap="round" opacity="0.50" />
+        <path d={`M${bx - hw * 1.35} ${by + th * 0.70} Q${bx} ${by + th * 0.74} ${bx + hw * 1.35} ${by + th * 0.70}`}
+          fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="3" strokeLinecap="round" />
+      </>}
       {tier === 'legendary' && <text x={bx} y={by - 44} textAnchor="middle" fontSize="15">⚡</text>}
     </g>;
   }
@@ -667,12 +696,18 @@ function Costume({ archetype, level, outfitColor, cx, bt, headR, skinData, artId
           fill="none" stroke="white" strokeWidth="5.5" opacity="0.78" />
         <path d={`M${bx - headR * 0.76} ${cx.y - headR * 0.42} Q${bx} ${cx.y - headR * 0.72} ${bx + headR * 0.76} ${cx.y - headR * 0.42} Q${bx + headR * 0.72} ${cx.y + headR * 0.22} ${bx} ${cx.y + headR * 0.32} Q${bx - headR * 0.72} ${cx.y + headR * 0.22} ${bx - headR * 0.76} ${cx.y - headR * 0.42}Z`}
           fill="#1e88e5" opacity="0.52" />
+        <ellipse cx={bx - headR * 0.22} cy={cx.y - headR * 0.18} rx={headR * 0.32} ry={headR * 0.22}
+          fill="rgba(255,255,255,0.22)" />
       </>}
       {archetype === 'superhero' && <>
         <path d={`M${bx - sw * 0.90} ${by + 3} Q${bx - sw * 1.34} ${by + th * 0.5} ${bx - sw * 0.82} ${by + th + legH + 12}`}
           fill={oc} opacity="0.72" />
-        <circle cx={bx} cy={by + th * 0.38} r={9}
-          fill={tier === 'legendary' ? '#FDD835' : 'white'} opacity="0.84" />
+        <path d={`M${bx - sw * 0.86} ${by + 5} Q${bx - sw * 1.28} ${by + th * 0.5} ${bx - sw * 0.78} ${by + th + legH + 10}`}
+          fill="none" stroke={adj(oc, 30)} strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+        <circle cx={bx} cy={by + th * 0.38} r={9.5}
+          fill={tier === 'legendary' ? '#FDD835' : 'white'} opacity="0.86" />
+        <circle cx={bx} cy={by + th * 0.38} r={5}
+          fill={tier === 'legendary' ? '#f57f17' : oc} opacity="0.72" />
         <text x={bx} y={by - 44} textAnchor="middle" fontSize="17">⚡</text>
       </>}
       {tier === 'legendary' && <text x={bx} y={cx.y - headR * 2.15} textAnchor="middle" fontSize="15">✨</text>}
