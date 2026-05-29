@@ -752,6 +752,40 @@ function DemoLogin() {
   );
 }
 
+function QuickDemo() {
+  const { startDemo } = useDemoAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleQuickDemo = async () => {
+    setLoading(true);
+    try {
+      const demoName = 'demo-' + Math.random().toString(36).slice(2, 7);
+      await startDemo(demoName, '');
+    } catch {
+      // ignore — user will see the full form below
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-demo-cta">
+      <button type="button" className="auth-demo-btn" onClick={handleQuickDemo} disabled={loading}>
+        {loading
+          ? <><div className="btn-spinner btn-spinner-dark" /><span className="auth-demo-label">Starting demo…</span></>
+          : <>
+              <span className="auth-demo-icon">🚀</span>
+              <span>
+                <span className="auth-demo-label">Continue as Demo</span>
+                <span className="auth-demo-sub">Try Vice to Value — no account required</span>
+              </span>
+            </>
+        }
+      </button>
+    </div>
+  );
+}
+
 function SignedOutContent() {
   const { isDemo, isWallet } = useDemoAuth();
   if (isDemo || isWallet) return <AuthenticatedApp />;
@@ -768,7 +802,7 @@ function SignedOutContent() {
           </div>
 
           <div className="auth-hero-copy">
-            <div className="auth-kicker">Premium habit intelligence</div>
+            <div className="auth-kicker">Cut Today. Grow Tomorrow.</div>
             <h1>See what your vices really cost — then turn that money into goals.</h1>
             <p>Track spending, clean days, savings projections, and custom opportunity costs in one polished dashboard.</p>
           </div>
@@ -814,6 +848,7 @@ function SignedOutContent() {
           <div className="clerk-frame">
             <EmailAuth />
           </div>
+          <QuickDemo />
         </div>
       </section>
     </div>
