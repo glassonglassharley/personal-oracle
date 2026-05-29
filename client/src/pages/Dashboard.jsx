@@ -287,9 +287,12 @@ export default function Dashboard() {
           <p className="page-subtitle">Combined overview across every tracked vice.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link className="btn dashboard-log-btn" to="/log">
+          <Link className="btn ghost btn-sm" to="/savings" style={{ textDecoration: 'none' }}>
+            View Savings
+          </Link>
+          <Link className="btn dashboard-log-btn" to="/log" style={{ textDecoration: 'none' }}>
             <span>＋</span>
-            Log Entry
+            Log Today
           </Link>
         </div>
       </div>
@@ -300,7 +303,7 @@ export default function Dashboard() {
           <span className="challenge-text">
             <strong>{c.challenger_name}</strong> challenged you to a clean month!
           </span>
-          <a className="btn ghost" style={{ fontSize: 12, padding: '6px 12px' }} href="/partners">View leaderboard</a>
+          <Link className="btn btn-sm" to="/partners" style={{ textDecoration: 'none' }}>View challenge</Link>
         </div>
       ))}
 
@@ -320,7 +323,23 @@ export default function Dashboard() {
         />
       )}
 
-      {loading ? <div className="loading">Loading…</div> : stats && (
+      {loading ? (
+        <div className="db-skeleton">
+          <div className="stats-strip">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="stat">
+                <div className="skeleton skeleton-text" style={{ width: '55%', marginBottom: 10 }} />
+                <div className="skeleton skeleton-stat" style={{ width: '75%' }} />
+                <div className="skeleton skeleton-text" style={{ width: '90%', marginTop: 8 }} />
+              </div>
+            ))}
+          </div>
+          <div className="grid-2" style={{ marginTop: 24 }}>
+            <div className="skeleton skeleton-card" />
+            <div className="skeleton skeleton-chart" />
+          </div>
+        </div>
+      ) : stats && (
         <>
           <div className="stats-strip">
             {[
@@ -386,19 +405,35 @@ export default function Dashboard() {
           <div className="grid-2">
             <div className="panel">
               <div className="panel-head">
-                <span className="panel-title">Per-vice averages</span>
+                <span className="panel-title">Per-vice breakdown</span>
               </div>
               <div className="savings-rows">
-                {stats.quantityByVice.map(({ vice, avgQuantityPerDay }) => (
-                  <div className="savings-row" key={vice.id}>
-                    <span>{vice.emoji} {vice.name}/day</span>
-                    <strong>{formatQuantityWithUnit(avgQuantityPerDay, vice)}</strong>
-                  </div>
-                ))}
+                {(() => {
+                  const totalSpend = stats.year?.byVice?.reduce((sum, v) => sum + v.spend, 0) || 0;
+                  return stats.quantityByVice.map(({ vice, avgQuantityPerDay }) => {
+                    const viceSpend = stats.year?.byVice?.find(v => v.vice.id === vice.id)?.spend || 0;
+                    const pct = totalSpend > 0 ? Math.round((viceSpend / totalSpend) * 100) : 0;
+                    return (
+                      <div key={vice.id} style={{ marginBottom: 10 }}>
+                        <div className="savings-row" style={{ marginBottom: 4 }}>
+                          <span>{vice.emoji} {vice.name}</span>
+                          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <strong className="text-money">{fmt$(viceSpend)}</strong>
+                            <span className="text-muted" style={{ fontSize: 11 }}>{pct}%</span>
+                          </span>
+                        </div>
+                        {totalSpend > 0 && (
+                          <div className="budget-bar">
+                            <div className="budget-bar-fill" style={{ width: `${pct}%`, background: vice.color || 'var(--money)' }} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
                 <div className="savings-divider" />
-                <div className="savings-row"><span>Total clean days</span><strong className="text-money">{stats.clean_days}</strong></div>
-                <div className="savings-row"><span>Active days logged</span><strong>{stats.total_logged_days}</strong></div>
-                <p className="text-muted" style={{ margin: 0 }}>Detailed metrics for each vice live under the Vices tab.</p>
+                <div className="savings-row"><span>Clean days total</span><strong className="text-money">{stats.clean_days} days</strong></div>
+                <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
               </div>
             </div>
 
