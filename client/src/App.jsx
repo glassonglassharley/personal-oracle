@@ -26,9 +26,57 @@ const NAV = [
   { to: '/support', label: 'FAQ' },
 ];
 
+function DeviceTransferModal({ username, token, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/?_vtuser=${encodeURIComponent(username)}&_vttoken=${encodeURIComponent(token)}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {
+      // Fallback: select the text
+      const el = document.querySelector('.transfer-link-text');
+      if (el) { const r = document.createRange(); r.selectNode(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); }
+    });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-title">Use on another device</div>
+        <div className="modal-body">
+          <p>Open this link on your phone or another browser. It logs you in instantly and all your data will be there.</p>
+          <div className="transfer-link-box">
+            <code className="transfer-link-text">{link}</code>
+          </div>
+          <button className="btn" style={{ width: '100%', marginTop: 10, marginBottom: 6 }} onClick={copyLink}>
+            {copied ? '✓ Copied to clipboard!' : 'Copy sign-in link'}
+          </button>
+        </div>
+        <div style={{ borderTop: '1px solid var(--rule)', padding: '12px 0 0', margin: '0' }}>
+          <div className="transfer-manual-head">Or sign in manually on the other device:</div>
+          <div className="transfer-row">
+            <span className="transfer-label">Username</span>
+            <code className="transfer-value">{username}</code>
+          </div>
+          <div className="transfer-row">
+            <span className="transfer-label">Token</span>
+            <code className="transfer-value transfer-token">{token}</code>
+          </div>
+        </div>
+        <div className="modal-actions" style={{ marginTop: 16 }}>
+          <button className="btn ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AccountControl({ collapsed = false }) {
-  const { isDemo, demoUsername, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
+  const { isDemo, demoUsername, usernameToken, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
   const { user } = useUser();
+  const [showTransfer, setShowTransfer] = useState(false);
   const accountName = user?.username
     || user?.fullName
     || user?.primaryEmailAddress?.emailAddress?.split('@')[0]
@@ -51,15 +99,31 @@ function AccountControl({ collapsed = false }) {
 
   if (isDemo) {
     return (
-      <button className="demo-account" type="button" onClick={stopDemo} title="Exit demo mode">
-        <span className="avatar">{demoUsername.slice(0, 2).toUpperCase()}</span>
-        {!collapsed && (
-          <span className="me-text">
-            <span className="me-name">{demoUsername}</span>
-            <span className="me-sub">Username token account</span>
-          </span>
+      <>
+        {showTransfer && (
+          <DeviceTransferModal
+            username={demoUsername}
+            token={usernameToken}
+            onClose={() => setShowTransfer(false)}
+          />
         )}
-      </button>
+        <div className="demo-account" style={{ cursor: 'default' }}>
+          <span className="avatar">{demoUsername.slice(0, 2).toUpperCase()}</span>
+          {!collapsed && (
+            <span className="me-text">
+              <span className="me-name">{demoUsername}</span>
+              <button
+                className="me-sync-btn"
+                type="button"
+                onClick={() => setShowTransfer(true)}
+                title="Get sign-in link for another device"
+              >
+                Use on another device →
+              </button>
+            </span>
+          )}
+        </div>
+      </>
     );
   }
 
@@ -982,8 +1046,24 @@ function QuickDemo() {
 }
 
 function SignedOutContent() {
-  const { isDemo, isWallet } = useDemoAuth();
+  const { isDemo, isWallet, startDemo } = useDemoAuth();
   const [mobileExpanded, setMobileExpanded] = useState(false);
+
+  // Auto-login when arriving via a device-transfer link (?_vtuser=&_vttoken=)
+  useEffect(() => {
+    if (isDemo || isWallet) return;
+    const params = new URLSearchParams(window.location.search);
+    const vtuser = params.get('_vtuser');
+    const vttoken = params.get('_vttoken');
+    if (!vtuser || !vttoken) return;
+    // Clear params from URL immediately so token isn't left in history
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete('_vtuser');
+    clean.searchParams.delete('_vttoken');
+    window.history.replaceState({}, '', clean.toString());
+    startDemo(vtuser, vttoken).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (isDemo || isWallet) return <AuthenticatedApp />;
 
   const isSmall = typeof window !== 'undefined' && window.innerWidth <= 768;
