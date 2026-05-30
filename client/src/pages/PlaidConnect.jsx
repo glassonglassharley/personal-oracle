@@ -31,8 +31,24 @@ function categoryLabel(raw) {
   );
 }
 
+function bestMatchVice(userVices, categoryRaw) {
+  if (!userVices.length) return null;
+  if (!categoryRaw) return userVices[0];
+  const label = categoryLabel(categoryRaw).toLowerCase();
+  return (
+    userVices.find(v =>
+      label.includes(v.name.toLowerCase()) || v.name.toLowerCase().includes(label)
+    ) || userVices[0]
+  );
+}
+
+// Navy Federal Credit Union official Plaid institution ID
+const NAVY_FEDERAL_INSTITUTION_ID = 'ins_133383';
+const NAVY_FEDERAL_NAME = 'Navy Federal Credit Union';
+
 export default function PlaidConnect({ vices }) {
   const api = useApi();
+  const [userVices, setUserVices] = useState([]);
   const [status, setStatus] = useState(null);       // null | { connected, institution_name }
   const [linking, setLinking] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -41,47 +57,85 @@ export default function PlaidConnect({ vices }) {
   const [confirmed, setConfirmed] = useState(new Set());
   const [skipped, setSkipped] = useState(new Set());
   const [logged, setLogged] = useState(new Set());
+  const [selectedVices, setSelectedVices] = useState({}); // { [transactionId]: viceId }
+  // Pending exchange: set after Plaid Link succeeds, cleared after user confirms or cancels
+  const [pendingExchange, setPendingExchange] = useState(null); // { public_token, institution_name } | null
 
   useEffect(() => {
     api('/api/plaid/status').then(setStatus).catch(() => setStatus({ connected: false }));
+    api('/api/vices').then(setUserVices).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openPlaidLink = useCallback(async () => {
+  // When transactions or userVices arrive, seed selectedVices with the best-match vice per tx
+  useEffect(() => {
+    if (!transactions || !userVices.length) return;
+    setSelectedVices(prev => {
+      const next = { ...prev };
+      transactions.forEach(tx => {
+        if (!(tx.transaction_id in next)) {
+          const match = bestMatchVice(userVices, tx.category);
+          next[tx.transaction_id] = match?.id ?? userVices[0]?.id;
+        }
+      });
+      return next;
+    });
+  }, [transactions, userVices]);
+
+  const openPlaidLink = useCallback(async (institutionId = null) => {
+    setLinking(true);
+    setError('');
+    setPendingExchange(null);
+    try {
+      await loadPlaidScript();
+      const body = institutionId ? JSON.stringify({ institution_id: institutionId }) : undefined;
+      const { link_token } = await api('/api/plaid/create-link-token', {
+        method: 'POST',
+        ...(body ? { body } : {}),
+      });
+
+      const handler = window.Plaid.create({
+        token: link_token,
+        onSuccess: (public_token, metadata) => {
+          const institution_name = metadata.institution?.name || '';
+          setLinking(false);
+          // Hold for user confirmation before exchanging the token
+          setPendingExchange({ public_token, institution_name });
+        },
+        onExit: (err) => {
+          if (err) setError(err.error_message || 'Plaid Link closed with an error. Please try again.');
+          setLinking(false);
+        },
+      });
+      handler.open();
+    } catch (err) {
+      setError(err.message || 'Could not connect bank');
+      setLinking(false);
+    }
+  }, [api]);
+
+  const confirmExchange = useCallback(async () => {
+    if (!pendingExchange) return;
     setLinking(true);
     setError('');
     try {
-      await loadPlaidScript();
-      const { link_token } = await api('/api/plaid/create-link-token', { method: 'POST' });
-
-      await new Promise((resolve, reject) => {
-        const handler = window.Plaid.create({
-          token: link_token,
-          onSuccess: async (public_token, metadata) => {
-            try {
-              const institution_name = metadata.institution?.name || '';
-              await api('/api/plaid/exchange-token', {
-                method: 'POST',
-                body: JSON.stringify({ public_token, institution_name }),
-              });
-              setStatus({ connected: true, institution_name });
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          },
-          onExit: (err) => {
-            if (err) reject(new Error(err.error_message || 'Plaid Link closed'));
-            else resolve();
-          },
-        });
-        handler.open();
+      const { public_token, institution_name } = pendingExchange;
+      await api('/api/plaid/exchange-token', {
+        method: 'POST',
+        body: JSON.stringify({ public_token, institution_name }),
       });
+      setStatus({ connected: true, institution_name });
+      setPendingExchange(null);
     } catch (err) {
       setError(err.message || 'Could not connect bank');
     } finally {
       setLinking(false);
     }
-  }, [api]);
+  }, [api, pendingExchange]);
+
+  const cancelExchange = useCallback(() => {
+    setPendingExchange(null);
+    setError('');
+  }, []);
 
   const syncTransactions = async () => {
     setSyncing(true);
@@ -90,6 +144,7 @@ export default function PlaidConnect({ vices }) {
     setConfirmed(new Set());
     setSkipped(new Set());
     setLogged(new Set());
+    setSelectedVices({});
     try {
       const data = await api('/api/plaid/sync', { method: 'POST' });
       setTransactions(data.transactions);
@@ -128,17 +183,17 @@ export default function PlaidConnect({ vices }) {
 
   const logSelected = async () => {
     const toLog = transactions.filter(tx => confirmed.has(tx.transaction_id));
-    if (!toLog.length || !vices.length) return;
+    if (!toLog.length || !userVices.length) return;
 
-    const defaultVice = vices[0];
     let loggedCount = 0;
 
     for (const tx of toLog) {
+      const viceId = selectedVices[tx.transaction_id] ?? userVices[0].id;
       try {
         await api('/api/entries', {
           method: 'POST',
           body: JSON.stringify({
-            vice_id: defaultVice.id,
+            vice_id: viceId,
             date: tx.date,
             quantity: 1,
             price_per_unit: tx.amount,
@@ -171,26 +226,56 @@ export default function PlaidConnect({ vices }) {
 
       {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
 
-      {!status?.connected ? (
+      {/* Institution confirmation — shown after Plaid Link succeeds, before token exchange */}
+      {pendingExchange && (
+        <div className="plaid-confirm" style={{ marginBottom: 16, padding: '12px 14px', border: '1px solid var(--border, #333)', borderRadius: 8, background: 'var(--surface2, #1a1a1a)' }}>
+          <p style={{ margin: '0 0 4px', fontWeight: 600 }}>Confirm your bank</p>
+          <p style={{ margin: '0 0 12px', color: 'var(--fg2, #aaa)', fontSize: 14 }}>
+            You selected: <strong style={{ color: 'var(--fg, #fff)' }}>{pendingExchange.institution_name || 'Unknown institution'}</strong>
+            {pendingExchange.institution_name === NAVY_FEDERAL_NAME && (
+              <span style={{ marginLeft: 6, color: 'var(--money, #5ec48a)', fontSize: 12 }}>✓ Verified Navy Federal</span>
+            )}
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={confirmExchange} disabled={linking} style={{ fontSize: 13 }}>
+              {linking ? 'Connecting…' : 'Yes, connect this bank'}
+            </button>
+            <button className="btn ghost" onClick={cancelExchange} disabled={linking} style={{ fontSize: 13 }}>
+              No, go back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!pendingExchange && !status?.connected ? (
         <div className="plaid-cta">
           <p className="plaid-copy">
             Connect your bank to automatically find vice-related purchases — alcohol, bars,
             coffee, fast food, tobacco, gambling — and import them as log entries.
           </p>
-          <button className="btn btn-primary" onClick={openPlaidLink} disabled={linking}>
+          <button className="btn btn-primary" onClick={() => openPlaidLink()} disabled={linking}>
             {linking ? 'Connecting…' : '+ Connect Bank'}
           </button>
+          <button
+            className="btn ghost"
+            onClick={() => openPlaidLink(NAVY_FEDERAL_INSTITUTION_ID)}
+            disabled={linking}
+            style={{ marginTop: 8, fontSize: 13 }}
+            title="Opens Navy Federal Credit Union directly — bypasses search"
+          >
+            {linking ? 'Connecting…' : '⚓ Connect Navy Federal directly'}
+          </button>
         </div>
-      ) : (
+      ) : !pendingExchange && status?.connected ? (
         <div className="plaid-actions">
           <button className="btn" onClick={syncTransactions} disabled={syncing}>
             {syncing ? 'Scanning…' : '⬇ Import Transactions'}
           </button>
-          <button className="btn ghost" onClick={openPlaidLink} disabled={linking} style={{ fontSize: 12 }}>
+          <button className="btn ghost" onClick={() => openPlaidLink()} disabled={linking} style={{ fontSize: 12 }}>
             {linking ? 'Connecting…' : 'Switch bank'}
           </button>
         </div>
-      )}
+      ) : null}
 
       {transactions !== null && (
         <div className="plaid-results">
@@ -202,11 +287,6 @@ export default function PlaidConnect({ vices }) {
             <>
               <div className="plaid-results-head">
                 <span>{transactions.length} vice-related transactions found</span>
-                {vices.length > 0 && (
-                  <span className="plaid-vice-note">
-                    Will log to: {vices[0].emoji} {vices[0].name}
-                  </span>
-                )}
               </div>
               <div className="plaid-tx-list">
                 {transactions.map(tx => {
@@ -224,6 +304,19 @@ export default function PlaidConnect({ vices }) {
                         <span className="plaid-tx-date">{tx.date}</span>
                       </div>
                       <span className="plaid-tx-amount">${Number(tx.amount).toFixed(2)}</span>
+                      {!isLogged && userVices.length > 0 && (
+                        <select
+                          className="plaid-tx-vice-select"
+                          value={selectedVices[tx.transaction_id] ?? ''}
+                          onChange={e =>
+                            setSelectedVices(prev => ({ ...prev, [tx.transaction_id]: Number(e.target.value) }))
+                          }
+                        >
+                          {userVices.map(v => (
+                            <option key={v.id} value={v.id}>{v.emoji} {v.name}</option>
+                          ))}
+                        </select>
+                      )}
                       <div className="plaid-tx-actions">
                         {isLogged ? (
                           <span className="plaid-tx-done">✓ Logged</span>

@@ -1501,6 +1501,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .ap-chat-compose { grid-template-columns: 1fr; }
 }
 
+
 /* ── Challenge banner (Dashboard) ───────────────── */
 .challenge-banner {
   display: flex; align-items: center; gap: 12px;
@@ -1691,7 +1692,6 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   font-size: 12px; color: var(--ink-3); font-family: var(--mono);
   margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
 }
-.plaid-vice-note { color: var(--money); }
 .plaid-tx-list { display: flex; flex-direction: column; gap: 6px; }
 .plaid-tx {
   display: flex; align-items: center; gap: 12px;
@@ -1718,6 +1718,13 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .plaid-tx-btn.skip:hover { border-color: var(--warn); color: var(--warn); }
 .plaid-tx-btn.skip.on    { border-color: var(--warn); background: var(--warn); color: #fff; }
 .plaid-tx-done { font-size: 11px; color: var(--money); font-family: var(--mono); }
+.plaid-tx-vice-select {
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--rule-2);
+  background: var(--paper-2); color: var(--ink); font-size: 12px;
+  cursor: pointer; flex-shrink: 0; max-width: 130px;
+  transition: border-color 0.12s;
+}
+.plaid-tx-vice-select:focus { outline: none; border-color: var(--money); }
 
 /* ── Annual Wrapped ──────────────────────────────── */
 .wr-loading {
@@ -1876,13 +1883,17 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     background: rgba(10,31,23,0.78);
     box-shadow: none;
     backdrop-filter: none;
+    display: flex;
+    flex-direction: column;
   }
-  .auth-hero-panel {
-    overflow: visible;
-    contain: layout paint;
-  }
+  /* Login card appears first on mobile — users reach the form without scrolling */
+  .auth-card-panel { order: 1; }
+  .auth-hero-panel { order: 2; overflow: visible; contain: layout paint; }
   .auth-hero-panel::after { display: none; }
   .auth-card-panel { padding: 22px; min-height: auto; contain: layout paint; }
+  .auth-logo-svg { width: 140px; }
+  /* Trim hero copy on mobile — h1 is enough context below the login form */
+  .auth-hero-copy > p { display: none; }
   .auth-card-panel .form-input { font-size: 16px; }
   .clerk-frame { min-height: 520px; contain: layout paint; }
   .auth-feature-grid { grid-template-columns: 1fr; }
@@ -1942,7 +1953,8 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .vice-header, .page-header, .budget-bar-label { gap: 12px; flex-wrap: wrap; }
   .vice-identity { min-width: 0; align-items: flex-start; }
   .vice-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
-  .vice-expand-btn { flex: 1; justify-content: center; min-height: 38px; }
+  .vice-expand-btn { flex: 1; justify-content: center; min-height: 44px; }
+  .icon-btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 8px; }
   .vice-header .btn, .page-header .btn { width: 100%; justify-content: center; }
   .vice-stats-row { flex-wrap: wrap; gap: 8px 14px; }
   .vice-detail-grid, .vice-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2065,6 +2077,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     margin-left: 0;
     text-align: center;
     padding: 7px 10px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .goal-card {
     padding: 14px;
@@ -2100,6 +2116,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     width: 100%;
     justify-content: center;
   }
+  /* 5-col milestone grid at 520px is too cramped — 2 columns */
+  .sv-ms-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Auth feature grid adds no value at smallest breakpoint */
+  .auth-feature-grid { display: none; }
 }
 
 /* -- Companion Card */
@@ -2284,4 +2304,172 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .comp-card-body { flex-direction:column; align-items:center; }
   .comp-svg-wrap { width:min(100%,184px); }
   .companion-art { width:100%; height:auto; }
+}
+
+/* ══════════════════════════════════════════════════════
+   MOBILE APP — premium bottom nav + hero dashboard
+   These rules are last in the cascade so they win over
+   earlier breakpoint overrides without excessive !important.
+   ══════════════════════════════════════════════════════ */
+
+/* ── Mobile bottom nav (hidden on desktop) ──────────── */
+.mbn { display: none; }
+
+/* ── Dashboard mobile hero (hidden on desktop) ─────── */
+.db-mobile-hero { display: none; }
+
+/* ── Dashboard header actions ────────────────────────── */
+.db-head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+
+  /* ── Bottom nav ───────────────────────────────────── */
+  .mbn {
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding: 0 6px env(safe-area-inset-bottom, 0px);
+    background: color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid var(--rule-2);
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .mbn-tab {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    text-decoration: none;
+    color: var(--ink-4);
+    padding: 6px 4px 4px;
+    border-radius: 12px;
+    transition: color 0.14s, background 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100%;
+  }
+  .mbn-tab:hover { color: var(--ink-3); text-decoration: none; }
+  .mbn-active { color: var(--money); }
+  .mbn-active .mbn-icon { transform: translateY(-1px); }
+
+  .mbn-icon {
+    font-size: 15px; line-height: 1; display: block;
+    transition: transform 0.14s;
+  }
+  .mbn-label {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase;
+  }
+
+  /* Log tab — primary action pill */
+  .mbn-tab-log { flex: 1.15; }
+  .mbn-log-pill {
+    display: grid; place-items: center;
+    width: 52px; height: 28px; border-radius: 999px;
+    background: var(--money); color: var(--paper);
+    font-size: 18px; line-height: 1; font-weight: 400;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--money) 50%, transparent);
+    transition: transform 0.14s, box-shadow 0.14s;
+  }
+  .mbn-tab-log .mbn-label { color: var(--money); font-weight: 700; }
+  .mbn-active.mbn-tab-log .mbn-log-pill {
+    transform: scale(1.07);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--money) 62%, transparent);
+  }
+
+  /* ── Main bottom padding to clear the nav ─────────── */
+  .main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* ── Dashboard chrome cleanup ──────────────────────── */
+  .crumbs { display: none !important; }
+  .dashboard-head { flex-direction: row; align-items: center; margin-bottom: 14px; }
+  .dashboard-head .page-title { margin-bottom: 0; font-size: 20px; }
+  .dashboard-head .page-subtitle { display: none; }
+  .db-head-actions { display: none; } /* bottom nav handles Log + Savings */
+
+  /* ── Mobile hero card ─────────────────────────────── */
+  .db-mobile-hero {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 24px 16px 20px; margin-bottom: 16px;
+    background:
+      radial-gradient(circle at 50% 110%, color-mix(in srgb, var(--money) 14%, transparent), transparent 56%),
+      var(--paper-2);
+    border-radius: 22px;
+    border: 1px solid color-mix(in srgb, var(--money) 20%, var(--rule));
+    position: relative; overflow: hidden;
+  }
+
+  .db-hero-eyebrow {
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin-bottom: 8px;
+  }
+
+  .db-hero-num {
+    display: flex; align-items: flex-start; gap: 1px;
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(54px, 19vw, 74px);
+    line-height: 0.9; letter-spacing: -0.045em;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .db-hero-sign {
+    font-family: var(--serif); font-style: italic;
+    font-size: 0.43em; color: var(--money);
+    margin-top: 0.14em; flex-shrink: 0; letter-spacing: 0;
+  }
+  .db-hero-dec {
+    font-size: 0.3em; color: var(--ink-3);
+    font-family: var(--mono); font-weight: 300;
+    margin-top: 0.4em; letter-spacing: 0;
+  }
+
+  .db-hero-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 14px; flex-wrap: wrap; justify-content: center;
+  }
+  .db-hero-chip {
+    display: inline-flex; padding: 4px 11px; border-radius: 999px;
+    background: var(--paper-3); border: 1px solid var(--rule-2);
+    font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+  }
+  .db-hero-chip-sep { color: var(--ink-4); font-size: 13px; }
+
+
+  /* ── Stats strip — horizontal scroll on mobile ──────
+     Override the <520px single-column that fires later
+     in the existing CSS — these rules are appended last
+     so cascade order wins without needing !important on
+     every property.                                     */
+  .stats-strip {
+    display: flex !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    /* kill grid columns the earlier breakpoint may set */
+    grid-template-columns: none !important;
+  }
+  .stats-strip::-webkit-scrollbar { display: none; }
+
+  .stat {
+    flex: 0 0 auto !important;
+    width: clamp(130px, 44vw, 175px) !important;
+    scroll-snap-align: start;
+    border-top: none !important;
+    border-left: 1px solid var(--rule) !important;
+    padding: 16px 16px !important;
+  }
+  .stat:first-child { border-left: none !important; }
+  .stat-val { font-size: 26px !important; }
+
+  /* ── Grid spacing refinements ──────────────────────── */
+  .grid-2 { gap: 12px; }
+  .grid-2 > .panel, .grid-2 > .card { margin-bottom: 0; }
+  .panel-title { font-size: 17px; }
+
+  /* ── Badges section — slightly tighter on mobile ───── */
+  .badges-section { margin-bottom: 16px; }
 }

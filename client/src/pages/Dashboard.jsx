@@ -11,6 +11,7 @@ import { formatQuantityWithUnit } from '../formatUnits';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 import CompanionCard from '../companions/CompanionCard';
 import BadgesSection from './BadgesSection';
+import InsightsPanel from '../components/InsightsPanel';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -107,6 +108,7 @@ export default function Dashboard() {
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [cleanEntriesThisWeek, setCleanEntriesThisWeek] = useState(0);
 
   // Goals state
   const [goals, setGoals] = useState([]);
@@ -202,17 +204,20 @@ export default function Dashboard() {
       const statsByVice = {};
       const spendByDate = Object.fromEntries(dates.map(date => [date, 0]));
       const allEntries = [];
+      let cleanCount = 0;
 
       results.forEach(({ vice, statsForVice, weekEntries, allEntries: entries }) => {
         statsByVice[vice.id] = statsForVice;
         weekEntries.forEach(entry => {
           const date = entry.date.split('T')[0];
           spendByDate[date] = (spendByDate[date] || 0) + Number(entry.quantity || 0) * Number(entry.price_per_unit || 0);
+          if (Number(entry.quantity) === 0) cleanCount++;
         });
         entries.forEach(entry => allEntries.push({ ...entry, vice }));
       });
 
       setStats(combineStats(vices, statsByVice));
+      setCleanEntriesThisWeek(cleanCount);
       setLast7(dates.map(date => ({ date, spend: spendByDate[date] || 0 })));
       setRecentEntries(allEntries
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -286,7 +291,7 @@ export default function Dashboard() {
           <div className="page-title">Dashboard</div>
           <p className="page-subtitle">Combined overview across every tracked vice.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="db-head-actions">
           <Link className="btn ghost btn-sm" to="/savings" style={{ textDecoration: 'none' }}>
             View Savings
           </Link>
@@ -341,6 +346,7 @@ export default function Dashboard() {
         </div>
       ) : stats && (
         <>
+
           <div className="stats-strip">
             {[
               { key: 'Today', p: stats.today || emptyPeriod() },
@@ -383,8 +389,8 @@ export default function Dashboard() {
               </div>
               <div className="savings-rows">
                 <div className="savings-row"><span>Clean days logged</span><strong className="text-money">{stats.clean_days} days</strong></div>
-                <div className="savings-row"><span>Saved from clean days</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
-                <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
+                <div className="savings-row"><span>Spending avoided</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
+                <div className="savings-row"><span>Avg spend / vice day</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
                 <div className="savings-divider" />
                 <div className="savings-row"><span>Quit all · 30 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 30)}</strong></div>
                 <div className="savings-row"><span>Quit all · 90 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 90)}</strong></div>
@@ -478,6 +484,8 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+
+          <InsightsPanel />
         </>
       )}
 
