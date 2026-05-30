@@ -70,26 +70,6 @@ export default function Badges() {
         </div>
       </div>
 
-      {data && (
-        <div className="bdg-stats-strip">
-          <div className="bdg-stat">
-            <div className="bdg-stat-val">{data.current_streak}</div>
-            <div className="bdg-stat-label">Current streak</div>
-          </div>
-          <div className="bdg-stat">
-            <div className="bdg-stat-val">{data.longest_streak}</div>
-            <div className="bdg-stat-label">Best streak</div>
-          </div>
-          <div className="bdg-stat">
-            <div className="bdg-stat-val">{data.current_streak}</div>
-            <div className="bdg-stat-label">Current streak</div>
-          </div>
-          <div className="bdg-stat">
-            <div className="bdg-stat-val">${Number(data.total_savings).toFixed(0)}</div>
-            <div className="bdg-stat-label">Saved</div>
-          </div>
-        </div>
-      )}
 
       {data ? (
         <div className="bdg-grid">
