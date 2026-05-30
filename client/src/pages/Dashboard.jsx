@@ -428,29 +428,12 @@ export default function Dashboard() {
 
           <BadgesSection />
 
-          <div className="grid-2">
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">Combined savings summary</span>
-              </div>
-              <div className="savings-rows">
-                <div className="savings-row"><span>Clean days logged</span><strong className="text-money">{stats.clean_days} days</strong></div>
-                <div className="savings-row"><span>Spending avoided</span><strong className="text-money">{fmt$(stats.savings_from_clean_days)}</strong></div>
-                <div className="savings-row"><span>Avg spend / vice day</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
-                <div className="savings-divider" />
-                <div className="savings-row"><span>Quit all · 30 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 30)}</strong></div>
-                <div className="savings-row"><span>Quit all · 90 days</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 90)}</strong></div>
-                <div className="savings-row"><span>Quit all · 1 year</span><strong className="text-money">{fmt$(stats.avg_daily_spend * 365)}</strong></div>
-              </div>
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">Last 7 days · combined spend</span>
             </div>
-
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">Last 7 days · combined spend</span>
-              </div>
-              <div className="dashboard-chart-wrap">
-                <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
-              </div>
+            <div className="dashboard-chart-wrap">
+              <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
             </div>
           </div>
 
