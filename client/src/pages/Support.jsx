@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useApi } from '../useApi';
 
 const STEPS = [
   {
@@ -60,7 +61,31 @@ const TRUST_POINTS = [
   { icon: '🗑️', label: 'Delete anytime', desc: 'Request full account deletion via email and your data is gone within 48 hours.' },
 ];
 
+const NOTIF_OPTIONS = [
+  { key: 'notif_streak_risk',      label: 'Streak at risk',      desc: '8pm reminder if you haven\'t logged and your streak is ≥ 3 days' },
+  { key: 'notif_streak_milestone', label: 'Streak milestones',   desc: 'Celebrate hitting 3, 7, 30, or 100 clean days' },
+  { key: 'notif_badge_earned',     label: 'Badge unlocked',      desc: 'Notify when you earn a new badge' },
+  { key: 'notif_level_up',         label: 'Level up',            desc: 'Notify when you reach a new XP level' },
+  { key: 'notif_weekly_summary',   label: 'Weekly summary',      desc: 'Sunday morning recap: clean days, savings, streak' },
+];
+
 export default function Support() {
+  const api = useApi();
+  const [notifPrefs, setNotifPrefs] = useState(null);
+
+  useEffect(() => {
+    api('/api/notifications/preferences').then(setNotifPrefs).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const togglePref = async (key) => {
+    const next = !notifPrefs[key];
+    setNotifPrefs(prev => ({ ...prev, [key]: next }));
+    api('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ [key]: next }),
+    }).catch(() => {});
+  };
+
   return (
     <main className="main">
       <div className="crumbs">
@@ -119,6 +144,33 @@ export default function Support() {
           ))}
         </div>
       </div>
+
+      {/* Notification preferences */}
+      {notifPrefs && (
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">🔔 Notification preferences</span>
+          </div>
+          <div className="notif-pref-list">
+            {NOTIF_OPTIONS.map(opt => (
+              <label key={opt.key} className="notif-pref-row">
+                <div className="notif-pref-info">
+                  <div className="notif-pref-label">{opt.label}</div>
+                  <div className="notif-pref-desc">{opt.desc}</div>
+                </div>
+                <div
+                  className={`notif-toggle${notifPrefs[opt.key] !== false ? ' on' : ''}`}
+                  onClick={() => togglePref(opt.key)}
+                  role="switch"
+                  aria-checked={notifPrefs[opt.key] !== false}
+                >
+                  <div className="notif-toggle-thumb" />
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Contact */}
       <div className="panel sup-contact-panel">

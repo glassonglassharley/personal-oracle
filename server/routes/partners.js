@@ -232,7 +232,7 @@ router.get('/leaderboard', async (req, res, next) => {
     const ids = idRows.rows.map(r => r.id);
 
     const rows = await Promise.all(ids.map(async uid => {
-      const [uRow, cleanRow, spentRow, vicesRow] = await Promise.all([
+      const [uRow, cleanRow, spentRow, vicesRow, xpRow] = await Promise.all([
         pool.query('SELECT id, name FROM users WHERE id = $1', [uid]),
         pool.query(`
           SELECT COUNT(DISTINCT e.date)::int AS cnt
@@ -248,7 +248,28 @@ router.get('/leaderboard', async (req, res, next) => {
           SELECT json_agg(json_build_object('emoji', emoji) ORDER BY id) AS vices
           FROM vices WHERE user_id = $1
         `, [uid]),
+        pool.query('SELECT total_xp, level FROM user_xp WHERE user_id = $1', [uid]),
       ]);
+
+      // Compute current streak for this user
+      const recentEntries = await pool.query(`
+        SELECT e.date::text, SUM(e.quantity)::float AS qty
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1
+        GROUP BY e.date ORDER BY e.date DESC LIMIT 30
+      `, [uid]);
+      const dMap = {};
+      recentEntries.rows.forEach(r => { dMap[r.date] = r.qty === 0; });
+      let curStreak = 0;
+      const today = new Date();
+      const d = new Date(today);
+      let skippedToday = false;
+      for (let i = 0; i < 30; i++) {
+        const ds = d.toISOString().split('T')[0];
+        if (ds in dMap) { if (dMap[ds]) curStreak++; else break; }
+        else { if (!skippedToday) { skippedToday = true; } else break; }
+        d.setDate(d.getDate() - 1);
+      }
 
       // last month clean days (for challenge winner calc)
       const prevStart = `${lastMonth}-01`;
@@ -276,11 +297,14 @@ router.get('/leaderboard', async (req, res, next) => {
         spent_this_month: spentRow.rows[0].total,
         last_month_clean: lastClean.rows[0].cnt,
         challenge:        chalRow.rows[0] || null,
+        total_xp:         xpRow.rows[0]?.total_xp ?? 0,
+        level:            xpRow.rows[0]?.level ?? 1,
+        current_streak:   curStreak,
       };
     }));
 
-    // Rank: most clean days first, then least spent
-    rows.sort((a, b) => b.clean_days - a.clean_days || a.spent_this_month - b.spent_this_month);
+    // Rank: longest current streak first, then total XP as tiebreaker
+    rows.sort((a, b) => b.current_streak - a.current_streak || b.total_xp - a.total_xp);
     rows.forEach((r, i) => { r.rank = i + 1; });
 
     // Annotate last month winner for each challenged pair

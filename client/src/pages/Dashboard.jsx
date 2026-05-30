@@ -134,6 +134,13 @@ export default function Dashboard() {
   const [challenges, setChallenges] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
 
+  // XP + levels
+  const [xpData, setXpData] = useState(null);
+  const [levelUpMsg, setLevelUpMsg] = useState('');
+
+  // Weekly AI insight
+  const [weeklyInsight, setWeeklyInsight] = useState(null);
+
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -141,12 +148,24 @@ export default function Dashboard() {
     ? (getComputedStyle(document.body).getPropertyValue('--ink-3').trim() || '#8e9a85')
     : '#8e9a85';
 
-  // Load goals + challenges + badge check once on mount
+  // Load goals + challenges + badge check + XP + weekly insight once on mount
   useEffect(() => {
     apiRef.current('/api/goals').then(setGoals).catch(() => {});
     apiRef.current('/api/partners/challenges').then(setChallenges).catch(() => {});
     apiRef.current('/api/badges/check', { method: 'POST' })
       .then(({ newly_earned }) => { if (newly_earned?.length) setNewBadges(newly_earned); })
+      .catch(() => {});
+    apiRef.current('/api/xp').then(data => {
+      setXpData(prev => {
+        if (prev && data.level > prev.level) {
+          setLevelUpMsg(`Level up! You're now a ${data.level_name} ${data.level_icon}`);
+          setTimeout(() => setLevelUpMsg(''), 4000);
+        }
+        return data;
+      });
+    }).catch(() => {});
+    apiRef.current('/api/insights/weekly', { method: 'POST' })
+      .then(d => { if (d.insight) setWeeklyInsight(d.insight); })
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -408,6 +427,39 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {xpData && (
+            <div className="xp-card">
+              {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
+              <div className="xp-card-top">
+                <div className="xp-level-icon">{xpData.level_icon}</div>
+                <div>
+                  <div className="xp-level-name">{xpData.level_name}</div>
+                  <div className="xp-level-num">Level {xpData.level}</div>
+                </div>
+                <div className="xp-total">{xpData.total_xp.toLocaleString()} XP</div>
+              </div>
+              <div className="xp-bar-track">
+                <div className="xp-bar-fill" style={{ width: `${xpData.progress_percent}%` }} />
+              </div>
+              <div className="xp-bar-foot">
+                <span>{xpData.total_xp} / {xpData.total_xp + xpData.xp_to_next_level} XP</span>
+                {xpData.next_level_name && (
+                  <span>Next: {xpData.next_level_name} {xpData.next_level_icon}</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {weeklyInsight && (
+            <div className="insight-card">
+              <div className="insight-card-head">
+                <span className="insight-sparkle">✨</span>
+                <span className="insight-title">Weekly insight</span>
+              </div>
+              <p className="insight-body">{weeklyInsight}</p>
             </div>
           )}
 

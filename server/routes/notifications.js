@@ -65,6 +65,34 @@ router.post('/subscriptions', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/preferences', async (req, res, next) => {
+  try {
+    const uid = await getInternalUserId(req.auth.userId);
+    if (!uid) return res.json({});
+    const r = await pool.query(
+      `SELECT nightly_reminders_enabled, notif_streak_risk, notif_streak_milestone,
+              notif_badge_earned, notif_level_up, notif_weekly_summary
+       FROM users WHERE id = $1`, [uid]
+    );
+    res.json(r.rows[0] || {});
+  } catch (err) { next(err); }
+});
+
+router.put('/preferences', async (req, res, next) => {
+  try {
+    const uid = await getInternalUserId(req.auth.userId);
+    if (!uid) return res.status(404).json({ error: 'User not found' });
+    const fields = ['notif_streak_risk','notif_streak_milestone','notif_badge_earned','notif_level_up','notif_weekly_summary'];
+    const sets = [], vals = [uid];
+    fields.forEach(f => {
+      if (f in req.body) { sets.push(`${f} = $${vals.length + 1}`); vals.push(Boolean(req.body[f])); }
+    });
+    if (sets.length === 0) return res.json({ ok: true });
+    await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1`, vals);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.delete('/subscriptions', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);

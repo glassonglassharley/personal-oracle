@@ -1611,6 +1611,79 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sup-contact-title { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
 .sup-contact-sub { font-size: 14px; color: var(--ink-3); max-width: 320px; line-height: 1.6; }
 
+/* ── XP Card (Dashboard) ─────────────────────────── */
+.xp-card {
+  position: relative; padding: 18px 22px; border-radius: 14px; margin-bottom: 22px;
+  background: color-mix(in srgb, #ffd700 7%, var(--paper-2));
+  border: 1px solid color-mix(in srgb, #ffd700 28%, transparent);
+}
+.xp-card-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.xp-level-icon { font-size: 36px; line-height: 1; flex-shrink: 0; }
+.xp-level-name { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+.xp-level-num  { font-size: 12px; color: var(--ink-3); font-family: var(--mono); margin-top: 2px; }
+.xp-total      { margin-left: auto; font-size: 12px; color: var(--ink-3); font-family: var(--mono); white-space: nowrap; }
+.xp-bar-track  { height: 8px; border-radius: 4px; background: var(--rule); overflow: hidden; }
+.xp-bar-fill   { height: 100%; border-radius: 4px; background: #ffd700; transition: width 0.6s ease; }
+.xp-bar-foot   { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); font-family: var(--mono); margin-top: 5px; }
+.xp-levelup-toast {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  background: #ffd700; color: #000; font-size: 12px; font-weight: 700;
+  padding: 4px 14px; border-radius: 999px; white-space: nowrap;
+  animation: xp-toast-in 0.3s ease;
+}
+@keyframes xp-toast-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+/* ── Weekly Insight Card (Dashboard) ─────────────── */
+.insight-card {
+  padding: 16px 20px; border-radius: 12px; margin-bottom: 22px;
+  background: var(--paper-2); border: 1px solid var(--rule);
+}
+.insight-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.insight-sparkle   { font-size: 16px; }
+.insight-title     { font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
+.insight-body      { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.65; white-space: pre-wrap; }
+
+/* ── Notification prefs (Support page) ───────────── */
+.notif-pref-list { display: flex; flex-direction: column; gap: 0; }
+.notif-pref-row {
+  display: flex; align-items: center; gap: 16px; padding: 14px 0;
+  border-bottom: 1px solid var(--rule); cursor: pointer;
+}
+.notif-pref-row:last-child { border-bottom: none; }
+.notif-pref-info { flex: 1; min-width: 0; }
+.notif-pref-label { font-size: 14px; font-weight: 500; color: var(--ink); }
+.notif-pref-desc  { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.notif-toggle {
+  width: 44px; height: 24px; border-radius: 12px; background: var(--rule);
+  position: relative; flex-shrink: 0; transition: background 0.2s; cursor: pointer;
+}
+.notif-toggle.on { background: var(--money); }
+.notif-toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s;
+}
+.notif-toggle.on .notif-toggle-thumb { transform: translateX(20px); }
+
+/* ── Leaderboard upgrades (Partners) ─────────────── */
+.lb-level-icon { font-size: 14px; margin-left: 4px; }
+.lb-streak { color: var(--money); font-weight: 600; }
+.lb-xp { font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+
+/* ── Quit Plan modal (ViceManager) ───────────────── */
+.quit-plan-modal { max-width: 560px; max-height: 80vh; overflow-y: auto; }
+.quit-week { margin-bottom: 20px; padding: 14px; border-radius: 10px; background: var(--paper-2); border: 1px solid var(--rule); }
+.quit-week-head { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
+.quit-strategies { margin: 0 0 8px 0; padding-left: 18px; }
+.quit-strategies li { font-size: 13px; color: var(--ink-2); margin-bottom: 4px; line-height: 1.5; }
+.quit-milestone { font-size: 12px; color: var(--money); font-family: var(--mono); }
+.quit-savings { margin-top: 16px; padding: 12px 14px; border-radius: 8px; background: color-mix(in srgb, var(--money) 8%, var(--paper-2)); font-size: 13px; color: var(--ink-2); }
+.quit-savings strong { color: var(--money); }
+
+/* ── Wrapped new slides ──────────────────────────── */
+.wr-badge-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 20px; }
+.wr-badge-chip  { font-size: 40px; line-height: 1; }
+
 /* ── Plaid category picker (ViceManager) ────────── */
 .plaid-cat-picker {
   margin: 16px 0 4px;

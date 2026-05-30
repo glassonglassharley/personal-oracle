@@ -99,6 +99,119 @@ async function sendReminder(user, webpush) {
   return sent;
 }
 
+// ── /api/cron/streak-check — run at 8pm per user's timezone ──────────────
+// Sends "streak at risk" push if user has streak ≥ 3 and hasn't logged today
+router.all('/streak-check', authCron, async (req, res, next) => {
+  try {
+    const { sendPushToUser } = require('../utils');
+    const STREAK_RISK_HOUR = 20; // 8pm
+    const users = await pool.query(
+      `SELECT id, timezone, notif_streak_risk FROM users WHERE nightly_reminders_enabled = TRUE`
+    );
+    let sent = 0;
+    for (const user of users.rows) {
+      if (user.notif_streak_risk === false) continue;
+      const local = localDateParts(user.timezone || 'UTC');
+      if (local.hour !== STREAK_RISK_HOUR) continue;
+
+      // Check today's entries
+      const todayCheck = await pool.query(`
+        SELECT COUNT(*)::int AS cnt FROM entries e
+        JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1 AND e.date = $2
+      `, [user.id, local.date]);
+      if (todayCheck.rows[0].cnt > 0) continue;
+
+      // Compute current streak
+      const recentRows = await pool.query(`
+        SELECT e.date::text, SUM(e.quantity)::float AS qty
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1
+        GROUP BY e.date ORDER BY e.date DESC LIMIT 60
+      `, [user.id]);
+      let streak = 0;
+      const dateSet = {};
+      recentRows.rows.forEach(r => { dateSet[r.date] = r.qty === 0; });
+      const d = new Date(local.date + 'T00:00:00');
+      d.setDate(d.getDate() - 1); // start from yesterday (today not logged)
+      for (let i = 0; i < 60; i++) {
+        const ds = d.toISOString().split('T')[0];
+        if (ds in dateSet) { if (dateSet[ds]) streak++; else break; }
+        else break;
+        d.setDate(d.getDate() - 1);
+      }
+      if (streak < 3) continue;
+
+      await sendPushToUser(user.id, {
+        title: '⚠️ Streak at risk',
+        body: `Your ${streak}-day streak is on the line — log today to keep it alive`,
+        url: '/log',
+      });
+      sent++;
+    }
+    res.json({ ok: true, sent });
+  } catch (err) { next(err); }
+});
+
+// ── /api/cron/weekly-summary — run Sunday at 9am per user's timezone ─────
+router.all('/weekly-summary', authCron, async (req, res, next) => {
+  try {
+    const { sendPushToUser } = require('../utils');
+    const SUMMARY_HOUR = 9;
+    const users = await pool.query(
+      `SELECT id, timezone, notif_weekly_summary FROM users WHERE nightly_reminders_enabled = TRUE`
+    );
+    let sent = 0;
+    for (const user of users.rows) {
+      if (user.notif_weekly_summary === false) continue;
+      const local = localDateParts(user.timezone || 'UTC');
+      const dayOfWeek = new Date(local.date + 'T00:00:00').getDay();
+      if (dayOfWeek !== 0 || local.hour !== SUMMARY_HOUR) continue;
+
+      const weekAgo = new Date(local.date + 'T00:00:00');
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+      const statsRow = await pool.query(`
+        SELECT
+          COUNT(DISTINCT CASE WHEN e.quantity = 0 THEN e.date END)::int AS clean_days,
+          COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS total_spend
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1 AND e.date >= $2 AND e.date <= $3
+      `, [user.id, weekAgoStr, local.date]);
+
+      const { clean_days, total_spend } = statsRow.rows[0];
+
+      // Quick streak count
+      const recentRows = await pool.query(`
+        SELECT e.date::text, SUM(e.quantity)::float AS qty
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1
+        GROUP BY e.date ORDER BY e.date DESC LIMIT 30
+      `, [user.id]);
+      let streak = 0;
+      const dateSet = {};
+      recentRows.rows.forEach(r => { dateSet[r.date] = r.qty === 0; });
+      const d = new Date(local.date + 'T00:00:00');
+      for (let i = 0; i < 30; i++) {
+        const ds = d.toISOString().split('T')[0];
+        if (ds in dateSet) { if (dateSet[ds]) streak++; else break; }
+        else if (i === 0) { d.setDate(d.getDate() - 1); continue; }
+        else break;
+        d.setDate(d.getDate() - 1);
+      }
+
+      await sendPushToUser(user.id, {
+        title: '📊 Weekly summary',
+        body: `${clean_days} clean days · $${total_spend.toFixed(0)} spent · ${streak}-day streak`,
+        url: '/',
+      });
+      sent++;
+    }
+    res.json({ ok: true, sent });
+  } catch (err) { next(err); }
+});
+
 router.all('/nightly', authCron, async (req, res, next) => {
   try {
     const webpush = configureWebPush();

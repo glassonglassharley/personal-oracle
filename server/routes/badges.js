@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { awardXP, sendPushToUser } = require('../utils');
+
+// Bonus XP for streak milestone badges on top of the base badge XP
+const STREAK_MILESTONE_XP = { streak_3: 50, streak_7: 100, streak_30: 250, streak_100: 500 };
+const BASE_BADGE_XP = 75;
 
 const BADGE_DEFS = [
   { id: 'first_log',       emoji: '✨', name: 'First Log',        description: 'Logged your first entry ever' },
@@ -138,6 +143,29 @@ router.post('/check', async (req, res, next) => {
 
     const newly_earned = BADGE_DEFS.filter(d => toInsert.includes(d.id));
     res.json({ newly_earned });
+
+    // Fire-and-forget: award XP + send push for new badges
+    if (toInsert.length > 0) {
+      const xpAmount = toInsert.reduce((sum, id) => sum + BASE_BADGE_XP + (STREAK_MILESTONE_XP[id] || 0), 0);
+      awardXP(userId, xpAmount).then(async xpResult => {
+        const prefsRow = await pool.query(
+          'SELECT notif_badge_earned, notif_level_up FROM users WHERE id = $1', [userId]
+        );
+        const prefs = prefsRow.rows[0] || {};
+        if (prefs.notif_badge_earned !== false) {
+          for (const badge of newly_earned) {
+            sendPushToUser(userId, { title: '🏅 Badge unlocked!', body: badge.name, url: '/badges' }).catch(() => {});
+          }
+        }
+        if (xpResult?.leveled_up && prefs.notif_level_up !== false) {
+          sendPushToUser(userId, {
+            title: '⭐ Level up!',
+            body: `You're now a ${xpResult.level_name} ${xpResult.level_icon}`,
+            url: '/badges',
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+    }
   } catch (err) { next(err); }
 });
 

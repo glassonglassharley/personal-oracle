@@ -93,8 +93,11 @@ function EmojiPicker({ value, onChange }) {
 }
 
 function ViceCard({ vice, stats, onUpdate, onDelete }) {
+  const api = useApi();
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [quitPlan, setQuitPlan] = useState(null);
+  const [quitPlanLoading, setQuitPlanLoading] = useState(false);
   const [form, setForm] = useState({
     name: vice.name,
     unit_label: vice.unit_label,
@@ -106,6 +109,24 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
   });
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const fetchQuitPlan = async () => {
+    setQuitPlanLoading(true);
+    try {
+      const plan = await api('/api/insights/quit-plan', {
+        method: 'POST',
+        body: JSON.stringify({
+          vice_name: vice.name,
+          vice_emoji: vice.emoji,
+          avg_daily_spend: stats?.avg_daily_spend ?? vice.default_price,
+          clean_days: stats?.clean_days ?? 0,
+          current_streak: stats?.current_streak ?? 0,
+        }),
+      });
+      setQuitPlan(plan);
+    } catch { /* silently fail */ }
+    finally { setQuitPlanLoading(false); }
+  };
 
   const togglePlaidCat = (key) => {
     setForm(f => ({
@@ -209,6 +230,45 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
               <PeriodDetail label="Per week" data={stats.averages?.week} vice={vice} />
               <PeriodDetail label="Per month" data={stats.averages?.month} vice={vice} />
               <PeriodDetail label="Per year" data={stats.averages?.year} vice={vice} />
+            </div>
+          </div>
+
+          <div className="vice-details-section">
+            <button
+              className="btn ghost"
+              onClick={fetchQuitPlan}
+              disabled={quitPlanLoading}
+              style={{ fontSize: 13 }}
+            >
+              {quitPlanLoading ? <><div className="btn-spinner" />Building plan…</> : '🎯 Get 30-day quit plan'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {quitPlan && (
+        <div className="modal-overlay" onClick={() => setQuitPlan(null)}>
+          <div className="modal quit-plan-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-title">30-Day Quit Plan · {vice.emoji} {vice.name}</div>
+            {quitPlan.weeks?.map(w => (
+              <div key={w.week} className="quit-week">
+                <div className="quit-week-head">Week {w.week} — {w.goal}</div>
+                <ul className="quit-strategies">
+                  {w.strategies?.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+                <div className="quit-milestone">🎯 {w.milestone}</div>
+              </div>
+            ))}
+            {quitPlan.total_projected_savings > 0 && (
+              <div className="quit-savings">
+                Annual savings if you quit: <strong>${Number(quitPlan.total_projected_savings).toFixed(0)}</strong>
+                {quitPlan.ten_year_projection > 0 && (
+                  <> · 10-year investment: <strong>${Number(quitPlan.ten_year_projection).toLocaleString()}</strong></>
+                )}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setQuitPlan(null)}>Close</button>
             </div>
           </div>
         </div>

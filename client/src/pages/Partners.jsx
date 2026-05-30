@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi, useDemoAuth } from '../useApi';
 
+const LEVEL_ICONS = ['🌱','🌿','🪴','🌳','🌲','🌴','🏵️','💪','⭐','👑'];
+const getLevelIcon = lvl => LEVEL_ICONS[Math.min(Math.max((lvl || 1) - 1, 0), 9)];
+
 const SPECIES_EMOJIS = { oak:'🌳', cherry_blossom:'🌸', pine:'🌲', willow:'🌿', maple:'🍁', baobab:'🌍', avocado:'🥑', bonsai:'🎋', palm:'🌴', cactus:'🌵', apple:'🍎', lemon:'🍋', banana:'🍌', redwood:'🏔️', bamboo:'🎍', olive:'🫒', mango:'🥭', weeping_willow:'🌾', rainbow_eucalyptus:'🌈', dragon_blood:'🔮' };
 const ARCHETYPE_EMOJIS = { warrior:'⚔️', wizard:'🧙', knight:'🏰', archer:'🏹', monk:'🧘', bodybuilder:'💪', athlete:'🏆', ninja:'🥷', samurai:'⛩️', viking:'🪓', pirate:'🏴‍☠️', explorer:'🧭', scientist:'🔬', artist:'🎨', chef:'👨‍🍳', astronaut:'🚀', superhero:'🦸', rockstar:'🎸', dancer:'💃', alchemist:'⚗️' };
 const getSpeciesEmoji = id => SPECIES_EMOJIS[id] || '🌱';
@@ -237,6 +240,7 @@ export default function Partners() {
                   <div className="lb-name">
                     {row.name}
                     {row.is_me && <span className="lb-you-badge">you</span>}
+                    {row.level && <span className="lb-level-icon" title={`Level ${row.level}`}>{getLevelIcon(row.level)}</span>}
                   </div>
                   <div className="ap-vices">
                     {(row.vices || []).slice(0, 5).map((v, i) => <span key={i}>{v.emoji}</span>)}
@@ -248,8 +252,8 @@ export default function Partners() {
                     <div className="lb-trophy lb-trophy-me">🏆 You won last month</div>
                   )}
                 </div>
-                <span className="lb-cell-right lb-clean">{row.clean_days}</span>
-                <span className="lb-cell-right lb-spent">${Number(row.spent_this_month || 0).toFixed(0)}</span>
+                <span className="lb-cell-right lb-streak" title="Current streak">{row.current_streak ?? 0}🔥</span>
+                <span className="lb-cell-right lb-xp" title="Total XP">{(row.total_xp ?? 0).toLocaleString()} XP</span>
                 <span className="lb-actions">
                   {!row.is_me && (
                     row.challenge

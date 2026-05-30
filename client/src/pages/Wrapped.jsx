@@ -4,6 +4,12 @@ import { useApi } from '../useApi';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
+const BADGE_EMOJI_MAP = {
+  first_log:'✨', streak_3:'🔥', streak_7:'⚡', streak_30:'🌱', streak_100:'👑',
+  saved_100:'💰', saved_500:'💵', saved_1000:'🏆', logged_30_days:'📅', plaid_connected:'🏦',
+};
+const getBadgeEmoji = id => BADGE_EMOJI_MAP[id] || '🏅';
+
 export default function Wrapped() {
   const { year } = useParams();
   const api = useApi();
@@ -164,6 +170,46 @@ export default function Wrapped() {
       <Slide key="ai" accent="#9c6fae" dim>
         <div className="wr-eyebrow">Your year in one sentence</div>
         <div className="wr-ai-quote">"{data.ai_summary}"</div>
+      </Slide>
+    ),
+
+    // 8 — Personality type
+    data.personality_type && (
+      <Slide key="personality" accent="#e07a5e">
+        <div className="wr-eyebrow">Your 2026 personality</div>
+        <div className="wr-big" style={{ fontSize: 'clamp(32px,7vw,56px)' }}>{data.personality_type}</div>
+        <div className="wr-desc">{data.personality_desc}</div>
+      </Slide>
+    ),
+
+    // 9 — XP & level
+    data.total_xp > 0 && (
+      <Slide key="xp" accent="#ffd700" dim>
+        <div className="wr-eyebrow">XP earned this year</div>
+        <div className="wr-big" style={{ color: '#ffd700' }}>{data.total_xp.toLocaleString()}</div>
+        <div className="wr-desc">Level {data.highest_level} reached</div>
+      </Slide>
+    ),
+
+    // 10 — Badges this year
+    data.badges_this_year?.length > 0 && (
+      <Slide key="badges" accent="#74c0fc" dim>
+        <div className="wr-eyebrow">{data.badges_this_year.length} badge{data.badges_this_year.length !== 1 ? 's' : ''} earned</div>
+        <div className="wr-badge-strip">
+          {data.badges_this_year.slice(0, 8).map(id => (
+            <span key={id} className="wr-badge-chip">{getBadgeEmoji(id)}</span>
+          ))}
+        </div>
+      </Slide>
+    ),
+
+    // 11 — Most expensive single entry
+    data.most_expensive_entry && (
+      <Slide key="expensive-entry" accent="#ff9f43">
+        <div className="wr-eyebrow">Most expensive single purchase</div>
+        <div className="wr-emoji-big">{data.most_expensive_entry.vice_emoji}</div>
+        <div className="wr-big">{fmt(data.most_expensive_entry.spend)}</div>
+        <div className="wr-desc">{data.most_expensive_entry.vice_name} · {fmtD(data.most_expensive_entry.date)}</div>
       </Slide>
     ),
 

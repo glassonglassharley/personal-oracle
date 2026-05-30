@@ -107,6 +107,50 @@ router.get('/:year', async (req, res, next) => {
     const viceList = Object.values(spendByVice).sort((a, b) => b.total - a.total);
     const biggestVice = viceList[0];
 
+    // ── New stats: XP, badges, most expensive entry, personality ─────────
+    const [xpRow, badgesRow, expEntryRow] = await Promise.all([
+      pool.query('SELECT total_xp, level FROM user_xp WHERE user_id = $1', [myId]),
+      pool.query(
+        `SELECT badge_id FROM badges WHERE user_id = $1 AND earned_at >= $2 AND earned_at < $3`,
+        [myId, yearStart, `${year + 1}-01-01`]
+      ),
+      pool.query(`
+        SELECT (e.quantity * e.price_per_unit)::float AS spend, e.date::text, v.name, v.emoji
+        FROM entries e JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1 AND e.date >= $2 AND e.date <= $3
+        ORDER BY spend DESC LIMIT 1
+      `, [myId, yearStart, yearEnd]),
+    ]);
+
+    const totalXp       = xpRow.rows[0]?.total_xp ?? 0;
+    const highestLevel  = xpRow.rows[0]?.level ?? 1;
+    const badgesThisYear = badgesRow.rows.map(r => r.badge_id);
+    const mostExpEntry  = expEntryRow.rows[0] || null;
+
+    // Personality type based on patterns
+    const totalDays = sortedDates.length;
+    const spendDays = sortedDates.filter(d => !byDate[d].allClean).length;
+    const cleanRatio = totalDays > 0 ? cleanDays / totalDays : 0;
+    const weekendDays = sortedDates.filter(d => { const day = new Date(d + 'T00:00:00').getDay(); return day === 0 || day === 6; }).length;
+    const weekendSpend = sortedDates
+      .filter(d => { const day = new Date(d + 'T00:00:00').getDay(); return (day === 0 || day === 6) && !byDate[d].allClean; })
+      .length;
+    const weekendRatio = weekendDays > 0 ? weekendSpend / weekendDays : 0;
+    const loggedRatio  = totalDays > 0 ? totalDays / Math.max(1, Math.floor((endDate - startDate) / 86400000)) : 0;
+
+    let personalityType, personalityDesc;
+    if (cleanRatio >= 0.7) {
+      personalityType = 'The Quitter'; personalityDesc = 'You spent more days clean than not. That\'s rare.';
+    } else if (weekendRatio > 0.65) {
+      personalityType = 'The Weekend Warrior'; personalityDesc = 'Your vice spending spikes on weekends.';
+    } else if (loggedRatio >= 0.85) {
+      personalityType = 'The Honest One'; personalityDesc = 'You logged almost every single day. That\'s discipline.';
+    } else if (spendDays > cleanDays * 2) {
+      personalityType = 'The Grinder'; personalityDesc = 'You logged consistently and spent most days.';
+    } else {
+      personalityType = 'The Tracker'; personalityDesc = 'You showed up and tracked your habits.';
+    }
+
     // AI summary
     let aiSummary = null;
     if (process.env.ANTHROPIC_API_KEY) {
@@ -146,6 +190,17 @@ Write ONE sentence (max 20 words) summarizing their year — honest, a little po
       worst_month:        worstMonth ? { month: worstMonth.month, name: monthNames[worstMonth.month], total: Math.round(worstMonth.total * 100) / 100 } : null,
       vices:              viceList.map(v => ({ ...v, total: Math.round(v.total * 100) / 100 })),
       ai_summary:         aiSummary,
+      total_xp:           totalXp,
+      highest_level:      highestLevel,
+      badges_this_year:   badgesThisYear,
+      most_expensive_entry: mostExpEntry ? {
+        spend: Math.round(mostExpEntry.spend * 100) / 100,
+        date:  mostExpEntry.date,
+        vice_name: mostExpEntry.name,
+        vice_emoji: mostExpEntry.emoji,
+      } : null,
+      personality_type: personalityType,
+      personality_desc: personalityDesc,
     });
   } catch (err) { next(err); }
 });

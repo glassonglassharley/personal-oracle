@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { verifyViceOwnership, verifyEntryOwnership } = require('../utils');
+const { verifyViceOwnership, verifyEntryOwnership, getInternalUserId, awardXP } = require('../utils');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -46,6 +46,10 @@ router.post('/', async (req, res, next) => {
       [viceId, date, entryQuantity, entryPrice, note || null]
     );
     res.status(201).json(r.rows[0]);
+    // Fire-and-forget XP award: +20 for clean day, +5 for any log
+    getInternalUserId(req.auth.userId)
+      .then(uid => uid && awardXP(uid, entryQuantity === 0 ? 20 : 5))
+      .catch(() => {});
   } catch (err) { next(err); }
 });
 

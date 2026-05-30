@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { awardXP } = require('../utils');
 
 async function getMyId(clerkUserId) {
   const r = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [clerkUserId]);
@@ -40,6 +41,7 @@ router.put('/:id/complete', async (req, res, next) => {
       [req.params.id, myId]
     );
     res.json({ ok: true });
+    awardXP(myId, 200).catch(() => {});
   } catch (err) { next(err); }
 });
 
