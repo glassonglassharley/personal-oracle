@@ -80,6 +80,7 @@ const MIGRATIONS = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_session_token_hash TEXT;
 
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS note TEXT;
+  ALTER TABLE vices ADD COLUMN IF NOT EXISTS plaid_categories TEXT DEFAULT '[]';
   ALTER TABLE entries DROP CONSTRAINT IF EXISTS entries_vice_id_date_key;
 
   CREATE TABLE IF NOT EXISTS badges (

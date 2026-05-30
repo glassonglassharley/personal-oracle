@@ -14,12 +14,12 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);
-    const { name, unit_label, default_price, emoji, category, monthly_budget } = req.body;
+    const { name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
     const r = await pool.query(
-      `INSERT INTO vices (user_id, name, unit_label, default_price, emoji, category, monthly_budget)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [uid, name, resolveUnitLabel(name, unit_label), default_price ?? 0, emoji || '🔴', category || 'Other', monthly_budget ?? null]
+      `INSERT INTO vices (user_id, name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [uid, name, resolveUnitLabel(name, unit_label), default_price ?? 0, emoji || '🔴', category || 'Other', monthly_budget ?? null, JSON.stringify(plaid_categories ?? [])]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { next(err); }
@@ -29,17 +29,20 @@ router.put('/:id', async (req, res, next) => {
   try {
     if (!await verifyViceOwnership(req.params.id, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
-    const { name, unit_label, default_price, emoji, category, monthly_budget } = req.body;
+    const { name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories } = req.body;
     const r = await pool.query(
       `UPDATE vices SET
-        name         = COALESCE($1, name),
-        unit_label   = COALESCE($2, unit_label),
-        default_price = COALESCE($3, default_price),
-        emoji        = COALESCE($4, emoji),
-        category     = COALESCE($5, category),
-        monthly_budget = $6
-       WHERE id = $7 RETURNING *`,
-      [name, unit_label, default_price, emoji, category, monthly_budget ?? null, req.params.id]
+        name           = COALESCE($1, name),
+        unit_label     = COALESCE($2, unit_label),
+        default_price  = COALESCE($3, default_price),
+        emoji          = COALESCE($4, emoji),
+        category       = COALESCE($5, category),
+        monthly_budget = $6,
+        plaid_categories = COALESCE($7, plaid_categories)
+       WHERE id = $8 RETURNING *`,
+      [name, unit_label, default_price, emoji, category, monthly_budget ?? null,
+       plaid_categories !== undefined ? JSON.stringify(plaid_categories) : null,
+       req.params.id]
     );
     res.json(r.rows[0]);
   } catch (err) { next(err); }

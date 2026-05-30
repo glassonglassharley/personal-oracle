@@ -34,6 +34,19 @@ function categoryLabel(raw) {
 function bestMatchVice(userVices, categoryRaw) {
   if (!userVices.length) return null;
   if (!categoryRaw) return userVices[0];
+
+  // Prefer explicit plaid_categories mapping set by the user
+  const explicit = userVices.find(v => {
+    try {
+      const cats = Array.isArray(v.plaid_categories)
+        ? v.plaid_categories
+        : JSON.parse(v.plaid_categories || '[]');
+      return cats.includes(categoryRaw);
+    } catch { return false; }
+  });
+  if (explicit) return explicit;
+
+  // Fallback: fuzzy match on vice name vs category label
   const label = categoryLabel(categoryRaw).toLowerCase();
   return (
     userVices.find(v =>

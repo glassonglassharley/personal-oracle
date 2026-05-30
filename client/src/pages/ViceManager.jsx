@@ -4,6 +4,18 @@ import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 import PlaidConnect from './PlaidConnect';
 
+const PLAID_CATEGORY_OPTIONS = [
+  { key: 'FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR', label: '🍺 Alcohol / Beer / Wine' },
+  { key: 'FOOD_AND_DRINK_BAR',                  label: '🍸 Bar' },
+  { key: 'FOOD_AND_DRINK_FAST_FOOD',            label: '🍔 Fast Food' },
+  { key: 'FOOD_AND_DRINK_COFFEE',               label: '☕ Coffee' },
+  { key: 'FOOD_AND_DRINK_RESTAURANTS',          label: '🍽️ Restaurants' },
+  { key: 'GAMBLING',                            label: '🎰 Gambling' },
+  { key: 'ENTERTAINMENT_CASINOS_AND_GAMBLING',  label: '🃏 Casino / Gambling' },
+  { key: 'GENERAL_MERCHANDISE_TOBACCO_AND_VAPING', label: '🚬 Tobacco / Vaping' },
+  { key: 'PERSONAL_CARE_TOBACCO_AND_SMOKING',   label: '🚬 Tobacco / Smoking' },
+];
+
 const EMOJI_GROUPS = [
   { label: 'Faces', emojis: ['😀','😃','😄','😁','😆','😅','😂','🤣','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🫣','🤫','🤔','🫡','🤐','🤨','😐','😑','😶','🫥','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','🫤','😟','🙁','☹️','😮','😯','😲','😳','🥺','🥹','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👻','👽','👾','🤖'] },
   { label: 'Hands + People', emojis: ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','🫦','👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','🧑‍⚕️','🧑‍🎓','🧑‍🍳','🧑‍🌾','🧑‍🏭','🧑‍💼','🧑‍🔧','🧑‍🔬','🧑‍💻','🧑‍🎤','🧑‍🎨','🧑‍✈️','🧑‍🚀','🧑‍🚒','🥷','🦸','🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟'] },
@@ -90,9 +102,19 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
     emoji: vice.emoji,
     category: vice.category,
     monthly_budget: vice.monthly_budget ?? '',
+    plaid_categories: (() => { try { return JSON.parse(vice.plaid_categories || '[]'); } catch { return []; } })(),
   });
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const togglePlaidCat = (key) => {
+    setForm(f => ({
+      ...f,
+      plaid_categories: f.plaid_categories.includes(key)
+        ? f.plaid_categories.filter(k => k !== key)
+        : [...f.plaid_categories, key],
+    }));
+  };
 
   const handleSave = () => {
     onUpdate(vice.id, {
@@ -212,6 +234,23 @@ function ViceCard({ vice, stats, onUpdate, onDelete }) {
               </div>
             ))}
           </div>
+          <div className="plaid-cat-picker">
+            <div className="plaid-cat-label">Bank import categories</div>
+            <div className="plaid-cat-hint">Transactions from these Plaid categories will auto-route to this vice.</div>
+            <div className="plaid-cat-grid">
+              {PLAID_CATEGORY_OPTIONS.map(opt => (
+                <label key={opt.key} className={`plaid-cat-item${form.plaid_categories.includes(opt.key) ? ' checked' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={form.plaid_categories.includes(opt.key)}
+                    onChange={() => togglePlaidCat(opt.key)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="edit-actions">
             <button className="btn" onClick={handleSave}>Save changes</button>
             <button className="btn ghost" onClick={() => setEditing(false)}>Cancel</button>
@@ -238,9 +277,15 @@ export default function ViceManager() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [addForm, setAddForm] = useState({
-    name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: ''
+    name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '', plaid_categories: []
   });
   const setAdd = (k, v) => setAddForm(f => ({ ...f, [k]: v }));
+  const toggleAddPlaidCat = (key) => setAddForm(f => ({
+    ...f,
+    plaid_categories: f.plaid_categories.includes(key)
+      ? f.plaid_categories.filter(k => k !== key)
+      : [...f.plaid_categories, key],
+  }));
 
   const loadVices = useCallback(async () => {
     const data = await apiRef.current('/api/vices');
@@ -302,7 +347,7 @@ export default function ViceManager() {
           monthly_budget: addForm.monthly_budget === '' ? null : Number(addForm.monthly_budget),
         }),
       });
-      setAddForm({ name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '' });
+      setAddForm({ name: '', unit_label: '', default_price: '', emoji: '🔴', category: 'Other', monthly_budget: '', plaid_categories: [] });
       setShowAdd(false);
       loadVices();
       ctxLoadVices();
@@ -356,6 +401,23 @@ export default function ViceManager() {
                 </div>
               ))}
             </div>
+            <div className="plaid-cat-picker">
+              <div className="plaid-cat-label">Bank import categories</div>
+              <div className="plaid-cat-hint">Transactions from these Plaid categories will auto-route to this vice.</div>
+              <div className="plaid-cat-grid">
+                {PLAID_CATEGORY_OPTIONS.map(opt => (
+                  <label key={opt.key} className={`plaid-cat-item${addForm.plaid_categories.includes(opt.key) ? ' checked' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={addForm.plaid_categories.includes(opt.key)}
+                      onChange={() => toggleAddPlaidCat(opt.key)}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className="edit-actions">
               <button type="submit" className="btn" disabled={addSaving}>
                 {addSaving ? <><div className="btn-spinner" />Saving…</> : 'Add Vice'}
