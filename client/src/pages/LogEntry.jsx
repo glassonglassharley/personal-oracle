@@ -22,6 +22,7 @@ export default function LogEntry() {
   const [savedMsg, setSavedMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [initialized, setInitialized] = useState(false);
+  const [viceStreak, setViceStreak] = useState(null); // { current, best }
 
   const loadRecentEntries = viceId => {
     if (!viceId) return Promise.resolve();
@@ -43,6 +44,9 @@ export default function LogEntry() {
     if (!selectedViceId) return;
     if (!editingEntry) setTotalSpent('');
     loadRecentEntries(selectedViceId);
+    api(`/api/stats/${selectedViceId}`)
+      .then(s => setViceStreak({ current: s.current_streak, best: s.best_streak }))
+      .catch(() => {});
   }, [selectedViceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeVice = vices.find(v => String(v.id) === String(selectedViceId));
@@ -134,6 +138,18 @@ export default function LogEntry() {
       </div>
 
       <div className="page-title">Log Entry</div>
+
+      {viceStreak && (viceStreak.current > 0 || viceStreak.best > 0) && (
+        <div className="log-streak-banner">
+          <span className="log-streak-flame">{viceStreak.current > 0 ? '🔥' : '💤'}</span>
+          <span className="log-streak-text">
+            {viceStreak.current > 0
+              ? <><strong>{viceStreak.current}-day</strong> clean streak{viceStreak.best > viceStreak.current ? ` · best ${viceStreak.best}` : ''}</>
+              : <>No current streak · best <strong>{viceStreak.best}</strong> days</>
+            }
+          </span>
+        </div>
+      )}
 
       <div className="grid-log">
         <div className="panel">

@@ -46,11 +46,23 @@ router.get('/:vice_id', async (req, res, next) => {
     const loggedDays = rows.filter(r => r.quantity > 0).length;
 
     const avgPPU   = totalQty > 0 ? totalSpend / totalQty : 0;
-    const avgQPD   = totalDays > 0 ? totalQty / totalDays : 0;
-    const avgDSpend = totalDays > 0 ? totalSpend / totalDays : 0;
-    const savings  = cleanDays * avgDSpend;
+    // Use only days with actual spending as the denominator so the rate
+    // reflects "what you spend on a vice day" rather than being diluted
+    // by clean days (which had $0 spend by definition).
+    const avgQPD    = loggedDays > 0 ? totalQty / loggedDays : 0;
+    const avgDSpend = loggedDays > 0 ? totalSpend / loggedDays : 0;
+    // savings = what you would have spent on clean days at your normal rate
+    const savings   = cleanDays * avgDSpend;
     const firstEntry = rows[0]?.date || null;
     const lastEntry = rows[rows.length - 1]?.date || null;
+
+    // Build date → isClean map (false if any entry that day has quantity > 0)
+    const dateMap = {};
+    rows.forEach(r => {
+      const d = String(r.date).split('T')[0];
+      if (!(d in dateMap)) dateMap[d] = true;
+      if (r.quantity > 0) dateMap[d] = false;
+    });
 
     res.json({
       today: todayS, week: weekS, month: monthS, year: yearS,
@@ -69,10 +81,60 @@ router.get('/:vice_id', async (req, res, next) => {
       total_logged_days:    loggedDays,
       clean_days:           cleanDays,
       savings_from_clean_days: round2(savings),
+      current_streak: computeCurrentStreak(dateMap),
+      best_streak:    computeBestStreak(dateMap),
     });
   } catch (err) { next(err); }
 });
 
 function round2(n) { return Math.round(n * 100) / 100; }
+
+// Count consecutive clean days ending at (or before) today.
+// Skips today if it has no entry yet; any gap or vice day breaks the streak.
+function computeCurrentStreak(dateMap) {
+  let streak = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  let skippedToday = false;
+
+  for (let i = 0; i < 365; i++) {
+    const ds = d.toISOString().split('T')[0];
+    if (ds in dateMap) {
+      if (dateMap[ds]) {
+        streak++;
+      } else {
+        break; // vice day ends streak
+      }
+    } else {
+      if (streak === 0 && !skippedToday) {
+        skippedToday = true; // haven't logged today yet — look back one more day
+      } else {
+        break; // gap in logging ends streak
+      }
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return streak;
+}
+
+// Longest consecutive run of clean days in history.
+function computeBestStreak(dateMap) {
+  const dates = Object.keys(dateMap).sort();
+  let best = 0, current = 0;
+
+  for (let i = 0; i < dates.length; i++) {
+    if (dateMap[dates[i]]) {
+      const consecutive = i === 0 || (() => {
+        const diff = (new Date(dates[i] + 'T00:00:00') - new Date(dates[i - 1] + 'T00:00:00')) / 86400000;
+        return diff === 1;
+      })();
+      current = consecutive ? current + 1 : 1;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
+  }
+  return best;
+}
 
 module.exports = router;

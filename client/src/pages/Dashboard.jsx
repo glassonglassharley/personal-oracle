@@ -74,6 +74,12 @@ function combineStats(vices, statsByVice) {
     quantityByVice: [],
   });
 
+  const streakByVice = vices.map(v => ({
+    vice: v,
+    current: Number(statsByVice[v.id]?.current_streak || 0),
+    best:    Number(statsByVice[v.id]?.best_streak    || 0),
+  }));
+
   return {
     today: combinePeriod(vices, statsByVice, 'today'),
     week: combinePeriod(vices, statsByVice, 'week'),
@@ -84,6 +90,10 @@ function combineStats(vices, statsByVice) {
     clean_days: totals.cleanDays,
     savings_from_clean_days: totals.savingsFromCleanDays,
     quantityByVice: totals.quantityByVice,
+    // Combined streak = min across all vices (clean everywhere or it doesn't count)
+    current_streak: streakByVice.length ? Math.min(...streakByVice.map(s => s.current)) : 0,
+    best_streak:    streakByVice.length ? Math.max(...streakByVice.map(s => s.best))    : 0,
+    streakByVice,
   };
 }
 
@@ -364,6 +374,33 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+
+          {(stats.current_streak > 0 || stats.best_streak > 0) && (
+            <div className="streak-card">
+              <div className="streak-main">
+                <div className="streak-flame">{stats.current_streak > 0 ? '🔥' : '💤'}</div>
+                <div>
+                  <div className="streak-num">{stats.current_streak}</div>
+                  <div className="streak-label">day streak</div>
+                </div>
+                {stats.best_streak > 0 && (
+                  <div className="streak-best">
+                    <div className="streak-best-num">{stats.best_streak}</div>
+                    <div className="streak-best-label">best</div>
+                  </div>
+                )}
+              </div>
+              {stats.streakByVice.length > 1 && (
+                <div className="streak-by-vice">
+                  {stats.streakByVice.map(({ vice, current }) => (
+                    <span key={vice.id} className="streak-vice-pill">
+                      {vice.emoji} {current}d
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <GoalsSection
             goals={goals}
