@@ -139,14 +139,14 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .brand { display: flex; align-items: center; min-width: 0; }
 .brand-logo-svg {
   display: block;
-  width: auto; max-width: 180px; height: 46px;
+  width: auto; max-width: 210px; height: 56px;
   object-fit: contain; object-position: left center;
   flex-shrink: 0;
 }
 /* collapsed sidebar mark — same PNG, let it breathe at natural aspect ratio */
 .brand-mark-svg {
   display: block;
-  width: auto; max-width: 48px; height: 36px;
+  width: auto; max-width: 52px; height: 42px;
   object-fit: contain; object-position: left center;
   flex-shrink: 0;
 }
@@ -2082,7 +2082,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .hamburger-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
   .mobile-brand { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
-  .mobile-brand .brand-mark-svg { display: block; width: auto; max-width: 110px; height: 30px; object-fit: contain; object-position: left center; }
+  .mobile-brand .brand-mark-svg { display: block; width: auto; max-width: 130px; height: 36px; object-fit: contain; object-position: left center; }
   .mobile-brand-name {
     font-family: var(--serif); font-size: 18px; line-height: 1.05;
     color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -2127,43 +2127,77 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .auth-bg { display: none; }
   .auth-shell {
     width: 100%;
-    border-radius: 22px;
-    padding: 8px;
-    gap: 10px;
-    background: rgba(10,31,23,0.78);
+    border-radius: 0;
+    padding: 0;
+    gap: 0;
+    background: transparent;
     box-shadow: none;
     backdrop-filter: none;
     display: flex;
     flex-direction: column;
+    min-height: 100svh;
   }
-  /* Login card appears first on mobile — users reach the form without scrolling */
-  .auth-card-panel { order: 1; }
-  .auth-hero-panel { order: 2; overflow: visible; contain: layout paint; }
+
+  /* ── Mobile landing: hero (logo + copy) FIRST, card (buttons/forms) SECOND ── */
+  .auth-hero-panel {
+    order: 1;
+    overflow: visible; contain: layout paint;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    min-height: auto;
+    padding: calc(36px + env(safe-area-inset-top, 0px)) 28px 28px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; justify-content: flex-start; gap: 0;
+  }
   .auth-hero-panel::after { display: none; }
-  .auth-card-panel { padding: 22px; min-height: auto; contain: layout paint; }
-  /* Trim hero copy on mobile — h1 is enough context below the login form */
+  .auth-logo-row { justify-content: center; margin-bottom: 20px; }
+  .auth-logo-svg { width: auto; max-width: 180px; height: 52px; }
+  .auth-hero-copy { margin: 0 0 24px; }
+  .auth-hero-copy h1 { font-size: clamp(30px, 8vw, 46px); max-width: 14ch; margin: 0 auto; }
   .auth-hero-copy > p { display: none; }
+  .auth-kicker { margin-bottom: 12px; }
+  .auth-preview-card { display: none; }
+  .auth-feature-grid { display: none; }
+
+  /* Card panel — below hero on landing, holds gate buttons or forms */
+  .auth-card-panel {
+    order: 2;
+    padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px));
+    min-height: auto;
+    contain: layout paint;
+    background: rgba(238,244,232,0.97);
+    border-radius: 24px 24px 0 0;
+    flex: 1;
+  }
+  .auth-card-head { margin-bottom: 16px; }
+  .auth-card-head h2 { font-size: 28px; }
+
+  /* When forms are open: hero slides out, forms take full screen */
+  .mobile-forms-open .auth-hero-panel { display: none; }
+  .mobile-forms-open .auth-card-panel {
+    border-radius: 0;
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  }
+
   .auth-card-panel .form-input { font-size: 16px; }
   .clerk-frame { min-height: 520px; contain: layout paint; }
-  .auth-feature-grid { grid-template-columns: 1fr; }
   .demo-card-top { flex-direction: column-reverse; align-items: flex-start; }
   .demo-login-row { grid-template-columns: 1fr; }
   .auth-card-panel .btn { width: 100%; }
-  .auth-preview-card { display: none; }
-  .auth-logo-svg { width: auto; max-width: 160px; height: 44px; }
 
-  /* Mobile auth gate — show choice buttons before revealing all sign-in methods */
-  .mobile-auth-gate { display: flex; flex-direction: column; gap: 12px; }
+  /* Mobile auth gate — clean landing CTAs */
+  .mobile-auth-gate { display: flex; flex-direction: column; gap: 10px; }
   .mobile-auth-gate.hidden { display: none; }
   .auth-forms.mobile-hidden { display: none; }
-  .mobile-auth-btn { width: 100%; justify-content: center; min-height: 52px; font-size: 15px; border-radius: 12px; }
+  .mobile-auth-btn { width: 100%; justify-content: center; min-height: 54px; font-size: 16px; border-radius: 14px; font-weight: 600; }
   .mobile-auth-back {
     display: inline-flex; align-items: center; gap: 6px;
     color: #5e7868; font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
     background: none; border: none; cursor: pointer; padding: 0 0 14px; font-family: inherit;
   }
   .mobile-auth-back:hover { color: #0c2a1f; }
-  .mobile-auth-sep { height: 1px; background: rgba(12,42,31,0.12); margin: 4px 0; }
+  .mobile-auth-sep { height: 1px; background: rgba(12,42,31,0.14); margin: 6px 0; }
 
   .main {
     min-height: 100dvh;

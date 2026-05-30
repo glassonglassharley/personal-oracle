@@ -19,7 +19,6 @@ const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neo
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/log', label: 'Log Today' },
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
   { to: '/badges', label: '🏅 Badges' },
@@ -995,7 +994,7 @@ function SignedOutContent() {
       <div className="auth-bg auth-bg-one" />
       <div className="auth-bg auth-bg-two" />
 
-      <section className="auth-shell" aria-label="Vice Spending sign in">
+      <section className={`auth-shell${mobileExpanded ? ' mobile-forms-open' : ''}`} aria-label="Vice Spending sign in">
         <div className="auth-hero-panel">
           <div className="auth-logo-row">
             <VtvLogo className="auth-logo-svg" />

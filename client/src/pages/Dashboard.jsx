@@ -395,6 +395,10 @@ export default function Dashboard() {
           <Link className="btn ghost btn-sm" to="/savings" style={{ textDecoration: 'none' }}>
             View Savings
           </Link>
+          <Link className="btn dashboard-log-btn" to="/log" style={{ textDecoration: 'none' }}>
+            <span>＋</span>
+            Log Today
+          </Link>
         </div>
       </div>
 
