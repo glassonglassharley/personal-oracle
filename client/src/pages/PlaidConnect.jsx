@@ -364,45 +364,53 @@ export default function PlaidConnect({ vices }) {
                       key={tx.transaction_id}
                       className={`plaid-tx${isLogged ? ' plaid-tx-logged' : isConfirmed ? ' plaid-tx-confirmed' : isSkipped ? ' plaid-tx-skipped' : ''}`}
                     >
-                      <div className="plaid-tx-info">
-                        <span className="plaid-tx-merchant">{tx.merchant}</span>
-                        <span className="plaid-tx-cat">{categoryLabel(tx.category)}</span>
-                        <span className="plaid-tx-date">{tx.date}</span>
+                      {/* Top row: merchant + amount + buttons */}
+                      <div className="plaid-tx-top">
+                        <div className="plaid-tx-info">
+                          <span className="plaid-tx-merchant">{tx.merchant}</span>
+                          <span className="plaid-tx-cat">{categoryLabel(tx.category)}</span>
+                          <span className="plaid-tx-date">{tx.date}</span>
+                        </div>
+                        <span className="plaid-tx-amount">${Number(tx.amount).toFixed(2)}</span>
+                        <div className="plaid-tx-actions">
+                          {isLogged ? (
+                            <span className="plaid-tx-done">✓ Logged</span>
+                          ) : (
+                            <>
+                              <button
+                                className={`plaid-tx-btn${isConfirmed ? ' on' : ''}`}
+                                onClick={() => toggleConfirm(tx.transaction_id)}
+                              >
+                                {isConfirmed ? '✓ Log' : 'Log'}
+                              </button>
+                              <button
+                                className={`plaid-tx-btn skip${isSkipped ? ' on' : ''}`}
+                                onClick={() => toggleSkip(tx.transaction_id)}
+                              >
+                                Skip
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <span className="plaid-tx-amount">${Number(tx.amount).toFixed(2)}</span>
+
+                      {/* Vice selector row — always visible when not yet logged */}
                       {!isLogged && userVices.length > 0 && (
-                        <select
-                          className="plaid-tx-vice-select"
-                          value={selectedVices[tx.transaction_id] ?? ''}
-                          onChange={e =>
-                            setSelectedVices(prev => ({ ...prev, [tx.transaction_id]: Number(e.target.value) }))
-                          }
-                        >
-                          {userVices.map(v => (
-                            <option key={v.id} value={v.id}>{v.emoji} {v.name}</option>
-                          ))}
-                        </select>
+                        <div className="plaid-tx-vice-row">
+                          <span className="plaid-tx-vice-label">Log to:</span>
+                          <select
+                            className="plaid-tx-vice-select"
+                            value={selectedVices[tx.transaction_id] ?? ''}
+                            onChange={e =>
+                              setSelectedVices(prev => ({ ...prev, [tx.transaction_id]: Number(e.target.value) }))
+                            }
+                          >
+                            {userVices.map(v => (
+                              <option key={v.id} value={v.id}>{v.emoji} {v.name}</option>
+                            ))}
+                          </select>
+                        </div>
                       )}
-                      <div className="plaid-tx-actions">
-                        {isLogged ? (
-                          <span className="plaid-tx-done">✓ Logged</span>
-                        ) : (
-                          <>
-                            <button
-                              className={`plaid-tx-btn${isConfirmed ? ' on' : ''}`}
-                              onClick={() => toggleConfirm(tx.transaction_id)}
-                            >
-                              {isConfirmed ? '✓ Log' : 'Log'}
-                            </button>
-                            <button
-                              className={`plaid-tx-btn skip${isSkipped ? ' on' : ''}`}
-                              onClick={() => toggleSkip(tx.transaction_id)}
-                            >
-                              Skip
-                            </button>
-                          </>
-                        )}
-                      </div>
                     </div>
                   );
                 })}

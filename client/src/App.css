@@ -1779,7 +1779,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .plaid-tx-list { display: flex; flex-direction: column; gap: 6px; }
 .plaid-tx {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; gap: 8px;
   padding: 10px 14px; border-radius: 10px;
   background: var(--paper-2); border: 1px solid var(--rule);
   transition: border-color 0.12s;
@@ -1803,10 +1803,19 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .plaid-tx-btn.skip:hover { border-color: var(--warn); color: var(--warn); }
 .plaid-tx-btn.skip.on    { border-color: var(--warn); background: var(--warn); color: #fff; }
 .plaid-tx-done { font-size: 11px; color: var(--money); font-family: var(--mono); }
+.plaid-tx-top { display: flex; align-items: center; gap: 12px; }
+.plaid-tx-top .plaid-tx-info { flex: 1; min-width: 0; }
+.plaid-tx-top .plaid-tx-amount { flex-shrink: 0; }
+.plaid-tx-top .plaid-tx-actions { flex-shrink: 0; }
+.plaid-tx-vice-row {
+  display: flex; align-items: center; gap: 8px;
+  padding-top: 4px; border-top: 1px solid var(--rule);
+}
+.plaid-tx-vice-label { font-size: 11px; color: var(--ink-3); font-family: var(--mono); white-space: nowrap; }
 .plaid-tx-vice-select {
-  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--rule-2);
-  background: var(--paper-2); color: var(--ink); font-size: 12px;
-  cursor: pointer; flex-shrink: 0; max-width: 130px;
+  padding: 5px 10px; border-radius: 6px; border: 1px solid var(--rule-2);
+  background: var(--paper-2); color: var(--ink); font-size: 13px;
+  cursor: pointer; flex: 1; max-width: 220px;
   transition: border-color 0.12s;
 }
 .plaid-tx-vice-select:focus { outline: none; border-color: var(--money); }
