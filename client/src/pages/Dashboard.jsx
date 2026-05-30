@@ -428,6 +428,16 @@ export default function Dashboard() {
         <LevelUpOverlay data={levelUpOverlay} onDismiss={() => setLevelUpOverlay(null)} />
       )}
 
+      {weeklyInsight && (
+        <div className="insight-card insight-card-top">
+          <div className="insight-card-head">
+            <span className="insight-sparkle">✨</span>
+            <span className="insight-title">Weekly insight</span>
+          </div>
+          <p className="insight-body">{weeklyInsight}</p>
+        </div>
+      )}
+
       {companion?.companion_type && (
         <CompanionCard
           companion={companion}
@@ -520,16 +530,6 @@ export default function Dashboard() {
                   <span>Next: {xpData.next_level_name} {xpData.next_level_icon}</span>
                 )}
               </div>
-            </div>
-          )}
-
-          {weeklyInsight && (
-            <div className="insight-card">
-              <div className="insight-card-head">
-                <span className="insight-sparkle">✨</span>
-                <span className="insight-title">Weekly insight</span>
-              </div>
-              <p className="insight-body">{weeklyInsight}</p>
             </div>
           )}
 
