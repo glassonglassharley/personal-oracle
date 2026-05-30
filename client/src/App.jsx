@@ -1004,7 +1004,7 @@ function SignedOutContent() {
           <div className="auth-hero-copy">
             <div className="auth-kicker">Cut Today. Grow Tomorrow.</div>
             <h1>See what your vices really cost — then turn that money into goals.</h1>
-            <p>Track spending, clean days, savings projections, and custom opportunity costs in one polished dashboard.</p>
+            <p>Track spending by category, savings projections, streaks, and custom opportunity costs in one polished dashboard.</p>
           </div>
 
           <div className="auth-preview-card">
@@ -1021,7 +1021,7 @@ function SignedOutContent() {
               <span style={{ height: '64%' }} />
             </div>
             <div className="auth-preview-foot">
-              <span>Clean streak</span>
+              <span>Streak</span>
               <b>12 days</b>
             </div>
           </div>

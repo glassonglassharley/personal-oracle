@@ -227,8 +227,8 @@ export default function Partners() {
             <div className="lb-head">
               <span>#</span>
               <span>Name</span>
-              <span className="lb-cell-right">Clean days</span>
-              <span className="lb-cell-right">Spent</span>
+              <span className="lb-cell-right">Streak</span>
+              <span className="lb-cell-right">Total XP</span>
               <span />
             </div>
             {leaderboard.map(row => (
@@ -439,8 +439,8 @@ export default function Partners() {
                 </div>
                 <div className="ap-stats">
                   <div className="ap-stat">
-                    <div className="ap-stat-val">{p.clean_days_this_month}</div>
-                    <div className="ap-stat-key">Clean days this month</div>
+                    <div className="ap-stat-val">{p.current_streak ?? 0}🔥</div>
+                    <div className="ap-stat-key">Current streak</div>
                   </div>
                   <div className="ap-stat">
                     <div className="ap-stat-val">${Number(p.spent_this_month || 0).toFixed(0)}</div>

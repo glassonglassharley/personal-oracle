@@ -56,7 +56,7 @@ export function GoalsSection({
 
       {active.length === 0 && !showForm && (
         <p style={{ color: 'var(--ink-3)', fontSize: 14, padding: '8px 0' }}>
-          Set a savings goal and your clean days will fund it.
+          Set a savings goal and your tracked savings will fund it.
         </p>
       )}
 
@@ -88,7 +88,7 @@ export function GoalsSection({
                   {reached
                     ? <span className="goal-reached-badge">Reached! 🎉</span>
                     : daysEst !== null
-                      ? <span className="goal-days">~{daysEst} clean days away</span>
+                      ? <span className="goal-days">~{daysEst} days away</span>
                       : null}
                 </div>
               </div>
@@ -138,7 +138,7 @@ export function CelebOverlay({ goal, onComplete, onDismiss }) {
           <div className="celeb-kicker">Goal reached!</div>
           <div className="celeb-title">{goal.title}</div>
           <div className="celeb-amount">${Number(goal.target_amount).toFixed(0)}</div>
-          <div className="celeb-sub">Your clean days added up to something real.</div>
+          <div className="celeb-sub">Your tracked savings added up to something real.</div>
           <div className="celeb-actions">
             <button className="btn" onClick={onComplete}>Mark achieved</button>
             <button className="btn ghost" onClick={onDismiss}>Keep tracking</button>

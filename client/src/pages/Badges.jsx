@@ -81,8 +81,8 @@ export default function Badges() {
             <div className="bdg-stat-label">Best streak</div>
           </div>
           <div className="bdg-stat">
-            <div className="bdg-stat-val">{data.total_clean_days}</div>
-            <div className="bdg-stat-label">Clean days</div>
+            <div className="bdg-stat-val">{data.current_streak}</div>
+            <div className="bdg-stat-label">Current streak</div>
           </div>
           <div className="bdg-stat">
             <div className="bdg-stat-val">${Number(data.total_savings).toFixed(0)}</div>

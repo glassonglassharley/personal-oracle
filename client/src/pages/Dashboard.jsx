@@ -185,7 +185,6 @@ export default function Dashboard() {
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [cleanEntriesThisWeek, setCleanEntriesThisWeek] = useState(0);
 
   // Goals state
   const [goals, setGoals] = useState([]);
@@ -308,20 +307,17 @@ export default function Dashboard() {
       const statsByVice = {};
       const spendByDate = Object.fromEntries(dates.map(date => [date, 0]));
       const allEntries = [];
-      let cleanCount = 0;
 
       results.forEach(({ vice, statsForVice, weekEntries, allEntries: entries }) => {
         statsByVice[vice.id] = statsForVice;
         weekEntries.forEach(entry => {
           const date = entry.date.split('T')[0];
           spendByDate[date] = (spendByDate[date] || 0) + Number(entry.quantity || 0) * Number(entry.price_per_unit || 0);
-          if (Number(entry.quantity) === 0) cleanCount++;
         });
         entries.forEach(entry => allEntries.push({ ...entry, vice }));
       });
 
       setStats(combineStats(vices, statsByVice));
-      setCleanEntriesThisWeek(cleanCount);
       setLast7(dates.map(date => ({ date, spend: spendByDate[date] || 0 })));
       setRecentEntries(allEntries
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -593,7 +589,6 @@ export default function Dashboard() {
                   });
                 })()}
                 <div className="savings-divider" />
-                <div className="savings-row"><span>Clean days total</span><strong className="text-money">{stats.clean_days} days</strong></div>
                 <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
               </div>
             </div>
@@ -616,7 +611,7 @@ export default function Dashboard() {
                         </span>
                         {isClean ? (
                           <>
-                            <span className="text-money entry-label">{e.vice.emoji} {e.vice.name} · Clean day</span>
+                            <span className="text-money entry-label">{e.vice.emoji} {e.vice.name} · Zero logged</span>
                             <span className="text-money entry-saved">saved {fmt$(stats.avg_daily_spend)}</span>
                           </>
                         ) : (
