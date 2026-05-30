@@ -304,9 +304,9 @@ function MobileBottomNav() {
         <span className="mbn-icon">◎</span>
         <span className="mbn-label">Vices</span>
       </NavLink>
-      <NavLink to="/partners" className={({ isActive }) => `mbn-tab${isActive ? ' mbn-active' : ''}`}>
-        <span className="mbn-icon">⊕</span>
-        <span className="mbn-label">Social</span>
+      <NavLink to="/badges" className={({ isActive }) => `mbn-tab${isActive ? ' mbn-active' : ''}`}>
+        <span className="mbn-icon">🏅</span>
+        <span className="mbn-label">Badges</span>
       </NavLink>
     </nav>
   );

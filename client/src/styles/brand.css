@@ -1,0 +1,195 @@
+/* ── Vice to Value — Brand Tokens & Utility Classes ── */
+
+@keyframes vtv-logo-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+@keyframes vtv-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+:root {
+  --vtv-gold:        #d4af37;
+  --vtv-gold-light:  #e8c84a;
+  --vtv-gold-muted:  rgba(212, 175, 55, 0.35);
+  --vtv-gold-subtle: rgba(212, 175, 55, 0.12);
+  --vtv-green-deep:  #040c06;
+  --vtv-green-card:  #122615;
+  --vtv-green-mid:   #1a3c20;
+  --vtv-sage:        #5a8a6a;
+  --vtv-sage-light:  #8ab89a;
+  --vtv-ink:         #f0f7ec;
+  --vtv-ink-muted:   #a8c4a0;
+}
+
+/* ── Cards ───────────────────────────────────────────── */
+.vtv-card {
+  background: var(--vtv-green-card);
+  border: 1px solid var(--vtv-gold-muted);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.vtv-card-gold {
+  background: var(--vtv-green-card);
+  border: 1px solid var(--vtv-gold);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 0 24px var(--vtv-gold-subtle);
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.vtv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.vtv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vtv-btn-primary {
+  background: var(--vtv-gold);
+  color: var(--vtv-green-deep);
+}
+
+.vtv-btn-primary:hover:not(:disabled) {
+  background: var(--vtv-gold-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--vtv-gold-muted);
+}
+
+.vtv-btn-ghost {
+  background: transparent;
+  color: var(--vtv-sage-light);
+  border: 1px solid var(--vtv-gold-muted);
+}
+
+.vtv-btn-ghost:hover:not(:disabled) {
+  border-color: var(--vtv-gold);
+  color: var(--vtv-gold);
+}
+
+/* ── Inputs ──────────────────────────────────────────── */
+.vtv-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vtv-sage);
+  margin-bottom: 6px;
+}
+
+.vtv-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--vtv-gold-muted);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--vtv-ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.vtv-input:focus {
+  border-color: var(--vtv-gold);
+}
+
+.vtv-input::placeholder {
+  color: var(--vtv-sage);
+}
+
+/* ── Badges ──────────────────────────────────────────── */
+.vtv-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.vtv-badge-gold {
+  background: var(--vtv-gold-subtle);
+  color: var(--vtv-gold);
+  border: 1px solid var(--vtv-gold-muted);
+}
+
+.vtv-badge-green {
+  background: rgba(90, 138, 106, 0.15);
+  color: var(--vtv-sage-light);
+  border: 1px solid rgba(90, 138, 106, 0.3);
+}
+
+/* ── Stat display ────────────────────────────────────── */
+.vtv-stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--vtv-gold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.vtv-stat-label {
+  font-size: 12px;
+  color: var(--vtv-sage);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* ── Animations ──────────────────────────────────────── */
+.vtv-animate-up {
+  animation: vtv-up 0.4s ease both;
+}
+
+.vtv-animate-up-2 {
+  animation: vtv-up 0.4s 0.1s ease both;
+}
+
+.vtv-animate-up-3 {
+  animation: vtv-up 0.4s 0.2s ease both;
+}
+
+/* ── Divider ─────────────────────────────────────────── */
+.vtv-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--vtv-sage);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vtv-divider::before,
+.vtv-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--vtv-gold-muted);
+}
+
+/* ── Page shell ──────────────────────────────────────── */
+.vtv-page {
+  flex: 1;
+  min-height: 100vh;
+  background: var(--vtv-green-deep);
+  color: var(--vtv-ink);
+  overflow-y: auto;
+}

@@ -122,6 +122,7 @@ app.use('/api/wrapped', require('./routes/wrapped'));
 app.use('/api/companion', require('./routes/companion'));
 app.use('/api/plaid',    require('./routes/plaid'));
 app.use('/api/badges',   require('./routes/badges'));
+app.use('/api/insights', require('./routes/insights'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
