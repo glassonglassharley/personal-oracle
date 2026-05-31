@@ -882,13 +882,15 @@ function ForgotPasswordForm({ onBack, onSent }) {
 
 // ── Migration form (old-token users setting a password) ──
 function MigrationForm({ username: initialUsername, onBack }) {
-  const { migrate } = useDemoAuth();
+  const { migrate, requestMagicLink } = useDemoAuth();
   const [username] = useState(initialUsername || '');
   const [oldToken, setOldToken] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // recovery: null | 'sending' | 'sent' | 'no_email'
+  const [recovery, setRecovery] = useState(null);
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -902,6 +904,29 @@ function MigrationForm({ username: initialUsername, onBack }) {
       setLoading(false);
     }
   };
+
+  const handleNoToken = async () => {
+    setRecovery('sending');
+    try {
+      await requestMagicLink({ identifier: username, purpose: 'reset' });
+      setRecovery('sent');
+    } catch (err) {
+      setRecovery(err.code === 'no_email' ? 'no_email' : null);
+      if (err.code !== 'no_email') setError(err.message);
+    }
+  };
+
+  if (recovery === 'sent') {
+    return (
+      <div className="demo-login-card">
+        <div className="demo-login-title">Check your email</div>
+        <p className="demo-login-copy" style={{ marginTop: 8 }}>
+          We sent a password reset link to the email on file for <strong>{username}</strong>. It expires in 15 minutes.
+        </p>
+        <button className="clerk-link" type="button" style={{ marginTop: 16 }} onClick={onBack}>← Back to sign in</button>
+      </div>
+    );
+  }
 
   return (
     <div className="demo-login-card">
@@ -929,6 +954,23 @@ function MigrationForm({ username: initialUsername, onBack }) {
         </button>
         {error && <div className="form-error">{error}</div>}
       </form>
+
+      {recovery === 'no_email' ? (
+        <div className="form-hint" style={{ marginTop: 12, lineHeight: 1.5 }}>
+          No email is on file for this account. Contact support to regain access.
+        </div>
+      ) : (
+        <button
+          className="clerk-link"
+          type="button"
+          disabled={recovery === 'sending'}
+          style={{ marginTop: 8 }}
+          onClick={handleNoToken}
+        >
+          {recovery === 'sending' ? 'Sending reset link…' : "I don't have my token"}
+        </button>
+      )}
+
       <button className="clerk-link" type="button" onClick={onBack}>← Back</button>
     </div>
   );

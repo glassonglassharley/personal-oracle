@@ -370,4 +370,40 @@ router.post('/magic/reset', async (req, res, next) => {
   }
 });
 
+// POST /api/auth/admin/reset-user — forcibly set a password without requiring the old token.
+// Requires X-Admin-Secret header matching ADMIN_SECRET env var.
+router.post('/admin/reset-user', async (req, res, next) => {
+  try {
+    const provided = String(req.get('X-Admin-Secret') || '').trim();
+    const expected = process.env.ADMIN_SECRET;
+    if (!expected || !provided || provided !== expected) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    const username = sanitizeUsername(req.body?.username);
+    const newPassword = String(req.body?.newPassword || '').trim();
+
+    if (!username) return res.status(400).json({ error: 'Username required.' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+    const result = await pool.query(
+      `SELECT id, auth_username, email FROM users
+       WHERE auth_username = $1 OR clerk_user_id = $2 LIMIT 1`,
+      [username, `username:${username}`]
+    );
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: `No user found: ${username}` });
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, username_token_hash = NULL WHERE id = $2',
+      [passwordHash, user.id]
+    );
+
+    res.json({ ok: true, username: user.auth_username, email: user.email || null, message: 'Password reset.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = { router, signSession, verifySession };
