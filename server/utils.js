@@ -1,26 +1,48 @@
 const pool = require('./db');
 
-async function getInternalUserId(clerkUserId) {
-  const r = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [clerkUserId]);
+function isNumericId(userId) {
+  return typeof userId === 'number' || /^\d+$/.test(String(userId || ''));
+}
+
+async function getInternalUserId(userId) {
+  // VT JWT auth: userId is already the numeric DB primary key
+  if (isNumericId(userId)) return parseInt(userId, 10);
+  // Clerk / legacy username / wallet: look up by clerk_user_id
+  const r = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [userId]);
   return r.rows[0]?.id ?? null;
 }
 
-async function verifyViceOwnership(viceId, clerkUserId) {
+async function verifyViceOwnership(viceId, userId) {
+  if (isNumericId(userId)) {
+    const r = await pool.query(
+      'SELECT id FROM vices WHERE id = $1 AND user_id = $2',
+      [viceId, parseInt(userId, 10)]
+    );
+    return r.rows.length > 0;
+  }
   const r = await pool.query(
     `SELECT v.id FROM vices v JOIN users u ON v.user_id = u.id
      WHERE v.id = $1 AND u.clerk_user_id = $2`,
-    [viceId, clerkUserId]
+    [viceId, userId]
   );
   return r.rows.length > 0;
 }
 
-async function verifyEntryOwnership(entryId, clerkUserId) {
+async function verifyEntryOwnership(entryId, userId) {
+  if (isNumericId(userId)) {
+    const r = await pool.query(
+      `SELECT e.id FROM entries e JOIN vices v ON e.vice_id = v.id
+       WHERE e.id = $1 AND v.user_id = $2`,
+      [entryId, parseInt(userId, 10)]
+    );
+    return r.rows.length > 0;
+  }
   const r = await pool.query(
     `SELECT e.id FROM entries e
      JOIN vices v ON e.vice_id = v.id
      JOIN users u ON v.user_id = u.id
      WHERE e.id = $1 AND u.clerk_user_id = $2`,
-    [entryId, clerkUserId]
+    [entryId, userId]
   );
   return r.rows.length > 0;
 }

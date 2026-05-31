@@ -1,9 +1,10 @@
-import { createContext, createElement, useContext, useMemo, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
 
 const DemoAuthContext = createContext(null);
-const USERNAME_AUTH_KEY = 'vt-username-auth';
-const WALLET_AUTH_KEY   = 'vtv_wallet_session';
+
+const SESSION_KEY = 'vt-session';
+const LEGACY_KEY  = 'vt-username-auth';
+const WALLET_KEY  = 'vtv_wallet_session';
 
 export function sanitizeDemoUsername(value) {
   return String(value || '')
@@ -15,81 +16,194 @@ export function sanitizeDemoUsername(value) {
     .slice(0, 32);
 }
 
-function readStoredUsernameAuth() {
+function readSession() {
   try {
-    const raw = localStorage.getItem(USERNAME_AUTH_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const username = sanitizeDemoUsername(parsed?.username);
-    const token = String(parsed?.token || '').trim();
-    return username && token ? { username, token } : null;
-  } catch {
-    return null;
-  }
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p?.jwt && p?.username) return { jwt: p.jwt, username: p.username, needsPasswordSetup: p.needsPasswordSetup || false };
+    }
+  } catch {}
+  return null;
 }
 
-function readStoredWalletAuth() {
+function readLegacy() {
   try {
-    const raw = localStorage.getItem(WALLET_AUTH_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const publicKey = String(parsed?.publicKey || '').trim();
-    const token = String(parsed?.token || '').trim();
-    return publicKey && token ? { publicKey, token } : null;
-  } catch {
-    return null;
-  }
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      const username = sanitizeDemoUsername(p?.username);
+      const token = String(p?.token || '').trim();
+      if (username && token) return { username, token };
+    }
+  } catch {}
+  return null;
+}
+
+function readWallet() {
+  try {
+    const raw = localStorage.getItem(WALLET_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      const publicKey = String(p?.publicKey || '').trim();
+      const token = String(p?.token || '').trim();
+      if (publicKey && token) return { publicKey, token };
+    }
+  } catch {}
+  return null;
+}
+
+function storeSession(jwt, username, needsPasswordSetup = false) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ jwt, username, needsPasswordSetup }));
 }
 
 export function DemoAuthProvider({ children }) {
-  const [account, setAccount]       = useState(readStoredUsernameAuth);
-  const [walletAccount, setWalletAccount] = useState(readStoredWalletAuth);
+  const [session, setSession]           = useState(readSession);
+  const [walletAccount, setWalletAccount] = useState(readWallet);
+  const [migrating, setMigrating]       = useState(false);
 
-  const demoUsername = account?.username || '';
+  // Silently exchange legacy vt_xxx token for a JWT on first load
+  useEffect(() => {
+    const legacy = readLegacy();
+    if (!legacy || session) return;
+
+    setMigrating(true);
+    fetch('/api/auth/token-exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: legacy.username, token: legacy.token }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(body => {
+        if (body.jwt) {
+          storeSession(body.jwt, body.username, body.needsPasswordSetup);
+          localStorage.removeItem(LEGACY_KEY);
+          setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: body.needsPasswordSetup });
+        }
+      })
+      .catch(() => localStorage.removeItem(LEGACY_KEY))
+      .finally(() => setMigrating(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo(() => ({
-    // Username auth
-    demoUsername,
-    usernameToken: account?.token || '',
-    isDemo: Boolean(account?.username && account?.token),
-    async startDemo(username, token = '') {
-      const clean = sanitizeDemoUsername(username);
-      if (!clean) throw new Error('Enter a username.');
+    // ── Session state ──────────────────────────────
+    isDemo: Boolean(session?.jwt),
+    demoUsername: session?.username || '',
+    usernameToken: '',                      // no longer exposed — no more tokens in UI
+    needsPasswordSetup: session?.needsPasswordSetup || false,
+    isMigrating: migrating,
 
-      const res = await fetch('/api/auth/username', {
+    // ── New auth methods ───────────────────────────
+    async signIn({ username, password }) {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: clean, token: String(token || '').trim() }),
+        body: JSON.stringify({ username, password }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(body.error || `HTTP ${res.status}`), { status: res.status });
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
+    },
+
+    async signUp({ username, password, email }) {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, email }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-
-      const nextAccount = { username: body.username, token: body.token };
-      localStorage.setItem(USERNAME_AUTH_KEY, JSON.stringify(nextAccount));
-      localStorage.removeItem('vt-demo-username');
-      setAccount(nextAccount);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
       return body;
     },
-    stopDemo() {
-      localStorage.removeItem(USERNAME_AUTH_KEY);
-      localStorage.removeItem('vt-demo-username');
-      setAccount(null);
+
+    async migrate({ username, oldToken, newPassword, email }) {
+      const res = await fetch('/api/auth/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, oldToken, newPassword, email }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
     },
 
-    // Wallet (Phantom) auth
+    async requestMagicLink({ identifier, purpose = 'login' }) {
+      const res = await fetch('/api/auth/magic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, purpose }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(body.message || body.error || `HTTP ${res.status}`), { code: body.error });
+      return body;
+    },
+
+    async verifyMagicToken(token) {
+      const res = await fetch(`/api/auth/magic/verify?t=${encodeURIComponent(token)}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      if (body.purpose === 'login' && body.jwt) {
+        storeSession(body.jwt, body.username);
+        setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      }
+      return body; // caller handles 'reset' purpose
+    },
+
+    async resetPassword({ resetToken, newPassword }) {
+      const res = await fetch('/api/auth/magic/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetToken, newPassword }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
+    },
+
+    // ── Legacy compat: demo/quick-start ───────────
+    async startDemo(username) {
+      const clean = sanitizeDemoUsername(username);
+      if (!clean) throw new Error('Enter a username.');
+      const res = await fetch('/api/auth/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: clean }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
+    },
+
+    stopDemo() {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(LEGACY_KEY);
+      setSession(null);
+    },
+
+    // ── Wallet auth (unchanged) ────────────────────
     isWallet: Boolean(walletAccount?.publicKey && walletAccount?.token),
     walletPublicKey: walletAccount?.publicKey || '',
     walletToken: walletAccount?.token || '',
     startWallet(publicKey, token) {
       const next = { publicKey, token };
-      localStorage.setItem(WALLET_AUTH_KEY, JSON.stringify(next));
+      localStorage.setItem(WALLET_KEY, JSON.stringify(next));
       setWalletAccount(next);
     },
     stopWallet() {
-      localStorage.removeItem(WALLET_AUTH_KEY);
+      localStorage.removeItem(WALLET_KEY);
       setWalletAccount(null);
     },
-  }), [account, walletAccount, demoUsername]);
+  }), [session, walletAccount, migrating]);
 
   return createElement(DemoAuthContext.Provider, { value }, children);
 }
@@ -101,22 +215,18 @@ export function useDemoAuth() {
 }
 
 export function useApi() {
-  const { getToken } = useAuth();
-  const { demoUsername, usernameToken, isWallet, walletPublicKey, walletToken } = useDemoAuth();
+  const { isWallet, walletPublicKey, walletToken } = useContext(DemoAuthContext);
 
   return async (url, options = {}) => {
-    const useClerkToken = !demoUsername && !isWallet;
-    const token = useClerkToken ? await getToken() : null;
+    const stored = readSession();
     const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
 
     if (isWallet && walletPublicKey && walletToken) {
       headers['X-Wallet-Address'] = walletPublicKey;
       headers['X-Wallet-Token']   = walletToken;
-    } else if (demoUsername && usernameToken) {
-      headers['X-Username-Auth']  = demoUsername;
-      headers['X-Username-Token'] = usernameToken;
+    } else if (stored?.jwt) {
+      headers['Authorization'] = `Bearer ${stored.jwt}`;
     }
-    if (token) headers.Authorization = `Bearer ${token}`;
 
     const res = await fetch(url, { ...options, headers });
     if (!res.ok) {

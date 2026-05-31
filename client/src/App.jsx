@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
-import { ClerkProvider, SignedIn, SignedOut, UserButton, useClerk, useSignIn, useSignUp, useUser } from '@clerk/clerk-react';
+import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
@@ -26,61 +26,8 @@ const NAV = [
   { to: '/support', label: 'FAQ' },
 ];
 
-function DeviceTransferModal({ username, token, onClose }) {
-  const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/?_vtuser=${encodeURIComponent(username)}&_vttoken=${encodeURIComponent(token)}`;
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }).catch(() => {
-      // Fallback: select the text
-      const el = document.querySelector('.transfer-link-text');
-      if (el) { const r = document.createRange(); r.selectNode(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); }
-    });
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-title">Use on another device</div>
-        <div className="modal-body">
-          <p>Open this link on your phone or another browser. It logs you in instantly and all your data will be there.</p>
-          <div className="transfer-link-box">
-            <code className="transfer-link-text">{link}</code>
-          </div>
-          <button className="btn" style={{ width: '100%', marginTop: 10, marginBottom: 6 }} onClick={copyLink}>
-            {copied ? '✓ Copied to clipboard!' : 'Copy sign-in link'}
-          </button>
-        </div>
-        <div style={{ borderTop: '1px solid var(--rule)', padding: '12px 0 0', margin: '0' }}>
-          <div className="transfer-manual-head">Or sign in manually on the other device:</div>
-          <div className="transfer-row">
-            <span className="transfer-label">Username</span>
-            <code className="transfer-value">{username}</code>
-          </div>
-          <div className="transfer-row">
-            <span className="transfer-label">Token</span>
-            <code className="transfer-value transfer-token">{token}</code>
-          </div>
-        </div>
-        <div className="modal-actions" style={{ marginTop: 16 }}>
-          <button className="btn ghost" onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AccountControl({ collapsed = false }) {
-  const { isDemo, demoUsername, usernameToken, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
-  const { user } = useUser();
-  const [showTransfer, setShowTransfer] = useState(false);
-  const accountName = user?.username
-    || user?.fullName
-    || user?.primaryEmailAddress?.emailAddress?.split('@')[0]
-    || 'Account';
+  const { isDemo, demoUsername, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
 
   if (isWallet) {
     const abbr = `${walletPublicKey.slice(0, 4)}…${walletPublicKey.slice(-4)}`;
@@ -97,61 +44,28 @@ function AccountControl({ collapsed = false }) {
     );
   }
 
-  if (isDemo) {
-    return (
-      <>
-        {showTransfer && (
-          <DeviceTransferModal
-            username={demoUsername}
-            token={usernameToken}
-            onClose={() => setShowTransfer(false)}
-          />
-        )}
-        <div className="demo-account" style={{ cursor: 'default' }}>
-          <span className="avatar">{demoUsername.slice(0, 2).toUpperCase()}</span>
-          {!collapsed && (
-            <span className="me-text">
-              <span className="me-name">{demoUsername}</span>
-              <button
-                className="me-sync-btn"
-                type="button"
-                onClick={() => setShowTransfer(true)}
-                title="Get sign-in link for another device"
-              >
-                Use on another device →
-              </button>
-            </span>
-          )}
-        </div>
-      </>
-    );
-  }
-
-  // Clerk signed-in user
-
   return (
-    <>
-      <UserButton afterSignOutUrl="/" />
-      {!collapsed && <span className="me-name">{accountName}</span>}
-    </>
+    <div className="demo-account" style={{ cursor: 'default' }}>
+      <span className="avatar">{(demoUsername || '?').slice(0, 2).toUpperCase()}</span>
+      {!collapsed && (
+        <span className="me-text">
+          <span className="me-name">{demoUsername}</span>
+          <button className="me-sync-btn" type="button" onClick={stopDemo}>
+            Sign out
+          </button>
+        </span>
+      )}
+    </div>
   );
 }
 
 function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobileClose }) {
-  const { signOut } = useClerk();
   const { isDemo, stopDemo, isWallet, stopWallet } = useDemoAuth();
 
   const handleLogout = () => {
     onMobileClose?.();
-    if (isWallet) {
-      stopWallet();
-      return;
-    }
-    if (isDemo) {
-      stopDemo();
-      return;
-    }
-    signOut({ redirectUrl: '/' });
+    if (isWallet) { stopWallet(); return; }
+    stopDemo();
   };
 
   return (
@@ -812,25 +726,76 @@ function EmailAuth() {
   );
 }
 
-function DemoLogin({ initialMode = 'signIn' }) {
-  const { startDemo } = useDemoAuth();
-  const [mode, setMode] = useState(initialMode);
+// ── Password sign-in form ────────────────────────────
+function PasswordLogin({ onForgot, onMigrate, onSwitchToSignUp }) {
+  const { signIn } = useDemoAuth();
   const [username, setUsername] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [issuedToken, setIssuedToken] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const switchMode = next => { setMode(next); setError(''); setIssuedToken(''); setAccessToken(''); };
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
-    setIssuedToken('');
     setLoading(true);
     try {
-      const result = await startDemo(username, mode === 'signIn' ? accessToken : '');
-      if (result.created) setIssuedToken(result.token);
+      await signIn({ username, password });
+    } catch (err) {
+      if (err.message === 'migration_required') {
+        onMigrate(username);
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="demo-login-card">
+      <div className="demo-card-top">
+        <div>
+          <div className="demo-login-title">Sign in</div>
+          <p className="demo-login-copy">Use your username and password.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="demo-login-form">
+        <label className="form-label" htmlFor="pl-username">Username</label>
+        <input id="pl-username" className="form-input" value={username} placeholder="your-username"
+          autoComplete="username" required minLength={3}
+          onChange={e => { setUsername(e.target.value); setError(''); }} />
+        <label className="form-label" htmlFor="pl-password">Password</label>
+        <input id="pl-password" className="form-input" type="password" value={password}
+          placeholder="••••••••" autoComplete="current-password" required
+          onChange={e => { setPassword(e.target.value); setError(''); }} />
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+        {error && <div className="form-error">{error}</div>}
+      </form>
+      <div className="auth-form-footer">
+        <button className="clerk-link" type="button" onClick={onForgot}>Forgot password?</button>
+        <button className="clerk-link" type="button" onClick={onSwitchToSignUp}>No account? Sign up →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Sign-up form ──────────────────────────────────────
+function SignupForm({ onSwitchToSignIn }) {
+  const { signUp } = useDemoAuth();
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await signUp({ username, password, email: email.trim() || undefined });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -838,98 +803,175 @@ function DemoLogin({ initialMode = 'signIn' }) {
     }
   };
 
-  if (mode === 'signIn') {
-    return (
-      <div className="demo-login-card">
-        {/* Cross-device shortcut — shown prominently because most mobile users
-            arriving here already have an account on desktop */}
-        <div className="cross-device-hint">
-          <div className="cross-device-hint-title">📱 Already have an account on desktop?</div>
-          <div className="cross-device-hint-steps">
-            Open your desktop app → sidebar → tap your username → <strong>"Use on another device"</strong> → copy the link → open it here. You'll be signed in instantly with all your data.
-          </div>
+  return (
+    <div className="demo-login-card">
+      <div className="demo-card-top">
+        <div>
+          <div className="demo-login-title">Create account</div>
+          <p className="demo-login-copy">Pick a username and password. Email is optional but needed for password recovery.</p>
         </div>
-
-        <div className="demo-card-top" style={{ marginTop: 14 }}>
-          <div>
-            <div className="demo-login-title">Sign in with username</div>
-            <p className="demo-login-copy">Or enter your username and access token manually.</p>
-          </div>
-          <span className="demo-badge">Token</span>
-        </div>
-        <form onSubmit={handleSubmit} className="demo-login-form">
-          <label className="form-label" htmlFor="demo-si-user">Username</label>
-          <input
-            id="demo-si-user"
-            className="form-input"
-            value={username}
-            placeholder="your-name"
-            autoComplete="username"
-            required
-            minLength={3}
-            onChange={e => { setUsername(e.target.value); setError(''); }}
-          />
-          <label className="form-label" htmlFor="demo-si-token">
-            Access token
-            <span className="form-hint"> — from when you first created your account</span>
-          </label>
-          <input
-            id="demo-si-token"
-            className="form-input"
-            value={accessToken}
-            placeholder="vt_xxxxxxxx…"
-            autoComplete="off"
-            required
-            onChange={e => { setAccessToken(e.target.value); setError(''); }}
-          />
-          <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-          {error && <div className="form-error">{error}</div>}
-        </form>
-        <button className="clerk-link email-auth-switch" type="button" onClick={() => switchMode('signUp')}>
-          New here? Create an account →
-        </button>
       </div>
-    );
-  }
+      <form onSubmit={handleSubmit} className="demo-login-form">
+        <label className="form-label" htmlFor="su-username">Username</label>
+        <input id="su-username" className="form-input" value={username} placeholder="your-username"
+          autoComplete="username" required minLength={3}
+          onChange={e => { setUsername(e.target.value); setError(''); }} />
+        <label className="form-label" htmlFor="su-email">Email <span className="form-hint">— optional, for password recovery</span></label>
+        <input id="su-email" className="form-input" type="email" value={email} placeholder="you@example.com"
+          autoComplete="email"
+          onChange={e => { setEmail(e.target.value); setError(''); }} />
+        <label className="form-label" htmlFor="su-password">Password <span className="form-hint">— 8+ characters</span></label>
+        <input id="su-password" className="form-input" type="password" value={password}
+          placeholder="••••••••" autoComplete="new-password" required minLength={8}
+          onChange={e => { setPassword(e.target.value); setError(''); }} />
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Creating…' : 'Create account'}
+        </button>
+        {error && <div className="form-error">{error}</div>}
+      </form>
+      <button className="clerk-link email-auth-switch" type="button" onClick={onSwitchToSignIn}>
+        Already have an account? Sign in →
+      </button>
+    </div>
+  );
+}
+
+// ── Forgot password form ──────────────────────────────
+function ForgotPasswordForm({ onBack, onSent }) {
+  const { requestMagicLink } = useDemoAuth();
+  const [identifier, setIdentifier] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const body = await requestMagicLink({ identifier: identifier.trim(), purpose: 'reset' });
+      onSent(body.message || 'Check your email for a reset link.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="demo-login-card">
       <div className="demo-card-top">
         <div>
-          <div className="demo-login-title">Create a username</div>
-          <p className="demo-login-copy">Pick a unique username. We'll generate a private access token — save it to sign in on other devices later.</p>
+          <div className="demo-login-title">Reset password</div>
+          <p className="demo-login-copy">Enter your username or email — we'll send a reset link.</p>
         </div>
-        <span className="demo-badge">New</span>
       </div>
       <form onSubmit={handleSubmit} className="demo-login-form">
-        <label className="form-label" htmlFor="demo-su-user">Choose a username</label>
-        <input
-          id="demo-su-user"
-          className="form-input"
-          value={username}
-          placeholder="your-name"
-          autoComplete="username"
-          required
-          minLength={3}
-          onChange={e => { setUsername(e.target.value); setError(''); setIssuedToken(''); }}
-        />
+        <label className="form-label" htmlFor="fp-identifier">Username or email</label>
+        <input id="fp-identifier" className="form-input" value={identifier} placeholder="username or you@example.com"
+          autoComplete="username email" required
+          onChange={e => { setIdentifier(e.target.value); setError(''); }} />
         <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Creating…' : 'Create account'}
+          {loading ? 'Sending…' : 'Send reset link'}
         </button>
-        {issuedToken && (
-          <div className="username-token-issued">
-            <strong>Copy and save this token — you won't see it again:</strong>
-            <code>{issuedToken}</code>
-            <span>You'll need it to sign in on another device. It's already saved in this browser automatically.</span>
-          </div>
-        )}
         {error && <div className="form-error">{error}</div>}
       </form>
-      <button className="clerk-link email-auth-switch" type="button" onClick={() => switchMode('signIn')}>
-        Already have an account? Sign in →
-      </button>
+      <button className="clerk-link" type="button" onClick={onBack}>← Back to sign in</button>
+    </div>
+  );
+}
+
+// ── Migration form (old-token users setting a password) ──
+function MigrationForm({ username: initialUsername, onBack }) {
+  const { migrate } = useDemoAuth();
+  const [username] = useState(initialUsername || '');
+  const [oldToken, setOldToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await migrate({ username, oldToken: oldToken.trim(), newPassword: password, email: email.trim() || undefined });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="demo-login-card">
+      <div className="demo-card-top">
+        <div>
+          <div className="demo-login-title">Set a password</div>
+          <p className="demo-login-copy">Your account uses the old access token system. Enter your token once to migrate to password auth.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="demo-login-form">
+        <label className="form-label" htmlFor="mf-token">Access token <span className="form-hint">— your vt_xxx token</span></label>
+        <input id="mf-token" className="form-input" value={oldToken} placeholder="vt_xxxxxxxx…"
+          autoComplete="off" required
+          onChange={e => { setOldToken(e.target.value); setError(''); }} />
+        <label className="form-label" htmlFor="mf-email">Email <span className="form-hint">— recommended for future recovery</span></label>
+        <input id="mf-email" className="form-input" type="email" value={email} placeholder="you@example.com"
+          autoComplete="email"
+          onChange={e => { setEmail(e.target.value); setError(''); }} />
+        <label className="form-label" htmlFor="mf-password">New password <span className="form-hint">— 8+ characters</span></label>
+        <input id="mf-password" className="form-input" type="password" value={password}
+          placeholder="••••••••" autoComplete="new-password" required minLength={8}
+          onChange={e => { setPassword(e.target.value); setError(''); }} />
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Migrating…' : 'Set password & sign in'}
+        </button>
+        {error && <div className="form-error">{error}</div>}
+      </form>
+      <button className="clerk-link" type="button" onClick={onBack}>← Back</button>
+    </div>
+  );
+}
+
+// ── Set new password (after clicking magic reset link) ──
+function SetPasswordForm({ resetToken, username }) {
+  const { resetPassword } = useDemoAuth();
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await resetPassword({ resetToken, newPassword: password });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="demo-login-card">
+      <div className="demo-card-top">
+        <div>
+          <div className="demo-login-title">New password</div>
+          <p className="demo-login-copy">Set a new password for <strong>{username}</strong>.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="demo-login-form">
+        <label className="form-label" htmlFor="spf-password">New password <span className="form-hint">— 8+ characters</span></label>
+        <input id="spf-password" className="form-input" type="password" value={password}
+          placeholder="••••••••" autoComplete="new-password" required minLength={8}
+          onChange={e => { setPassword(e.target.value); setError(''); }} />
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Saving…' : 'Set password & sign in'}
+        </button>
+        {error && <div className="form-error">{error}</div>}
+      </form>
     </div>
   );
 }
@@ -1096,186 +1138,323 @@ function PhoneAuth() {
   );
 }
 
-function QuickDemo() {
-  const { startDemo } = useDemoAuth();
-  const [loading, setLoading] = useState(false);
+function AuthDrawer({ mode, onClose, initialView }) {
+  // view: 'signIn' | 'signUp' | 'forgot' | 'migrate' | 'sent' | 'more'
+  const [view, setView]           = useState(initialView || (mode === 'signIn' ? 'signIn' : 'signUp'));
+  const [migrateUsername, setMigrateUsername] = useState('');
+  const [sentMessage, setSentMessage]         = useState('');
+  const [moreExpanded, setMoreExpanded]       = useState(false);
 
-  const handleQuickDemo = async () => {
-    setLoading(true);
-    try {
-      const demoName = 'demo-' + Math.random().toString(36).slice(2, 7);
-      await startDemo(demoName, '');
-    } catch {
-      // ignore — user will see the full form below
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  useEffect(() => {
+    const handler = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const drawerTitles = {
+    signIn: 'Welcome back',
+    signUp: 'Create account',
+    forgot: 'Reset password',
+    migrate: 'Set a password',
+    sent: 'Check your email',
+  };
+
+  const title = drawerTitles[view] || 'Sign in';
+
+  const handleMigrate = (username) => {
+    setMigrateUsername(username);
+    setView('migrate');
+  };
+
+  const handleSent = (msg) => {
+    setSentMessage(msg);
+    setView('sent');
   };
 
   return (
-    <div className="auth-demo-cta">
-      <button type="button" className="auth-demo-btn" onClick={handleQuickDemo} disabled={loading}>
-        {loading
-          ? <><div className="btn-spinner btn-spinner-dark" /><span className="auth-demo-label">Starting demo…</span></>
-          : <>
-              <span className="auth-demo-icon">🚀</span>
-              <span>
-                <span className="auth-demo-label">Continue as Demo</span>
-                <span className="auth-demo-sub">Try Vice to Value — no account required</span>
-              </span>
-            </>
-        }
-      </button>
+    <div className="auth-drawer-root" role="dialog" aria-modal="true">
+      <div className="auth-drawer-backdrop" onClick={onClose} />
+      <div className="auth-drawer-sheet">
+        <div className="auth-drawer-handle" aria-hidden="true" />
+        <div className="auth-drawer-head">
+          <div className="auth-drawer-title">{title}</div>
+          <button className="auth-drawer-close" onClick={onClose} aria-label="Close">×</button>
+        </div>
+        <div className="auth-drawer-body">
+          {view === 'signIn' && (
+            <PasswordLogin
+              onForgot={() => setView('forgot')}
+              onMigrate={handleMigrate}
+              onSwitchToSignUp={() => setView('signUp')}
+            />
+          )}
+          {view === 'signUp' && (
+            <SignupForm onSwitchToSignIn={() => setView('signIn')} />
+          )}
+          {view === 'forgot' && (
+            <ForgotPasswordForm
+              onBack={() => setView('signIn')}
+              onSent={handleSent}
+            />
+          )}
+          {view === 'migrate' && (
+            <MigrationForm
+              username={migrateUsername}
+              onBack={() => setView('signIn')}
+            />
+          )}
+          {view === 'sent' && (
+            <div className="demo-login-card">
+              <div className="demo-login-title">Email sent</div>
+              <p className="demo-login-copy" style={{ marginTop: 8 }}>{sentMessage}</p>
+              <button className="clerk-link" type="button" style={{ marginTop: 16 }} onClick={() => setView('signIn')}>
+                ← Back to sign in
+              </button>
+            </div>
+          )}
+
+          {/* Magic link sign-in option */}
+          {(view === 'signIn' || view === 'signUp') && (
+            <div className="auth-drawer-magic-row">
+              <button className="clerk-link" type="button" onClick={() => setView('forgot')}>
+                or sign in with email link
+              </button>
+            </div>
+          )}
+
+          {/* More options: wallets + Clerk */}
+          <div className="auth-drawer-more-wrap">
+            <button className="auth-drawer-more-toggle" type="button" onClick={() => setMoreExpanded(e => !e)}>
+              {moreExpanded ? '▲ Fewer options' : '▾ More sign-in options'}
+            </button>
+            {moreExpanded && (
+              <>
+                <div className="auth-divider"><span>or connect a wallet</span></div>
+                <WalletSignIn />
+                <div className="auth-divider"><span>or sign in with email</span></div>
+                <div className="clerk-frame"><EmailAuth /></div>
+                <div className="auth-divider"><span>or sign in with phone</span></div>
+                <div className="clerk-frame"><PhoneAuth /></div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
 function SignedOutContent() {
-  const { isDemo, isWallet, startDemo } = useDemoAuth();
-  const [mobileExpanded, setMobileExpanded] = useState(false);
-  const [mobileAuthMode, setMobileAuthMode] = useState('signIn');
+  const { isDemo, isWallet, startDemo, verifyMagicToken } = useDemoAuth();
+  const [drawer, setDrawer]               = useState(null); // null | 'signIn' | 'signUp'
+  const [demoLoading, setDemoLoading]     = useState(false);
+  // magic link: null | 'verifying' | { status:'reset', resetToken, username } | { status:'error', msg }
+  const [magicState, setMagicState]       = useState(null);
 
-  // Auto-login when arriving via a device-transfer link (?_vtuser=&_vttoken=)
   useEffect(() => {
     if (isDemo || isWallet) return;
     const params = new URLSearchParams(window.location.search);
+
+    // New magic link flow
+    const magic = params.get('magic');
+    if (magic) {
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('magic');
+      window.history.replaceState({}, '', clean.toString());
+      setMagicState('verifying');
+      verifyMagicToken(magic)
+        .then(body => {
+          if (body.purpose === 'reset') {
+            setMagicState({ status: 'reset', resetToken: body.resetToken, username: body.username });
+          }
+          // If purpose === 'login', verifyMagicToken already stored the session and set state
+        })
+        .catch(err => setMagicState({ status: 'error', msg: err.message }));
+      return;
+    }
+
+    // Legacy device-transfer link (?_vtuser=&_vttoken=) — still supported during migration
     const vtuser = params.get('_vtuser');
     const vttoken = params.get('_vttoken');
-    if (!vtuser || !vttoken) return;
-    // Clear params from URL immediately so token isn't left in history
-    const clean = new URL(window.location.href);
-    clean.searchParams.delete('_vtuser');
-    clean.searchParams.delete('_vttoken');
-    window.history.replaceState({}, '', clean.toString());
-    startDemo(vtuser, vttoken).catch(() => {});
+    if (vtuser && vttoken) {
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete('_vtuser');
+      clean.searchParams.delete('_vttoken');
+      window.history.replaceState({}, '', clean.toString());
+      startDemo(vtuser, vttoken).catch(() => {});
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isDemo || isWallet) return <AuthenticatedApp />;
 
-  const isSmall = typeof window !== 'undefined' && window.innerWidth <= 768;
-  const showGate = isSmall && !mobileExpanded;
+  // Magic link verifying / result overlay
+  if (magicState === 'verifying') {
+    return (
+      <div className="landing-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'rgba(232,239,224,0.6)', fontSize: 15 }}>Verifying magic link…</div>
+      </div>
+    );
+  }
+  if (magicState?.status === 'error') {
+    return (
+      <div className="landing-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ color: '#f4f7ee', fontSize: 18, marginBottom: 8 }}>Link expired or invalid</div>
+          <div style={{ color: 'rgba(232,239,224,0.55)', marginBottom: 20 }}>{magicState.msg}</div>
+          <button className="btn landing-btn-gold" onClick={() => { setMagicState(null); setDrawer('signIn'); }}>
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (magicState?.status === 'reset') {
+    return (
+      <div className="landing-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#eef4e8', borderRadius: 18, padding: '28px 28px', width: '100%', maxWidth: 440 }}>
+          <SetPasswordForm resetToken={magicState.resetToken} username={magicState.username} />
+        </div>
+      </div>
+    );
+  }
+
+  const handleDemo = async () => {
+    setDemoLoading(true);
+    try {
+      await startDemo('demo-' + Math.random().toString(36).slice(2, 7), '');
+    } catch {}
+    setDemoLoading(false);
+  };
 
   return (
-    <div className="auth-page">
+    <div className="landing-page">
       <div className="auth-bg auth-bg-one" />
       <div className="auth-bg auth-bg-two" />
 
-      <section className={`auth-shell${mobileExpanded ? ' mobile-forms-open' : ''}`} aria-label="Vice Spending sign in">
-        <div className="auth-hero-panel">
-          <div className="auth-logo-row">
-            <VtvLogo className="auth-logo-svg" />
-          </div>
+      {/* Hero / left column */}
+      <section className="landing-hero" aria-label="Vice to Value">
+        <div className="landing-logo-row">
+          <VtvLogo className="auth-logo-svg" />
+        </div>
 
-          <div className="auth-hero-copy">
-            <div className="auth-kicker">Cut Today. Grow Tomorrow.</div>
-            <h1>See what your vices really cost — then turn that money into goals.</h1>
-            <p>Track spending by category, savings projections, streaks, and custom opportunity costs in one polished dashboard.</p>
-          </div>
+        <div className="landing-hero-copy">
+          <div className="auth-kicker">Cut Today. Grow Tomorrow.</div>
+          <h1>See what your vices really cost — then turn that money into goals.</h1>
+          <p>Track spending by category, savings projections, streaks, and opportunity costs — all in one polished dashboard.</p>
+        </div>
 
-          <div className="auth-preview-card">
-            <div className="auth-preview-top">
-              <span>Monthly savings forecast</span>
+        {/* Preview cards: savings chart + streak */}
+        <div className="landing-preview-pair">
+          <div className="lp-card lp-card-chart">
+            <div className="lp-chart-head">
+              <span>Monthly savings</span>
               <strong>$842</strong>
             </div>
-            <div className="auth-preview-bars" aria-hidden="true">
-              <span style={{ height: '38%' }} />
-              <span style={{ height: '54%' }} />
-              <span style={{ height: '71%' }} />
-              <span style={{ height: '48%' }} />
-              <span style={{ height: '86%' }} />
-              <span style={{ height: '64%' }} />
+            <div className="lp-chart-bars" aria-hidden="true">
+              {[38, 54, 71, 48, 86, 64, 92].map((h, i) => (
+                <span key={i} style={{ height: `${h}%` }} />
+              ))}
             </div>
-            <div className="auth-preview-foot">
-              <span>Streak</span>
-              <b>12 days</b>
+            <div className="lp-chart-foot">
+              <span>7-day avg</span>
+              <b>$28.40</b>
             </div>
           </div>
-
-          <div className="auth-feature-grid">
-            <span>✓ Combined dashboard</span>
-            <span>✓ Editable entries</span>
-            <span>✓ Savings goals</span>
-            <span>✓ Username token access</span>
+          <div className="lp-card lp-card-streak">
+            <div className="lp-streak-num">12</div>
+            <div className="lp-streak-label">day streak</div>
+            <div className="lp-streak-pips" aria-hidden="true">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className={`lp-pip${i < 5 ? ' lp-pip-on' : ''}`} />
+              ))}
+            </div>
+            <div className="lp-streak-best">Best: 18 days</div>
           </div>
         </div>
 
-        <div className="auth-card-panel">
-          <div className="auth-card-head">
-            <span className="auth-pill">Private progress tracker</span>
-            <h2>{isSmall && mobileExpanded
-              ? (mobileAuthMode === 'signIn' ? 'Sign in' : 'Create account')
-              : 'Vice to Value'}</h2>
-            <p>{isSmall && mobileExpanded && mobileAuthMode === 'signIn'
-              ? 'Enter your username and access token to continue.'
-              : 'Sign in with your username, connect a wallet, or create a new account.'}</p>
+        <div className="landing-actions">
+          <button type="button" className="btn btn-lg landing-btn-gold" onClick={() => setDrawer('signIn')}>
+            Sign In
+          </button>
+          <button type="button" className="btn btn-lg landing-btn-ghost" onClick={() => setDrawer('signUp')}>
+            Get Started
+          </button>
+        </div>
+
+        <button type="button" className="landing-demo-link" onClick={handleDemo} disabled={demoLoading}>
+          {demoLoading ? 'Starting demo…' : 'Continue as Demo'}
+        </button>
+      </section>
+
+      {/* Desktop-only app mockup (right column) */}
+      <section className="landing-visual" aria-hidden="true">
+        <div className="lv-frame">
+          <div className="lv-topbar">
+            <div className="lv-dots"><span /><span /><span /></div>
+            <div className="lv-topbar-title">Vice to Value</div>
           </div>
+          <div className="lv-body">
+            <div className="lv-stats-row">
+              {[['Today','$4.20'],['Week','$28.40'],['Month','$112'],['Saved','$842']].map(([lbl,val],i) => (
+                <div key={lbl} className={`lv-stat${i === 3 ? ' lv-stat-green' : ''}`}>
+                  <span className="lv-stat-label">{lbl}</span>
+                  <span className="lv-stat-val">{val}</span>
+                </div>
+              ))}
+            </div>
 
-          {/* Mobile gate — Sign In is primary, Create Account is secondary */}
-          <div className={`mobile-auth-gate${showGate ? '' : ' hidden'}`}>
-            <button
-              type="button"
-              className="btn btn-lg mobile-auth-btn"
-              onClick={() => { setMobileAuthMode('signIn'); setMobileExpanded(true); }}
-            >
-              Sign In <span className="arrow">→</span>
-            </button>
-            <button
-              type="button"
-              className="btn ghost btn-lg mobile-auth-btn"
-              onClick={() => { setMobileAuthMode('create'); setMobileExpanded(true); }}
-            >
-              Create Account
-            </button>
-            <div className="mobile-auth-sep" />
-            <QuickDemo />
-          </div>
+            <div className="lv-section-label">Spending — last 7 days</div>
+            <div className="lv-chart">
+              {[40,65,28,80,52,90,38].map((h,i) => (
+                <div key={i} className="lv-bar-col">
+                  <div className="lv-bar" style={{ height: `${h}%` }} />
+                  <span>{['M','T','W','T','F','S','S'][i]}</span>
+                </div>
+              ))}
+            </div>
 
-          {/* Auth forms — always visible on desktop, revealed on mobile after gate */}
-          <div className={`auth-forms${showGate ? ' mobile-hidden' : ''}`}>
-            {isSmall && mobileExpanded && (
-              <button type="button" className="mobile-auth-back" onClick={() => setMobileExpanded(false)}>
-                ← Back
-              </button>
-            )}
+            <div className="lv-cards-row">
+              <div className="lv-mini-card">
+                <div className="lv-mini-head"><span>Streak</span><b>12 days</b></div>
+                <div className="lv-mini-pips">
+                  {[...Array(7)].map((_,i) => (
+                    <div key={i} className={`lv-mini-pip${i < 5 ? ' on' : ''}`} />
+                  ))}
+                </div>
+              </div>
+              <div className="lv-mini-card">
+                <div className="lv-mini-head"><span>Level</span><b>Lvl 4</b></div>
+                <div className="lv-xp-bar"><div className="lv-xp-fill" style={{ width: '67%' }} /></div>
+                <div className="lv-mini-sub">340 / 500 XP</div>
+              </div>
+            </div>
 
-            {/* Sign-in flow: username form first, wallets below */}
-            {isSmall && mobileAuthMode === 'signIn' ? (
-              <>
-                <DemoLogin initialMode="signIn" />
-                <div className="auth-divider"><span>or sign in with wallet</span></div>
-                <WalletSignIn />
-                <div className="auth-divider"><span>or sign in with email</span></div>
-                <div className="clerk-frame"><EmailAuth /></div>
-                <QuickDemo />
-              </>
-            ) : (
-              <>
-                <WalletSignIn />
-                <div className="auth-divider"><span>or use a username</span></div>
-                <DemoLogin initialMode={isSmall && mobileAuthMode === 'create' ? 'signUp' : 'signIn'} />
-                <div className="auth-divider"><span>or continue with email</span></div>
-                <div className="clerk-frame"><EmailAuth /></div>
-                <div className="auth-divider"><span>or sign in with phone</span></div>
-                <div className="clerk-frame"><PhoneAuth /></div>
-                <QuickDemo />
-              </>
-            )}
+            <div className="lv-goal-card">
+              <div className="lv-goal-head"><span>Gaming PC</span><b>67%</b></div>
+              <div className="lv-goal-track"><div className="lv-goal-fill" style={{ width: '67%' }} /></div>
+              <div className="lv-goal-sub">$560 saved of $840</div>
+            </div>
           </div>
         </div>
       </section>
+
+      {drawer && (
+        <AuthDrawer mode={drawer} onClose={() => setDrawer(null)} />
+      )}
     </div>
   );
 }
 
-function SignedInContent() {
-  const { isDemo, stopDemo, isWallet, stopWallet } = useDemoAuth();
-
-  useEffect(() => {
-    if (isDemo) stopDemo();
-    if (isWallet) stopWallet();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return <AuthenticatedApp />;
+// Routes based on our own auth state — no Clerk routing primitives
+function AppRouter() {
+  const { isDemo, isWallet } = useDemoAuth();
+  if (isDemo || isWallet) return <AuthenticatedApp />;
+  return <SignedOutContent />;
 }
 
 class AppErrorBoundary extends Component {
@@ -1309,29 +1488,27 @@ class AppErrorBoundary extends Component {
   }
 }
 
-export default function App() {
-  if (!PUBLISHABLE_KEY) {
-    return (
-      <div style={{ padding: '2rem', fontFamily: 'monospace', color: '#f66', background: '#111', minHeight: '100vh' }}>
-        <h2 style={{ color: '#fff' }}>Configuration error</h2>
-        <p style={{ color: '#aaa' }}>VITE_CLERK_PUBLISHABLE_KEY is not set. Add it to your Vercel environment variables.</p>
-      </div>
-    );
-  }
+function AppCore() {
   return (
     <AppErrorBoundary>
-      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-        <DemoAuthProvider>
-          <BrowserRouter>
-            <SignedOut>
-              <SignedOutContent />
-            </SignedOut>
-            <SignedIn>
-              <SignedInContent />
-            </SignedIn>
-          </BrowserRouter>
-        </DemoAuthProvider>
-      </ClerkProvider>
+      <DemoAuthProvider>
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+      </DemoAuthProvider>
     </AppErrorBoundary>
   );
+}
+
+export default function App() {
+  // Wrap with ClerkProvider when key is available — enables MetaMask/Base wallet sign-in
+  // and legacy Clerk sessions. Primary auth (username+password, magic link) works without it.
+  if (PUBLISHABLE_KEY) {
+    return (
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+        <AppCore />
+      </ClerkProvider>
+    );
+  }
+  return <AppCore />;
 }

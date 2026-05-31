@@ -9,6 +9,7 @@ if (missing.length) {
 const OPTIONAL_ENV = [
   'VITE_CLERK_PUBLISHABLE_KEY', 'PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV',
   'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'ANTHROPIC_API_KEY', 'CRON_SECRET', 'ADMIN_SECRET',
+  'JWT_SECRET', 'APP_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM',
 ];
 const missingOptional = OPTIONAL_ENV.filter(k => !process.env[k]);
 if (missingOptional.length) {
@@ -32,6 +33,7 @@ const {
   hashToken: hashWalletToken,
   safeEqual: safeEqualWallet,
 } = require('./routes/phantomAuth');
+const { router: authRouter, verifySession } = require('./routes/auth');
 
 const app = express();
 
@@ -64,11 +66,11 @@ async function usernameOrClerkAuth(req, res, next) {
     }
   }
 
-  // Username auth
+  // Legacy username/token auth (backward compat — still accepted while migration is in progress)
   const username = sanitizeUsername(req.get('X-Username-Auth'));
-  const token = String(req.get('X-Username-Token') || '').trim();
-  if (username || token) {
-    if (!username || !validToken(token)) {
+  const legacyToken = String(req.get('X-Username-Token') || '').trim();
+  if (username || legacyToken) {
+    if (!username || !validToken(legacyToken)) {
       return res.status(401).json({ error: 'Username access token required.' });
     }
     try {
@@ -77,7 +79,7 @@ async function usernameOrClerkAuth(req, res, next) {
         [username, `username:${username}`]
       );
       const tokenHash = result.rows[0]?.username_token_hash;
-      if (!tokenHash || !safeEqual(hashToken(token), tokenHash)) {
+      if (!tokenHash || !safeEqual(hashToken(legacyToken), tokenHash)) {
         return res.status(401).json({ error: 'Invalid username access token.' });
       }
       req.auth = { userId: `username:${username}` };
@@ -86,6 +88,19 @@ async function usernameOrClerkAuth(req, res, next) {
     } catch (err) {
       return next(err);
     }
+  }
+
+  // VT JWT — check Authorization: Bearer header before falling through to Clerk
+  const authHeader = String(req.get('Authorization') || '');
+  if (authHeader.startsWith('Bearer ') && process.env.JWT_SECRET) {
+    const bearerToken = authHeader.slice(7).trim();
+    const payload = verifySession(bearerToken);
+    if (payload && payload.sub) {
+      req.auth = { userId: payload.sub };
+      req.vtAuth = { userId: payload.sub, username: payload.username };
+      return next();
+    }
+    // JWT present but invalid — fall through to Clerk (Clerk JWTs also use Bearer)
   }
 
   return requireAuth()(req, res, next);
@@ -106,8 +121,9 @@ app.get('/api/health', async (req, res) => {
 
 app.use('/api/cron', require('./routes/cron'));
 app.use('/api/admin', require('./routes/admin'));
-app.use('/api/auth/username', usernameAuthRouter);
+app.use('/api/auth/username', usernameAuthRouter); // kept for backward compat / token-exchange
 app.use('/api/auth/phantom', phantomAuthRouter);
+app.use('/api/auth', authRouter);
 app.use('/api', usernameOrClerkAuth, ensureUser);
 
 app.use('/api/users',   require('./routes/users'));

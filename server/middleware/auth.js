@@ -6,6 +6,9 @@ async function ensureUser(req, res, next) {
     const { userId } = req.auth;
     if (!userId) return next();
 
+    // VT JWT auth: userId is the numeric DB row ID — user already exists
+    if (req.vtAuth) return next();
+
     const existing = await pool.query(
       'SELECT id FROM users WHERE clerk_user_id = $1', [userId]
     );
