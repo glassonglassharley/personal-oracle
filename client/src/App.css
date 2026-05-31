@@ -887,6 +887,27 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   padding: 8px 10px; border-radius: 8px; background: rgba(47,109,74,0.07);
   border: 1px solid rgba(47,109,74,0.15);
 }
+
+/* Cross-device sign-in hint box (shown above sign-in form on mobile) */
+.cross-device-hint {
+  background: rgba(47,109,74,0.10); border: 1px solid rgba(47,109,74,0.25);
+  border-radius: 12px; padding: 12px 14px;
+}
+.cross-device-hint-title {
+  font-size: 13px; font-weight: 700; color: #1a4a2e; margin-bottom: 6px;
+}
+.cross-device-hint-steps {
+  font-size: 12.5px; color: #3a6a4a; line-height: 1.55;
+}
+
+/* Mobile topbar sign-out button */
+.mobile-signout-btn {
+  background: none; border: 1px solid rgba(12,42,31,0.22); border-radius: 8px;
+  padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--ink-3, #5e7868); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.mobile-signout-btn:hover { background: rgba(12,42,31,0.08); color: var(--ink, #0c2a1f); }
 .demo-login-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .username-token-issued {
   display: grid; gap: 7px; margin-top: 2px; padding: 10px 12px;

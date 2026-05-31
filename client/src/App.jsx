@@ -127,6 +127,8 @@ function AccountControl({ collapsed = false }) {
     );
   }
 
+  // Clerk signed-in user
+
   return (
     <>
       <UserButton afterSignOutUrl="/" />
@@ -324,6 +326,13 @@ function NightlyReminder({ collapsed = false }) {
 }
 
 function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
+  const { isDemo, demoUsername, stopDemo, isWallet, stopWallet } = useDemoAuth();
+
+  const handleSignOut = () => {
+    if (isWallet) { stopWallet(); return; }
+    if (isDemo)   { stopDemo();   return; }
+  };
+
   return (
     <header className="mobile-topbar">
       <button
@@ -336,14 +345,27 @@ function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
         <span />
         <span />
       </button>
+
       <div className="mobile-brand">
         <VtvMark className="brand-mark-svg" />
         <div>
-          <div className="mobile-brand-name">Vice to Value</div>
-          {subtitle && <div className="mobile-vice-name">{subtitle}</div>}
+          {/* Show username when signed in via username/wallet auth */}
+          <div className="mobile-brand-name">
+            {isDemo ? demoUsername : isWallet ? 'Wallet' : 'Vice to Value'}
+          </div>
+          <div className="mobile-vice-name">
+            {isDemo || isWallet ? 'Vice to Value' : subtitle || ''}
+          </div>
         </div>
       </div>
-      <AccountControl collapsed />
+
+      {(isDemo || isWallet) ? (
+        <button className="mobile-signout-btn" type="button" onClick={handleSignOut}>
+          Sign out
+        </button>
+      ) : (
+        <AccountControl collapsed />
+      )}
     </header>
   );
 }
@@ -819,10 +841,19 @@ function DemoLogin({ initialMode = 'signIn' }) {
   if (mode === 'signIn') {
     return (
       <div className="demo-login-card">
-        <div className="demo-card-top">
+        {/* Cross-device shortcut — shown prominently because most mobile users
+            arriving here already have an account on desktop */}
+        <div className="cross-device-hint">
+          <div className="cross-device-hint-title">📱 Already have an account on desktop?</div>
+          <div className="cross-device-hint-steps">
+            Open your desktop app → sidebar → tap your username → <strong>"Use on another device"</strong> → copy the link → open it here. You'll be signed in instantly with all your data.
+          </div>
+        </div>
+
+        <div className="demo-card-top" style={{ marginTop: 14 }}>
           <div>
             <div className="demo-login-title">Sign in with username</div>
-            <p className="demo-login-copy">Enter your username and the access token you saved when you signed up.</p>
+            <p className="demo-login-copy">Or enter your username and access token manually.</p>
           </div>
           <span className="demo-badge">Token</span>
         </div>
@@ -840,7 +871,7 @@ function DemoLogin({ initialMode = 'signIn' }) {
           />
           <label className="form-label" htmlFor="demo-si-token">
             Access token
-            <span className="form-hint"> — issued when you first created your account</span>
+            <span className="form-hint"> — from when you first created your account</span>
           </label>
           <input
             id="demo-si-token"
@@ -856,9 +887,6 @@ function DemoLogin({ initialMode = 'signIn' }) {
           </button>
           {error && <div className="form-error">{error}</div>}
         </form>
-        <p className="demo-login-forgot">
-          Lost your token? On the device where you're already signed in, open the sidebar → tap your username → <em>"Use on another device"</em> to generate a sign-in link.
-        </p>
         <button className="clerk-link email-auth-switch" type="button" onClick={() => switchMode('signUp')}>
           New here? Create an account →
         </button>
