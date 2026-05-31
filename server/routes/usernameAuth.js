@@ -48,8 +48,13 @@ router.post('/', async (req, res, next) => {
 
     if (existing.rows.length > 0) {
       const row = existing.rows[0];
+      // No token provided — user is trying to create but username already exists
+      if (!providedToken) {
+        return res.status(409).json({ error: `"${username}" is already taken. If it's your account, enter your access token to sign in instead.` });
+      }
+      // Token provided but wrong
       if (!validToken(providedToken) || !row.username_token_hash || !safeEqual(hashToken(providedToken), row.username_token_hash)) {
-        return res.status(409).json({ error: 'That username is already taken. Enter its saved access token to sign in.' });
+        return res.status(401).json({ error: 'Wrong access token for that username. Check your token and try again. If you\'ve lost it, sign in on your original device and use "Use on another device" to get a new link.' });
       }
       return res.json({ username: row.auth_username || username, token: providedToken, created: false });
     }

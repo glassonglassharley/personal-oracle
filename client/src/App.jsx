@@ -780,13 +780,16 @@ function EmailAuth() {
   );
 }
 
-function DemoLogin() {
+function DemoLogin({ initialMode = 'signIn' }) {
   const { startDemo } = useDemoAuth();
+  const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [issuedToken, setIssuedToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const switchMode = next => { setMode(next); setError(''); setIssuedToken(''); setAccessToken(''); };
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -794,7 +797,7 @@ function DemoLogin() {
     setIssuedToken('');
     setLoading(true);
     try {
-      const result = await startDemo(username, accessToken);
+      const result = await startDemo(username, mode === 'signIn' ? accessToken : '');
       if (result.created) setIssuedToken(result.token);
     } catch (err) {
       setError(err.message);
@@ -803,19 +806,69 @@ function DemoLogin() {
     }
   };
 
+  if (mode === 'signIn') {
+    return (
+      <div className="demo-login-card">
+        <div className="demo-card-top">
+          <div>
+            <div className="demo-login-title">Sign in with username</div>
+            <p className="demo-login-copy">Enter your username and the access token you saved when you signed up.</p>
+          </div>
+          <span className="demo-badge">Token</span>
+        </div>
+        <form onSubmit={handleSubmit} className="demo-login-form">
+          <label className="form-label" htmlFor="demo-si-user">Username</label>
+          <input
+            id="demo-si-user"
+            className="form-input"
+            value={username}
+            placeholder="your-name"
+            autoComplete="username"
+            required
+            minLength={3}
+            onChange={e => { setUsername(e.target.value); setError(''); }}
+          />
+          <label className="form-label" htmlFor="demo-si-token">
+            Access token
+            <span className="form-hint"> — issued when you first created your account</span>
+          </label>
+          <input
+            id="demo-si-token"
+            className="form-input"
+            value={accessToken}
+            placeholder="vt_xxxxxxxx…"
+            autoComplete="off"
+            required
+            onChange={e => { setAccessToken(e.target.value); setError(''); }}
+          />
+          <button className="btn btn-primary" type="submit" disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+          {error && <div className="form-error">{error}</div>}
+        </form>
+        <p className="demo-login-forgot">
+          Lost your token? On the device where you're already signed in, open the sidebar → tap your username → <em>"Use on another device"</em> to generate a sign-in link.
+        </p>
+        <button className="clerk-link email-auth-switch" type="button" onClick={() => switchMode('signUp')}>
+          New here? Create an account →
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="demo-login-card">
       <div className="demo-card-top">
         <div>
-          <div className="demo-login-title">Username access</div>
-          <p className="demo-login-copy">Claim a unique username. The app creates a one-time private access token that cannot be regenerated or copied by another user.</p>
+          <div className="demo-login-title">Create a username</div>
+          <p className="demo-login-copy">Pick a unique username. We'll generate a private access token — save it to sign in on other devices later.</p>
         </div>
-        <span className="demo-badge">Token</span>
+        <span className="demo-badge">New</span>
       </div>
       <form onSubmit={handleSubmit} className="demo-login-form">
-        <label className="form-label" htmlFor="demo-username">Unique username</label>
+        <label className="form-label" htmlFor="demo-su-user">Choose a username</label>
         <input
-          id="demo-username"
+          id="demo-su-user"
           className="form-input"
           value={username}
           placeholder="your-name"
@@ -824,27 +877,21 @@ function DemoLogin() {
           minLength={3}
           onChange={e => { setUsername(e.target.value); setError(''); setIssuedToken(''); }}
         />
-        <label className="form-label" htmlFor="username-token">Access token</label>
-        <input
-          id="username-token"
-          className="form-input"
-          value={accessToken}
-          placeholder="Leave blank to claim a new username"
-          autoComplete="off"
-          onChange={e => { setAccessToken(e.target.value); setError(''); setIssuedToken(''); }}
-        />
         <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Checking…' : 'Continue with username'}
+          {loading ? 'Creating…' : 'Create account'}
         </button>
         {issuedToken && (
           <div className="username-token-issued">
-            <strong>Save this private token now:</strong>
+            <strong>Copy and save this token — you won't see it again:</strong>
             <code>{issuedToken}</code>
-            <span>You will need it to use this username on another device. It is stored on this device automatically.</span>
+            <span>You'll need it to sign in on another device. It's already saved in this browser automatically.</span>
           </div>
         )}
         {error && <div className="form-error">{error}</div>}
       </form>
+      <button className="clerk-link email-auth-switch" type="button" onClick={() => switchMode('signIn')}>
+        Already have an account? Sign in →
+      </button>
     </div>
   );
 }
@@ -1048,6 +1095,7 @@ function QuickDemo() {
 function SignedOutContent() {
   const { isDemo, isWallet, startDemo } = useDemoAuth();
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [mobileAuthMode, setMobileAuthMode] = useState('signIn');
 
   // Auto-login when arriving via a device-transfer link (?_vtuser=&_vttoken=)
   useEffect(() => {
@@ -1116,17 +1164,29 @@ function SignedOutContent() {
         <div className="auth-card-panel">
           <div className="auth-card-head">
             <span className="auth-pill">Private progress tracker</span>
-            <h2>Welcome back</h2>
-            <p>Connect with Phantom, MetaMask, Base Wallet, claim a username token, or sign in securely with email.</p>
+            <h2>{isSmall && mobileExpanded
+              ? (mobileAuthMode === 'signIn' ? 'Sign in' : 'Create account')
+              : 'Vice to Value'}</h2>
+            <p>{isSmall && mobileExpanded && mobileAuthMode === 'signIn'
+              ? 'Enter your username and access token to continue.'
+              : 'Sign in with your username, connect a wallet, or create a new account.'}</p>
           </div>
 
-          {/* Mobile gate — two choices before showing all auth methods */}
+          {/* Mobile gate — Sign In is primary, Create Account is secondary */}
           <div className={`mobile-auth-gate${showGate ? '' : ' hidden'}`}>
-            <button type="button" className="btn btn-lg mobile-auth-btn" onClick={() => setMobileExpanded(true)}>
-              Log In <span className="arrow">→</span>
+            <button
+              type="button"
+              className="btn btn-lg mobile-auth-btn"
+              onClick={() => { setMobileAuthMode('signIn'); setMobileExpanded(true); }}
+            >
+              Sign In <span className="arrow">→</span>
             </button>
-            <button type="button" className="btn ghost btn-lg mobile-auth-btn" onClick={() => setMobileExpanded(true)}>
-              Create Account <span className="arrow">→</span>
+            <button
+              type="button"
+              className="btn ghost btn-lg mobile-auth-btn"
+              onClick={() => { setMobileAuthMode('create'); setMobileExpanded(true); }}
+            >
+              Create Account
             </button>
             <div className="mobile-auth-sep" />
             <QuickDemo />
@@ -1136,21 +1196,32 @@ function SignedOutContent() {
           <div className={`auth-forms${showGate ? ' mobile-hidden' : ''}`}>
             {isSmall && mobileExpanded && (
               <button type="button" className="mobile-auth-back" onClick={() => setMobileExpanded(false)}>
-                ← All sign-in options
+                ← Back
               </button>
             )}
-            <WalletSignIn />
-            <div className="auth-divider"><span>or claim a username</span></div>
-            <DemoLogin />
-            <div className="auth-divider"><span>or continue with email</span></div>
-            <div className="clerk-frame">
-              <EmailAuth />
-            </div>
-            <div className="auth-divider"><span>or sign in with phone</span></div>
-            <div className="clerk-frame">
-              <PhoneAuth />
-            </div>
-            <QuickDemo />
+
+            {/* Sign-in flow: username form first, wallets below */}
+            {isSmall && mobileAuthMode === 'signIn' ? (
+              <>
+                <DemoLogin initialMode="signIn" />
+                <div className="auth-divider"><span>or sign in with wallet</span></div>
+                <WalletSignIn />
+                <div className="auth-divider"><span>or sign in with email</span></div>
+                <div className="clerk-frame"><EmailAuth /></div>
+                <QuickDemo />
+              </>
+            ) : (
+              <>
+                <WalletSignIn />
+                <div className="auth-divider"><span>or use a username</span></div>
+                <DemoLogin initialMode={isSmall && mobileAuthMode === 'create' ? 'signUp' : 'signIn'} />
+                <div className="auth-divider"><span>or continue with email</span></div>
+                <div className="clerk-frame"><EmailAuth /></div>
+                <div className="auth-divider"><span>or sign in with phone</span></div>
+                <div className="clerk-frame"><PhoneAuth /></div>
+                <QuickDemo />
+              </>
+            )}
           </div>
         </div>
       </section>
