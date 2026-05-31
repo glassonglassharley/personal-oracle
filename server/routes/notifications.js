@@ -23,15 +23,25 @@ router.get('/config', (req, res) => {
 router.put('/settings', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);
-    const timezone = normalizeTimezone(req.body.timezone);
-    const enabled = Boolean(req.body.nightly_reminders_enabled);
+    const sets = [];
+    const vals = [];
 
+    if (req.body.timezone !== undefined) {
+      sets.push(`timezone = $${vals.length + 1}`);
+      vals.push(normalizeTimezone(req.body.timezone));
+    }
+    if (req.body.nightly_reminders_enabled !== undefined) {
+      sets.push(`nightly_reminders_enabled = $${vals.length + 1}`);
+      vals.push(Boolean(req.body.nightly_reminders_enabled));
+    }
+
+    if (sets.length === 0) return res.json({});
+
+    vals.push(uid);
     const result = await pool.query(
-      `UPDATE users
-       SET timezone = $1, nightly_reminders_enabled = $2
-       WHERE id = $3
+      `UPDATE users SET ${sets.join(', ')} WHERE id = $${vals.length}
        RETURNING id, timezone, nightly_reminders_enabled`,
-      [timezone, enabled, uid]
+      vals
     );
 
     res.json(result.rows[0]);

@@ -426,6 +426,16 @@ function AuthenticatedApp() {
 
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync the browser's local timezone to the server on every login.
+  // Uses Intl (OS-level, no GPS permission needed) — accurate and automatic.
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    apiRef.current('/api/notifications/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ timezone: tz }),
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     apiRef.current('/api/companion').then(data => {
       setCompanion(data);
