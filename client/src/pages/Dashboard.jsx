@@ -85,11 +85,13 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
 
 function last7Dates() {
-  const today = new Date();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const pad = n => String(n).padStart(2, '0');
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0];
+    const date = new Date(Date.UTC(y, m - 1, d - (6 - i)));
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
   });
 }
 
@@ -298,7 +300,7 @@ export default function Dashboard() {
 
     Promise.all(vices.map(async vice => {
       const [statsForVice, weekEntries, allEntries] = await Promise.all([
-        apiRef.current(`/api/stats/${vice.id}`),
+        apiRef.current(`/api/stats/${vice.id}?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`),
         apiRef.current(`/api/entries?vice_id=${vice.id}&from=${from}&to=${to}`),
         apiRef.current(`/api/entries?vice_id=${vice.id}`),
       ]);

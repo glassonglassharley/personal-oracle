@@ -353,7 +353,7 @@ function AuthenticatedApp() {
       setVices(enriched);
       setActiveViceId(prev => prev ?? (enriched[0]?.id ?? null));
       enriched.forEach(v => {
-        apiRef.current(`/api/stats/${v.id}`)
+        apiRef.current(`/api/stats/${v.id}?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`)
           .then(s => setViceStats(st => ({ ...st, [v.id]: s })))
           .catch(() => {});
       });

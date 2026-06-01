@@ -9,13 +9,7 @@ router.get('/:vice_id', async (req, res, next) => {
     if (!await verifyViceOwnership(vice_id, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
 
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearStart = new Date(now.getFullYear(), 0, 1);
-
-    const fmt = d => d.toISOString().split('T')[0];
+    const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
 
     const period = async (from, to) => {
       const r = await pool.query(
@@ -29,9 +23,9 @@ router.get('/:vice_id', async (req, res, next) => {
 
     const [todayS, weekS, monthS, yearS] = await Promise.all([
       period(today, today),
-      period(fmt(weekAgo), today),
-      period(fmt(monthStart), today),
-      period(fmt(yearStart), today),
+      period(weekAgo, today),
+      period(monthStart, today),
+      period(yearStart, today),
     ]);
 
     const all = await pool.query(
@@ -81,7 +75,7 @@ router.get('/:vice_id', async (req, res, next) => {
       total_logged_days:    loggedDays,
       clean_days:           cleanDays,
       savings_from_clean_days: round2(savings),
-      current_streak: computeCurrentStreak(dateMap),
+      current_streak: computeCurrentStreak(dateMap, today),
       best_streak:    computeBestStreak(dateMap),
     });
   } catch (err) { next(err); }
@@ -89,30 +83,66 @@ router.get('/:vice_id', async (req, res, next) => {
 
 function round2(n) { return Math.round(n * 100) / 100; }
 
-// Count consecutive clean days ending at (or before) today.
-// Skips today if it has no entry yet; any gap or vice day breaks the streak.
-function computeCurrentStreak(dateMap) {
+// Validate and normalise a timezone string; fall back to UTC on invalid input.
+function parseTz(tz) {
+  if (!tz) return 'UTC';
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+}
+
+// Return today's date string (YYYY-MM-DD) in the given IANA timezone.
+function localDateStr(tz) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+}
+
+// Return the four date-window boundaries (all YYYY-MM-DD) in the user's timezone.
+function dateWindows(tz) {
+  const today = localDateStr(tz);
+  const [y, m, d] = today.split('-').map(Number);
+  const pad = n => String(n).padStart(2, '0');
+
+  const weekAgoDate = new Date(Date.UTC(y, m - 1, d - 6));
+  const weekAgo    = `${weekAgoDate.getUTCFullYear()}-${pad(weekAgoDate.getUTCMonth() + 1)}-${pad(weekAgoDate.getUTCDate())}`;
+  const monthStart = `${y}-${pad(m)}-01`;
+  const yearStart  = `${y}-01-01`;
+
+  return { today, weekAgo, monthStart, yearStart };
+}
+
+// Subtract N days from a YYYY-MM-DD string, returning a new YYYY-MM-DD string.
+function subtractDay(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  const pad = n => String(n).padStart(2, '0');
+  return `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(prev.getUTCDate())}`;
+}
+
+// Count consecutive clean days ending at (or before) today in the user's timezone.
+// Skips today if no entry logged yet; any gap or vice day breaks the streak.
+function computeCurrentStreak(dateMap, todayStr) {
   let streak = 0;
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
+  let current = todayStr;
   let skippedToday = false;
 
   for (let i = 0; i < 365; i++) {
-    const ds = d.toISOString().split('T')[0];
-    if (ds in dateMap) {
-      if (dateMap[ds]) {
+    if (current in dateMap) {
+      if (dateMap[current]) {
         streak++;
       } else {
-        break; // vice day ends streak
+        break; // vice day — streak ends
       }
     } else {
       if (streak === 0 && !skippedToday) {
-        skippedToday = true; // haven't logged today yet — look back one more day
+        skippedToday = true; // today not logged yet — look one more day back
       } else {
-        break; // gap in logging ends streak
+        break; // gap in logging — streak ends
       }
     }
-    d.setDate(d.getDate() - 1);
+    current = subtractDay(current);
   }
   return streak;
 }

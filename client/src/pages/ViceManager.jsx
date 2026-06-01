@@ -353,7 +353,7 @@ export default function ViceManager() {
     setVicesLoading(false);
     const statsMap = {};
     await Promise.all(data.map(async v => {
-      try { statsMap[v.id] = await apiRef.current(`/api/stats/${v.id}`); } catch (_) {}
+      try { statsMap[v.id] = await apiRef.current(`/api/stats/${v.id}?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`); } catch (_) {}
     }));
     setViceStats(statsMap);
   }, []);

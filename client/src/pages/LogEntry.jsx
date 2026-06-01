@@ -46,7 +46,7 @@ export default function LogEntry() {
     if (!selectedViceId) return;
     if (!editingEntry) setTotalSpent('');
     loadRecentEntries(selectedViceId);
-    api(`/api/stats/${selectedViceId}`)
+    api(`/api/stats/${selectedViceId}?tz=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`)
       .then(s => setViceStreak({ current: s.current_streak, best: s.best_streak }))
       .catch(() => {});
   }, [selectedViceId]); // eslint-disable-line react-hooks/exhaustive-deps
