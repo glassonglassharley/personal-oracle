@@ -489,6 +489,10 @@ export default function Dashboard() {
             ))}
           </div>
 
+          <Link className="btn btn-lg mobile-log-cta" to="/log" style={{ textDecoration: 'none' }}>
+            <span>＋</span> Log Entry
+          </Link>
+
           {(stats.current_streak > 0 || stats.best_streak > 0) && (
             <div className="streak-card">
               <div className="streak-main">

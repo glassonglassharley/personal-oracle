@@ -909,6 +909,16 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .mobile-signout-btn:hover { background: rgba(12,42,31,0.08); color: var(--ink, #0c2a1f); }
 
+/* ── Mobile-only dashboard log CTA ──────────────── */
+.mobile-log-cta { display: none; }
+@media (max-width: 768px) {
+  .mobile-log-cta {
+    display: flex; width: 100%; justify-content: center;
+    margin-bottom: 20px; font-size: 15px; font-weight: 600;
+    border-radius: 12px; letter-spacing: -0.01em;
+  }
+}
+
 /* ── Clean mobile topbar logo + wordmark ─────────── */
 .mobile-brand-mark {
   display: block; height: 32px; width: auto; flex-shrink: 0;
