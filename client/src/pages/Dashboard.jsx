@@ -493,6 +493,8 @@ export default function Dashboard() {
             <span>＋</span> Log Entry
           </Link>
 
+          <InsightsPanel />
+
           {(stats.current_streak > 0 || stats.best_streak > 0) && (
             <div className="streak-card">
               <div className="streak-main">
@@ -645,7 +647,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <InsightsPanel />
         </>
       )}
 
