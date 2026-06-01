@@ -14,7 +14,7 @@ export default function LogEntry() {
   const { vices, activeViceId } = useViceContext();
 
   const [selectedViceId, setSelectedViceId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => new Intl.DateTimeFormat('en-CA').format(new Date()));
   const [quantity, setQuantity] = useState(0);
   const [totalSpent, setTotalSpent] = useState('');
   const [recentEntries, setRecentEntries] = useState([]);
@@ -117,7 +117,7 @@ export default function LogEntry() {
 
   const cancelEdit = () => {
     setEditingEntry(null);
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(new Intl.DateTimeFormat('en-CA').format(new Date()));
     setQuantity(0);
     setTotalSpent('');
     setErrorMsg('');
