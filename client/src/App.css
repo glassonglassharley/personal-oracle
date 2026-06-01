@@ -145,6 +145,8 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   image-rendering: crisp-edges;
   image-rendering: -webkit-optimize-contrast;
 }
+/* Sidebar wordmark — hidden on desktop, shown in mobile drawer */
+.side-brand-wordmark { display: none; }
 /* collapsed sidebar mark — same PNG at natural aspect ratio */
 .brand-mark-svg {
   display: block;
@@ -2203,6 +2205,40 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     border: 1px solid var(--rule-2); color: var(--ink-2);
     background: var(--paper-2); display: grid; place-items: center;
     font-size: 24px; line-height: 1; flex-shrink: 0;
+  }
+
+  /* ── Mobile sidebar header row ── */
+  .side .side-top {
+    min-height: 56px;
+    height: 56px;
+    padding: 0;
+    flex-shrink: 0;
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 4px;
+  }
+  .side .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  .side .brand-logo-svg {
+    height: 28px;
+    max-width: none;
+  }
+  .side-brand-wordmark {
+    display: block;
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--money);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.01em;
+    line-height: 1;
   }
 
   /* ── Premium mobile landing page ─────────────────── */

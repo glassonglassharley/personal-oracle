@@ -75,6 +75,7 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
           {collapsed
             ? <VtvMark className="brand-mark-svg" />
             : <VtvLogo className="brand-logo-svg" />}
+          <span className="side-brand-wordmark">Vice to Value</span>
         </div>
         <button className="side-collapse" onClick={() => setCollapsed(c => !c)} aria-label="Toggle sidebar">
           {collapsed ? '›' : '‹'}
