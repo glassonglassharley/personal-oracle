@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
 import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
 const Savings           = lazy(() => import('./pages/Savings'));
@@ -239,13 +239,9 @@ function NightlyReminder({ collapsed = false }) {
   );
 }
 
-function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
-  const { isDemo, demoUsername, stopDemo, isWallet, stopWallet } = useDemoAuth();
-
-  const handleSignOut = () => {
-    if (isWallet) { stopWallet(); return; }
-    if (isDemo)   { stopDemo();   return; }
-  };
+function MobileTopBar({ mobileOpen, setMobileOpen }) {
+  const { isDemo, demoUsername, isWallet } = useDemoAuth();
+  const initial = isWallet ? '◈' : isDemo ? (demoUsername || '?').slice(0, 1).toUpperCase() : null;
 
   return (
     <header className="mobile-topbar">
@@ -261,25 +257,11 @@ function MobileTopBar({ subtitle, mobileOpen, setMobileOpen }) {
       </button>
 
       <div className="mobile-brand">
-        <VtvMark className="brand-mark-svg" />
-        <div>
-          {/* Show username when signed in via username/wallet auth */}
-          <div className="mobile-brand-name">
-            {isDemo ? demoUsername : isWallet ? 'Wallet' : 'Vice to Value'}
-          </div>
-          <div className="mobile-vice-name">
-            {isDemo || isWallet ? 'Vice to Value' : subtitle || ''}
-          </div>
-        </div>
+        <VtvMark className="mobile-brand-mark" />
+        <span className="mobile-brand-wordmark">Vice to Value</span>
       </div>
 
-      {(isDemo || isWallet) ? (
-        <button className="mobile-signout-btn" type="button" onClick={handleSignOut}>
-          Sign out
-        </button>
-      ) : (
-        <AccountControl collapsed />
-      )}
+      {initial && <div className="mobile-user-pill" aria-hidden="true">{initial}</div>}
     </header>
   );
 }
@@ -313,7 +295,6 @@ function MobileBottomNav() {
 
 function AuthenticatedApp() {
   const api = useApi();
-  const location = useLocation();
   const apiRef = useRef(api);
   apiRef.current = api;
 
@@ -387,15 +368,11 @@ function AuthenticatedApp() {
   };
 
   const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, companion, setCompanion, setShowOnboarding, theme };
-  const activeVice = vices.find(v => v.id === activeViceId);
-  const mobileSubtitle = location.pathname === '/log' && activeVice
-    ? `${activeVice.emoji} ${activeVice.name}`
-    : 'All vices';
 
   return (
     <ViceContext.Provider value={ctx}>
       <div className={`shell${collapsed ? ' collapsed' : ''}`}>
-        <MobileTopBar subtitle={mobileSubtitle} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <MobileTopBar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
         {mobileOpen && <button className="mobile-menu-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
         <Sidebar
           theme={theme}

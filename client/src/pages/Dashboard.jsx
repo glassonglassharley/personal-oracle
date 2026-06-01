@@ -331,10 +331,14 @@ export default function Dashboard() {
     });
   }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 520;
+
   const chartData = {
     labels: last7.map(({ date }) => {
       const d = new Date(date + 'T00:00:00');
-      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+      return isMobileView
+        ? d.toLocaleDateString('en-US', { weekday: 'short' })
+        : d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
     }),
     datasets: [{
       label: 'Combined spend',
@@ -360,7 +364,7 @@ export default function Dashboard() {
         grid: { color: 'rgba(128,128,128,0.08)' },
         ticks: { color: inkColor, callback: value => fmt$(value) },
       },
-      x: { grid: { display: false }, ticks: { color: inkColor } },
+      x: { grid: { display: false }, ticks: { color: inkColor, maxRotation: 0, font: { size: isMobileView ? 9 : 11 } } },
     }
   };
 

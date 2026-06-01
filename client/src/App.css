@@ -900,7 +900,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   font-size: 12.5px; color: #3a6a4a; line-height: 1.55;
 }
 
-/* Mobile topbar sign-out button */
+/* Mobile topbar sign-out button (kept for backwards-compat; no longer rendered) */
 .mobile-signout-btn {
   background: none; border: 1px solid rgba(12,42,31,0.22); border-radius: 8px;
   padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 600;
@@ -908,6 +908,23 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   transition: background 0.12s, color 0.12s;
 }
 .mobile-signout-btn:hover { background: rgba(12,42,31,0.08); color: var(--ink, #0c2a1f); }
+
+/* ── Clean mobile topbar logo + wordmark ─────────── */
+.mobile-brand-mark {
+  display: block; height: 32px; width: auto; flex-shrink: 0;
+}
+.mobile-brand-wordmark {
+  font-family: var(--serif); font-size: 17px; font-weight: 400;
+  color: var(--money); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; letter-spacing: -0.02em; line-height: 1;
+}
+.mobile-user-pill {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--money-soft); color: var(--money);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  border: 1px solid var(--rule-2);
+}
 .demo-login-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .username-token-issued {
   display: grid; gap: 7px; margin-top: 2px; padding: 10px 12px;
@@ -2391,6 +2408,16 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     padding: calc(88px + env(safe-area-inset-top, 0px)) 16px calc(112px + env(safe-area-inset-bottom, 0px));
     max-width: 100%; width: 100%; min-width: 0; overflow-x: hidden;
   }
+
+  /* ── Tap targets: 48px buttons, 48px inputs ──────── */
+  .btn { min-height: 48px; }
+  .btn-sm { min-height: 40px; padding: 8px 12px; }
+  /* Prevent iOS auto-zoom; ensure tap target height */
+  .form-input, .form-select { font-size: 16px; min-height: 48px; width: 100%; }
+  /* Insight card buttons always full-width */
+  .insight-card .btn, .insight-card-top .btn { width: 100%; justify-content: center; }
+  /* Budget bar fills full panel width */
+  .budget-bar { width: 100%; }
   .hero { grid-template-columns: 1fr; gap: 24px; }
   .hero-headline { font-size: 32px; }
   .hero-amount { font-size: clamp(58px, 18vw, 72px); }
@@ -2493,23 +2520,23 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     line-height: 1.45;
   }
   .stats-strip {
-    grid-template-columns: 1fr;
+    /* Keep 2×2 grid — inherited from 768px; single-col is too tall on phones */
     border-radius: 14px;
   }
   .stat {
-    border-left: none;
-    border-top: 1px solid var(--rule);
-    padding: 16px;
-  }
-  .stat:first-child {
-    border-top: none;
+    padding: 13px 11px;
   }
   .stat-key {
-    margin-bottom: 6px;
+    font-size: 9.5px;
+    margin-bottom: 5px;
   }
   .stat-val {
-    font-size: 32px;
-    line-height: 1;
+    font-size: clamp(15px, 4vw, 22px);
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+  .stat-val .small {
+    font-size: 10px;
   }
   .grid-2 {
     gap: 14px;
