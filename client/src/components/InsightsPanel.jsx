@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { VtvMark } from '../Logo';
 import { useViceContext } from '../ViceContext';
-import { useDemoAuth } from '../useApi';
+import { useApi } from '../useApi';
 
 const PRESET_PROMPTS = [
   "What's my worst vice financially?",
@@ -10,24 +9,8 @@ const PRESET_PROMPTS = [
   'Where should I cut first?',
 ];
 
-async function buildAuthHeaders(getToken, isWallet, walletPublicKey, walletToken, isDemo, demoUsername, usernameToken) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (isWallet && walletPublicKey && walletToken) {
-    headers['X-Wallet-Address'] = walletPublicKey;
-    headers['X-Wallet-Token'] = walletToken;
-  } else if (isDemo && demoUsername && usernameToken) {
-    headers['X-Username-Auth'] = demoUsername;
-    headers['X-Username-Token'] = usernameToken;
-  } else {
-    const token = await getToken();
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
-}
-
 export default function InsightsPanel() {
-  const { getToken } = useAuth();
-  const { isWallet, walletPublicKey, walletToken, isDemo, demoUsername, usernameToken } = useDemoAuth();
+  const api = useApi();
   const { vices, viceStats } = useViceContext();
 
   const [insight, setInsight] = useState('');
@@ -45,11 +28,8 @@ export default function InsightsPanel() {
     setStreaming(true);
 
     try {
-      const headers = await buildAuthHeaders(getToken, isWallet, walletPublicKey, walletToken, isDemo, demoUsername, usernameToken);
-
-      const res = await fetch('/api/insights', {
+      const { text } = await api('/api/insights', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           vices: vices.map(v => ({
             id: v.id,
@@ -62,13 +42,6 @@ export default function InsightsPanel() {
           prompt: prompt || undefined,
         }),
       });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
-      }
-
-      const { text } = await res.json();
       if (!text) throw new Error('No response from AI.');
 
       let i = 0;
@@ -84,7 +57,7 @@ export default function InsightsPanel() {
       setError(err.message || 'Something went wrong.');
       setStreaming(false);
     }
-  }, [streaming, vices, viceStats, getToken, isWallet, walletPublicKey, walletToken, isDemo, demoUsername, usernameToken]);
+  }, [streaming, vices, viceStats, api]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasData = vices.length > 0;
 
