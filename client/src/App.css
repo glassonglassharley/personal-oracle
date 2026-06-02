@@ -923,7 +923,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 
 /* ── Clean mobile topbar logo + wordmark ─────────── */
 .mobile-brand-mark {
-  display: block; height: 32px; width: auto; flex-shrink: 0;
+  display: block; height: 36px; width: 36px; flex-shrink: 0;
 }
 .mobile-brand-wordmark {
   font-family: var(--serif); font-size: 17px; font-weight: 400;
@@ -2176,7 +2176,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .hamburger-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
   .mobile-brand { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
-  .mobile-brand .brand-mark-svg { display: block; width: auto; max-width: 150px; height: 48px; object-fit: contain; object-position: left center; }
+  .mobile-brand-mark { height: 36px; width: 36px; }
   .mobile-brand-name {
     font-family: var(--serif); font-size: 18px; line-height: 1.05;
     color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
