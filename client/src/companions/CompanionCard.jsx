@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import TreeSVG from './TreeSVG';
 import CharacterSVG from './CharacterSVG';
-import { TREE_SPECIES, CHARACTER_ARCHETYPES, getLevelTier } from './companionData';
+import { TREE_SPECIES, CHARACTER_ARCHETYPES, getLevelTier, getProgressionName } from './companionData';
 
 function HistoryModal({ milestones, name, onClose }) {
   return (
@@ -45,6 +45,12 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
   const label = isTree
     ? (speciesData?.name || 'Tree')
     : (archetypeData?.name || 'Hero');
+
+  const progressionName = getProgressionName(
+    isTree ? (g.treeGrowthState || 1) : (g.charLevel || 1),
+    companion_type,
+    state.archetype
+  );
 
   const shareText = isTree
     ? [
@@ -126,8 +132,12 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
           {isTree ? (
             <>
               <div className="comp-stat-row">
+                <span className="comp-stat-label">Stage</span>
+                <span className="comp-stat-val">{progressionName}</span>
+              </div>
+              <div className="comp-stat-row">
                 <span className="comp-stat-label">Growth</span>
-                <span className="comp-stat-val">Stage {g.treeGrowthState || 1}/5</span>
+                <span className="comp-stat-val">{g.treeGrowthState || 1}/5</span>
               </div>
               <div className="comp-progress-wrap">
                 <div className="comp-progress-bar">
@@ -158,6 +168,10 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
           ) : (
             <>
               <div className="comp-stat-row">
+                <span className="comp-stat-label">Rank</span>
+                <span className="comp-stat-val">{progressionName}</span>
+              </div>
+              <div className="comp-stat-row">
                 <span className="comp-stat-label">Level</span>
                 <span className="comp-stat-val">{g.charLevel || 1}</span>
               </div>
@@ -166,10 +180,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
                   <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
                 </div>
                 <span className="comp-xp-label">{Math.round(growthPct)}% to next</span>
-              </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Tier</span>
-                <span className={`comp-stat-val comp-tier-${tier}`}>{tier.charAt(0).toUpperCase() + tier.slice(1)}</span>
               </div>
               <div className="comp-stat-row">
                 <span className="comp-stat-label">Clean days</span>

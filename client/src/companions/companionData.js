@@ -150,6 +150,32 @@ export const BACKGROUNDS = [
   { id: 'space', name: 'Space', sky1: '#000000', sky2: '#0a0a2a', ground: '#1a1a2e' },
 ];
 
+// ── Progression names per companion type ──────────────────────────────────
+export const LEVEL_PROGRESSIONS = {
+  tree:      ['Seedling', 'Sprout', 'Sapling', 'Young Tree', 'Rooted', 'Thriving', 'Flourishing', 'Resilient', 'Transformed', 'Legendary'],
+  fighter:   ['Recruit', 'Squire', 'Soldier', 'Veteran', 'Elite', 'Champion', 'Commander', 'Warlord', 'Mythic', 'Legendary'],
+  mage:      ['Apprentice', 'Initiate', 'Adept', 'Sorcerer', 'Enchanter', 'Mage', 'Archmage', 'Sage', 'Oracle', 'Legendary'],
+  ranger:    ['Scout', 'Tracker', 'Ranger', 'Pathfinder', 'Strider', 'Warden', 'Sentinel', 'Guardian', 'Wanderer', 'Legendary'],
+  monk_type: ['Initiate', 'Disciple', 'Student', 'Practitioner', 'Adept', 'Master', 'Grand Master', 'Sage', 'Enlightened', 'Legendary'],
+  athlete:   ['Rookie', 'Amateur', 'Contender', 'Pro', 'Elite', 'All-Star', 'Champion', 'MVP', 'Icon', 'Legendary'],
+  stealth:   ['Novice', 'Operative', 'Shadow', 'Infiltrator', 'Ghost', 'Phantom', 'Specter', 'Wraith', 'Assassin', 'Legendary'],
+  creative:  ['Tinkerer', 'Apprentice', 'Craftsman', 'Artisan', 'Virtuoso', 'Expert', 'Master', 'Grandmaster', 'Visionary', 'Legendary'],
+  hero:      ['Trainee', 'Cadet', 'Operative', 'Guardian', 'Hero', 'Protector', 'Champion', 'Avenger', 'Icon', 'Legendary'],
+};
+
+export function getProgressionName(level, companionType, archetype) {
+  const idx = Math.min(Math.max((level || 1) - 1, 0), 9);
+  if (!companionType || companionType === 'tree') return LEVEL_PROGRESSIONS.tree[idx];
+  const archetypeData = CHARACTER_ARCHETYPES.find(a => a.id === archetype);
+  const group = archetypeData?.group || 'fighter';
+  return (LEVEL_PROGRESSIONS[group] || LEVEL_PROGRESSIONS.fighter)[idx];
+}
+
+export function getProgressionIcon(companionType, archetype) {
+  if (!companionType || companionType === 'tree') return null; // server-supplied tree icons used
+  return CHARACTER_ARCHETYPES.find(a => a.id === archetype)?.emoji || '⚔️';
+}
+
 export function getLevelTier(level) {
   if (level >= 20) return 'legendary';
   if (level >= 11) return 'advanced';

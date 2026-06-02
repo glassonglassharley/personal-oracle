@@ -79,6 +79,7 @@ import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 import CompanionCard from '../companions/CompanionCard';
 import BadgesSection from './BadgesSection';
 import InsightsPanel from '../components/InsightsPanel';
+import { getProgressionName, getProgressionIcon } from '../companions/companionData';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -232,7 +233,15 @@ export default function Dashboard() {
         const storedLevel = parseInt(localStorage.getItem('vt-last-level') || '0', 10);
         if (storedLevel > 0 && data.level > storedLevel) {
           setLevelUpOverlay(data);
-          setLevelUpMsg(`Level up! You're now a ${data.level_name} ${data.level_icon}`);
+          // Use companion from context at toast time — companion may load concurrently
+          const comp = companion;
+          const levelName = comp?.companion_type
+            ? getProgressionName(data.level, comp.companion_type, comp.companion_state?.archetype)
+            : data.level_name;
+          const icon = comp?.companion_type === 'character'
+            ? (getProgressionIcon(comp.companion_type, comp.companion_state?.archetype) || data.level_icon)
+            : data.level_icon;
+          setLevelUpMsg(`Level up! You're now a ${levelName} ${icon}`);
           setTimeout(() => setLevelUpMsg(''), 5000);
         }
         localStorage.setItem('vt-last-level', String(data.level));
@@ -546,28 +555,42 @@ export default function Dashboard() {
             </div>
           )}
 
-          {xpData && (
-            <div className="xp-card">
-              {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
-              <div className="xp-card-top">
-                <div className="xp-level-icon">{xpData.level_icon}</div>
-                <div>
-                  <div className="xp-level-name">{xpData.level_name}</div>
-                  <div className="xp-level-num">Level {xpData.level}</div>
+          {xpData && (() => {
+            const compType = companion?.companion_type;
+            const archetype = companion?.companion_state?.archetype;
+            const isChar = compType === 'character';
+            const levelName = compType
+              ? getProgressionName(xpData.level, compType, archetype)
+              : xpData.level_name;
+            const nextLevelName = compType
+              ? getProgressionName(xpData.level + 1, compType, archetype)
+              : xpData.next_level_name;
+            const levelIcon = isChar
+              ? (getProgressionIcon(compType, archetype) || xpData.level_icon)
+              : xpData.level_icon;
+            return (
+              <div className="xp-card">
+                {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
+                <div className="xp-card-top">
+                  <div className="xp-level-icon">{levelIcon}</div>
+                  <div>
+                    <div className="xp-level-name">{levelName}</div>
+                    <div className="xp-level-num">Level {xpData.level}</div>
+                  </div>
+                  <div className="xp-total">{xpData.total_xp.toLocaleString()} XP</div>
                 </div>
-                <div className="xp-total">{xpData.total_xp.toLocaleString()} XP</div>
+                <div className="xp-bar-track">
+                  <div className="xp-bar-fill" style={{ width: `${xpData.progress_percent}%` }} />
+                </div>
+                <div className="xp-bar-foot">
+                  <span>{xpData.total_xp} / {xpData.total_xp + xpData.xp_to_next_level} XP</span>
+                  {nextLevelName && (
+                    <span>Next: {nextLevelName} {isChar ? levelIcon : xpData.next_level_icon}</span>
+                  )}
+                </div>
               </div>
-              <div className="xp-bar-track">
-                <div className="xp-bar-fill" style={{ width: `${xpData.progress_percent}%` }} />
-              </div>
-              <div className="xp-bar-foot">
-                <span>{xpData.total_xp} / {xpData.total_xp + xpData.xp_to_next_level} XP</span>
-                {xpData.next_level_name && (
-                  <span>Next: {xpData.next_level_name} {xpData.next_level_icon}</span>
-                )}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           <InsightsPanel stats={stats} xpData={xpData} />
 
