@@ -1364,7 +1364,8 @@ function SignedOutContent() {
       {/* Hero / left column */}
       <section className="landing-hero" aria-label="Vice to Value">
         <div className="landing-logo-row">
-          <VtvLogo className="auth-logo-svg" />
+          <img src="/icon-512.png" alt="Vice to Value" className="landing-logo-img" />
+          <span className="landing-logo-wordmark">Vice to Value</span>
         </div>
 
         <div className="landing-hero-copy">

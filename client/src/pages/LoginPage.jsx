@@ -1,15 +1,3 @@
-import Logo from '../components/Logo';
-
-/**
- * Branded split-screen login page.
- *
- * Pass a Clerk auth component as `authComponent`:
- *   import { SignIn } from '@clerk/clerk-react';
- *   <Route path="/sign-in" element={<LoginPage authComponent={SignIn} />} />
- *
- * Or pass any custom auth UI as children:
- *   <LoginPage><YourAuthForm /></LoginPage>
- */
 export default function LoginPage({ authComponent: AuthComponent, children }) {
   return (
     <div style={s.page}>
@@ -19,7 +7,8 @@ export default function LoginPage({ authComponent: AuthComponent, children }) {
       {/* ── Left hero panel ── */}
       <section style={s.hero} aria-label="Vice to Value">
         <div style={s.logoRow}>
-          <Logo size={52} variant="full" pulse />
+          <img src="/icon-512.png" alt="Vice to Value" style={s.logoImg} />
+          <span style={s.logoWordmark}>Vice to Value</span>
         </div>
 
         <div style={s.heroCopy} className="vtv-animate-up">
@@ -93,7 +82,17 @@ const s = {
     position: 'relative',
     zIndex: 1,
   },
-  logoRow: { display: 'flex' },
+  logoRow: { display: 'flex', alignItems: 'center', gap: 14 },
+  logoImg: {
+    height: 80, width: 80, borderRadius: 18, objectFit: 'contain', flexShrink: 0,
+    mixBlendMode: 'screen',
+    boxShadow: '0 0 32px rgba(74, 222, 128, 0.25)',
+  },
+  logoWordmark: {
+    fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em',
+    color: '#c9a84c',
+    fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif',
+  },
   heroCopy: { display: 'flex', flexDirection: 'column', gap: 14 },
   kicker: {
     fontSize: 12, fontWeight: 700, letterSpacing: '0.14em',
