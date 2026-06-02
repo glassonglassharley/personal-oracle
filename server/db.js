@@ -158,6 +158,18 @@ const MIGRATIONS = `
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS magic_links_user_id_idx ON magic_links (user_id);
+
+  CREATE TABLE IF NOT EXISTS user_assets (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    emoji TEXT NOT NULL DEFAULT '📦',
+    category TEXT NOT NULL DEFAULT 'investment',
+    annual_return_pct FLOAT NOT NULL DEFAULT 0,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS user_assets_user_id_idx ON user_assets (user_id);
 `;
 
 const { backupEntries } = require('./backup');

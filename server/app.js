@@ -140,6 +140,7 @@ app.use('/api/plaid',    require('./routes/plaid'));
 app.use('/api/badges',   require('./routes/badges'));
 app.use('/api/xp',       require('./routes/xp'));
 app.use('/api/insights', require('./routes/insights'));
+app.use('/api/assets',  require('./routes/assets'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;

@@ -133,6 +133,23 @@ function withAlpha(color, alpha) {
   return color;
 }
 
+const CATEGORY_PRESETS = [
+  { label: 'Stocks / ETFs',         emoji: '📈', rate: 10,  description: 'Broad market index funds' },
+  { label: 'Crypto — Bitcoin',      emoji: '₿',  rate: 40,  description: 'Historical BTC annualized return' },
+  { label: 'Crypto — Ethereum',     emoji: '⟠',  rate: 30,  description: 'Historical ETH annualized return' },
+  { label: 'Crypto — Other',        emoji: '🪙', rate: 25,  description: 'Altcoin (high risk)' },
+  { label: 'Real Estate',           emoji: '🏠', rate: 8,   description: 'Appreciation + rental yield' },
+  { label: 'Gold / Precious Metals',emoji: '🥇', rate: 7,   description: 'Historical gold return' },
+  { label: 'High-Yield Savings',    emoji: '🏦', rate: 4.5, description: 'Current HYSA rates' },
+  { label: 'Art',                   emoji: '🎨', rate: 7,   description: 'Fine art / Masterworks avg' },
+  { label: 'Sneakers / Streetwear', emoji: '👟', rate: 20,  description: 'StockX avg resale appreciation' },
+  { label: 'Watches',               emoji: '⌚', rate: 10,  description: 'Luxury watch market avg' },
+  { label: 'Trading Cards',         emoji: '🃏', rate: 15,  description: 'Sports cards / collectibles' },
+  { label: 'Wine / Whiskey',        emoji: '🍷', rate: 12,  description: 'Fine wine / rare spirits' },
+  { label: 'Vintage Cars',          emoji: '🚗', rate: 8,   description: 'Classic car appreciation' },
+  { label: 'Custom',                emoji: '📦', rate: 0,   description: '' },
+];
+
 export default function Savings() {
   const api = useApi();
   const { vices, theme } = useViceContext();
@@ -149,6 +166,13 @@ export default function Savings() {
   });
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
+
+  // Custom assets (server-backed)
+  const [userAssets, setUserAssets] = useState([]);
+  const [assetModalOpen, setAssetModalOpen] = useState(false);
+  const [assetForm, setAssetForm] = useState({ name: '', emoji: '📦', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
+  const [assetFormError, setAssetFormError] = useState('');
+  const [assetSaving, setAssetSaving] = useState(false);
 
   // Resolve CSS vars synchronously during render — useMemo runs in the render
   // phase, so by the time this fires the body class is already updated and
@@ -203,6 +227,57 @@ export default function Savings() {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(CUSTOM_GOALS_KEY, JSON.stringify(customGoals));
   }, [customGoals]);
+
+  useEffect(() => {
+    api('/api/assets').then(setUserAssets).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAssetCategoryChange = (label) => {
+    const preset = CATEGORY_PRESETS.find(p => p.label === label);
+    if (preset) {
+      setAssetForm(f => ({
+        ...f,
+        category: label,
+        emoji: preset.emoji,
+        annual_return_pct: String(preset.rate),
+        description: preset.description,
+      }));
+    }
+  };
+
+  const handleAssetSubmit = async (e) => {
+    e.preventDefault();
+    setAssetFormError('');
+    const name = assetForm.name.trim();
+    if (!name) { setAssetFormError('Give it a name.'); return; }
+    const rate = parseFloat(assetForm.annual_return_pct);
+    if (!Number.isFinite(rate) || rate < 0) { setAssetFormError('Enter a valid annual return %.'); return; }
+    setAssetSaving(true);
+    try {
+      const created = await api('/api/assets', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          emoji: assetForm.emoji || '📦',
+          category: assetForm.category,
+          annual_return_pct: rate,
+          description: assetForm.description.trim(),
+        }),
+      });
+      setUserAssets(prev => [...prev, created]);
+      setAssetForm({ name: '', emoji: '📦', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
+      setAssetModalOpen(false);
+    } catch (err) {
+      setAssetFormError(err.message || 'Could not save. Try again.');
+    } finally {
+      setAssetSaving(false);
+    }
+  };
+
+  const removeUserAsset = async (id) => {
+    setUserAssets(prev => prev.filter(a => a.id !== id));
+    await api(`/api/assets/${id}`, { method: 'DELETE' }).catch(() => {});
+  };
 
   const handleCustomGoalSubmit = event => {
     event.preventDefault();
@@ -323,14 +398,34 @@ export default function Savings() {
       return { ...goal, savedPct, remaining, daysAway };
     })
     .sort((a, b) => a.cost - b.cost);
-  const investmentCards = themedAssets
+  const builtInInvestmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
       const value = dcaFV(perDay, asset.rate, horizon);
       const gain = value - projected;
       const gainPct = projected > 0 ? (gain / projected) * 100 : 0;
-      return { ...asset, value, gain, gainPct };
+      return { ...asset, value, gain, gainPct, custom: false };
     });
+
+  const userAssetCards = userAssets.map(asset => {
+    const rate = (asset.annual_return_pct || 0) / 100;
+    const value = dcaFV(perDay, rate, horizon);
+    const gain = value - projected;
+    const gainPct = projected > 0 ? (gain / projected) * 100 : 0;
+    return {
+      key: `user-${asset.id}`,
+      id: asset.id,
+      cardLabel: asset.name,
+      icon: asset.emoji,
+      rate,
+      description: asset.description || asset.category,
+      color: chartColors.ink2,
+      value, gain, gainPct,
+      custom: true,
+    };
+  });
+
+  const investmentCards = [...builtInInvestmentCards, ...userAssetCards];
 
   if (vices.length === 0) {
     return (
@@ -514,19 +609,31 @@ export default function Savings() {
         <div className="sv-section">
           <div className="sv-section-head">
             <span className="sv-section-title">If you bought assets instead</span>
-            <span className="sv-section-sub">
-              Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span className="sv-section-sub">
+                Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
+              </span>
+              <button className="sv-add-asset-btn" onClick={() => setAssetModalOpen(true)} title="Add custom asset">
+                + Add asset
+              </button>
+            </div>
           </div>
           <div className="sv-invest-grid">
             {investmentCards.map(asset => (
-              <div key={asset.key} className="sv-invest-card" data-asset={asset.key}>
+              <div key={asset.key} className="sv-invest-card" data-asset={asset.key} style={asset.custom ? { borderColor: 'rgba(212,175,55,0.3)' } : {}}>
                 <div className="sv-invest-top">
                   <span className="sv-invest-icon">{asset.icon}</span>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div className="sv-invest-name">{asset.cardLabel}</div>
                     <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
                   </div>
+                  {asset.custom && (
+                    <button
+                      className="sv-asset-delete"
+                      onClick={() => removeUserAsset(asset.id)}
+                      aria-label={`Remove ${asset.cardLabel}`}
+                    >×</button>
+                  )}
                 </div>
                 <div className="sv-invest-value">{fmt$0(asset.value)}</div>
                 <div className="sv-invest-gain">
@@ -540,6 +647,87 @@ export default function Savings() {
           <p className="sv-disclaimer">
             These are illustrative projections using fixed annualized returns — not live prices or financial advice.
           </p>
+        </div>
+      )}
+
+      {/* ── Add Asset Modal ── */}
+      {assetModalOpen && (
+        <div className="sv-modal-backdrop" onClick={() => setAssetModalOpen(false)}>
+          <div className="sv-modal" onClick={e => e.stopPropagation()}>
+            <div className="sv-modal-head">
+              <span className="sv-modal-title">Add asset to compare</span>
+              <button className="sv-modal-close" onClick={() => setAssetModalOpen(false)}>×</button>
+            </div>
+            <p className="sv-modal-sub">Stocks, crypto, real estate, art, sneakers, collectibles — anything you might buy instead.</p>
+            <form onSubmit={handleAssetSubmit}>
+              <div className="sv-modal-field">
+                <label className="sv-modal-label">Category</label>
+                <select
+                  className="form-input"
+                  value={assetForm.category}
+                  onChange={e => handleAssetCategoryChange(e.target.value)}
+                >
+                  {CATEGORY_PRESETS.map(p => (
+                    <option key={p.label} value={p.label}>{p.emoji} {p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sv-modal-row">
+                <div className="sv-modal-field" style={{ flex: '0 0 56px' }}>
+                  <label className="sv-modal-label">Icon</label>
+                  <input
+                    className="form-input sv-emoji-input"
+                    value={assetForm.emoji}
+                    onChange={e => setAssetForm(f => ({ ...f, emoji: e.target.value }))}
+                    maxLength={2}
+                    placeholder="📦"
+                  />
+                </div>
+                <div className="sv-modal-field" style={{ flex: 1 }}>
+                  <label className="sv-modal-label">Name</label>
+                  <input
+                    className="form-input"
+                    value={assetForm.name}
+                    onChange={e => setAssetForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Apple Stock, Rolex GMT, Rookie Cards"
+                    maxLength={80}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="sv-modal-field">
+                <label className="sv-modal-label">Expected annual return %</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="0.1"
+                  value={assetForm.annual_return_pct}
+                  onChange={e => setAssetForm(f => ({ ...f, annual_return_pct: e.target.value }))}
+                  placeholder="10"
+                />
+                <div className="sv-modal-hint">Use historical averages or your own estimate. 0% = no growth (just holding the item).</div>
+              </div>
+              <div className="sv-modal-field">
+                <label className="sv-modal-label">Note <span style={{ opacity: 0.5 }}>(optional)</span></label>
+                <input
+                  className="form-input"
+                  value={assetForm.description}
+                  onChange={e => setAssetForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="e.g. 10-year avg, my estimate"
+                  maxLength={200}
+                />
+              </div>
+              {assetFormError && <div className="form-error" style={{ marginBottom: 12 }}>{assetFormError}</div>}
+              <div className="sv-modal-actions">
+                <button type="button" className="btn ghost" onClick={() => setAssetModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn" disabled={assetSaving}>
+                  {assetSaving ? 'Saving…' : 'Add to my comparison'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

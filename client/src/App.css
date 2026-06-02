@@ -1229,6 +1229,42 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-invest-gain b { color: var(--asset-c); font-weight: 600; }
 .sv-invest-note { margin-top: 10px; color: var(--ink-4); font-size: 11px; line-height: 1.45; }
 .sv-disclaimer { margin-top: 12px; color: var(--ink-4); font-size: 11.5px; line-height: 1.5; }
+.sv-add-asset-btn {
+  background: transparent; border: 1px solid rgba(212,175,55,0.4); border-radius: 20px;
+  padding: 4px 12px; font-size: 12px; color: rgba(212,175,55,0.85);
+  cursor: pointer; white-space: nowrap; transition: border-color 0.15s, color 0.15s;
+}
+.sv-add-asset-btn:hover { border-color: rgba(212,175,55,0.8); color: #d4af37; }
+.sv-asset-delete {
+  background: transparent; border: none; color: var(--ink-3); font-size: 18px; line-height: 1;
+  cursor: pointer; padding: 0 0 0 8px; flex-shrink: 0; opacity: 0.6;
+  transition: opacity 0.15s; align-self: flex-start;
+}
+.sv-asset-delete:hover { opacity: 1; }
+/* Modal */
+.sv-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 500; padding: 16px;
+}
+.sv-modal {
+  background: var(--paper-2); border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 16px; padding: 28px; width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+}
+.sv-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sv-modal-title { font-size: 17px; font-weight: 700; color: var(--ink); }
+.sv-modal-close {
+  background: transparent; border: none; color: var(--ink-3);
+  font-size: 22px; cursor: pointer; line-height: 1; padding: 0;
+}
+.sv-modal-sub { font-size: 13px; color: var(--ink-3); margin-bottom: 20px; line-height: 1.5; }
+.sv-modal-field { margin-bottom: 14px; }
+.sv-modal-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.sv-modal-label { display: block; font-size: 11.5px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.sv-modal-hint { font-size: 11px; color: var(--ink-4); margin-top: 5px; line-height: 1.4; }
+.sv-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.sv-emoji-input { text-align: center; font-size: 22px; padding: 6px; }
 
 /* ── Milestone cards ──────────────────────────────── */
 .sv-ms-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; }
