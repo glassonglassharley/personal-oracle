@@ -54,12 +54,7 @@ export default function InsightsPanel() {
         }
       }, 14);
     } catch (err) {
-      const msg = err.message || '';
-      setError(
-        msg.includes('temporarily unavailable') || msg.includes('credit') || msg.includes('billing')
-          ? 'AI insights are temporarily unavailable.'
-          : 'Could not load insights. Try again in a moment.'
-      );
+      setError('Could not load insights. Try again in a moment.');
       setStreaming(false);
     }
   }, [streaming, vices, viceStats, api]); // eslint-disable-line react-hooks/exhaustive-deps
