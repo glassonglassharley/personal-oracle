@@ -31,27 +31,32 @@ export default function InsightsPanel({ stats, xpData }) {
       const s = viceStats[v.id];
       if (!s) { lines.push(`- ${v.emoji} ${v.name}: no entries yet`); return; }
       lines.push(`- ${v.emoji} ${v.name}`);
+      lines.push(`  All-time total: $${(s.all_time?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  First entry: ${s.first_entry_date ? String(s.first_entry_date).split('T')[0] : 'n/a'}`);
+      lines.push(`  Total days logged: ${s.total_logged_days ?? 0}`);
       lines.push(`  Today: $${(s.today?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This week: $${(s.week?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This month: $${(s.month?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This year: $${(s.year?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  Avg daily: $${(s.avg_daily_spend ?? 0).toFixed(2)}`);
+      lines.push(`  Avg daily spend (on vice days): $${(s.avg_daily_spend ?? 0).toFixed(2)}`);
+      lines.push(`  Projected monthly at current rate: $${(s.averages?.month?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  Projected annual at current rate: $${(s.averages?.year?.spend ?? 0).toFixed(2)}`);
       lines.push(`  Clean days: ${s.clean_days ?? 0}`);
       lines.push(`  Current streak: ${s.current_streak ?? 0} days`);
       lines.push(`  Best streak: ${s.best_streak ?? 0} days`);
       lines.push(`  Saved from clean days: $${(s.savings_from_clean_days ?? 0).toFixed(2)}`);
     });
     if (stats) {
-      lines.push('\nCombined totals:');
+      lines.push('\nCombined totals (all vices):');
       lines.push(`  Today: $${(stats.today?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This week: $${(stats.week?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This month: $${(stats.month?.spend ?? 0).toFixed(2)}`);
       lines.push(`  This year: $${(stats.year?.spend ?? 0).toFixed(2)}`);
       lines.push(`  Overall clean days: ${stats.clean_days ?? 0}`);
-      lines.push(`  Current streak: ${stats.current_streak ?? 0} days`);
-      lines.push(`  Best streak: ${stats.best_streak ?? 0} days`);
+      lines.push(`  Current combined streak: ${stats.current_streak ?? 0} days`);
+      lines.push(`  Best combined streak: ${stats.best_streak ?? 0} days`);
       lines.push(`  Saved from clean days: $${(stats.savings_from_clean_days ?? 0).toFixed(2)}`);
-      lines.push(`  Avg daily spend: $${(stats.avg_daily_spend ?? 0).toFixed(2)}`);
+      lines.push(`  Avg daily spend across all vices: $${(stats.avg_daily_spend ?? 0).toFixed(2)}`);
     }
     if (xpData) {
       lines.push('\nProgress:');
