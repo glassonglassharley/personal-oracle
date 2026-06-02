@@ -1113,6 +1113,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 /* ── Page title (non-savings pages) ──────────────── */
 .page-title { font-family: var(--serif); font-size: 22px; font-weight: 500; margin-bottom: 20px; letter-spacing: -0.4px; }
 .page-subtitle { color: var(--ink-3); font-size: 13px; margin-top: -12px; }
+.member-since { color: var(--ink-3); opacity: 0.75; white-space: nowrap; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .dashboard-head {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;

@@ -209,6 +209,9 @@ export default function Dashboard() {
   // Weekly AI insight
   const [weeklyInsight, setWeeklyInsight] = useState(null);
 
+  // Member since
+  const [memberSince, setMemberSince] = useState(null);
+
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -237,6 +240,9 @@ export default function Dashboard() {
     }).catch(() => {});
     apiRef.current('/api/insights/weekly', { method: 'POST' })
       .then(d => { if (d.insight) setWeeklyInsight(d.insight); })
+      .catch(() => {});
+    apiRef.current('/api/users/me')
+      .then(u => { if (u?.created_at) setMemberSince(new Date(u.created_at)); })
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -408,7 +414,14 @@ export default function Dashboard() {
       <div className="dashboard-head">
         <div>
           <div className="page-title">Dashboard</div>
-          <p className="page-subtitle">Combined overview across every tracked vice.</p>
+          <p className="page-subtitle">
+            Combined overview across every tracked vice.
+            {memberSince && (
+              <span className="member-since">
+                {' '}· Tracking since {memberSince.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+          </p>
         </div>
         <div className="db-head-actions">
           <Link className="btn ghost btn-sm" to="/savings" style={{ textDecoration: 'none' }}>
