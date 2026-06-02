@@ -182,7 +182,7 @@ export default function Dashboard() {
   const apiRef = useRef(api);
   apiRef.current = api;
 
-  const { vices, companion, setShowOnboarding } = useViceContext();
+  const { vices, companion, setShowOnboarding, viceFetchError, loadVices } = useViceContext();
   const [stats, setStats] = useState(null);
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -367,6 +367,19 @@ export default function Dashboard() {
       x: { grid: { display: false }, ticks: { color: inkColor, maxRotation: 0, font: { size: isMobileView ? 9 : 11 } } },
     }
   };
+
+  if (viceFetchError) {
+    return (
+      <main className="main">
+        <div className="empty-state">
+          <div className="empty-icon">⚠️</div>
+          <h2>Could not load your data</h2>
+          <p>There was a problem connecting to the server. Check your connection and try again.</p>
+          <button className="btn" style={{ marginTop: 16 }} onClick={loadVices}>Retry</button>
+        </div>
+      </main>
+    );
+  }
 
   if (vices.length === 0) {
     return (

@@ -301,6 +301,7 @@ function AuthenticatedApp() {
 
   const [vices, setVices] = useState([]);
   const [viceStats, setViceStats] = useState({});
+  const [viceFetchError, setViceFetchError] = useState(false);
   const [activeViceId, setActiveViceId] = useState(null);
   const [theme, setTheme] = useState(() => {
     const t = localStorage.getItem('vt-theme') || 'emerald';
@@ -330,6 +331,7 @@ function AuthenticatedApp() {
   }, [collapsed]);
 
   const loadVices = useCallback(() => {
+    setViceFetchError(false);
     apiRef.current('/api/vices').then(data => {
       const enriched = data.map((v, i) => ({ ...v, color: getViceColor(v, i) }));
       setVices(enriched);
@@ -339,7 +341,10 @@ function AuthenticatedApp() {
           .then(s => setViceStats(st => ({ ...st, [v.id]: s })))
           .catch(() => {});
       });
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      setViceFetchError(true);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -368,7 +373,7 @@ function AuthenticatedApp() {
     apiRef.current('/api/companion').then(setCompanion).catch(() => {});
   };
 
-  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, companion, setCompanion, setShowOnboarding, theme };
+  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, viceFetchError, companion, setCompanion, setShowOnboarding, theme };
 
   return (
     <ViceContext.Provider value={ctx}>

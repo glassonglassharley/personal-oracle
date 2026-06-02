@@ -190,6 +190,14 @@ export function DemoAuthProvider({ children }) {
       setSession(null);
     },
 
+    forceLogout() {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(LEGACY_KEY);
+      localStorage.removeItem(WALLET_KEY);
+      setSession(null);
+      setWalletAccount(null);
+    },
+
     // ── Wallet auth (unchanged) ────────────────────
     isWallet: Boolean(walletAccount?.publicKey && walletAccount?.token),
     walletPublicKey: walletAccount?.publicKey || '',
@@ -215,7 +223,8 @@ export function useDemoAuth() {
 }
 
 export function useApi() {
-  const { isWallet, walletPublicKey, walletToken } = useContext(DemoAuthContext);
+  const ctx = useContext(DemoAuthContext);
+  const { isWallet, walletPublicKey, walletToken } = ctx;
 
   return async (url, options = {}) => {
     const stored = readSession();
@@ -230,6 +239,10 @@ export function useApi() {
 
     const res = await fetch(url, { ...options, headers });
     if (!res.ok) {
+      if (res.status === 401) {
+        // Session expired or invalid — force logout so the auth gate shows the login screen
+        ctx.forceLogout?.();
+      }
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || `HTTP ${res.status}`);
     }

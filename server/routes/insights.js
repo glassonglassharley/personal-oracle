@@ -28,6 +28,11 @@ function getClient() {
   return new Anthropic({ apiKey });
 }
 
+function isQuotaError(err) {
+  const msg = (err.message || '').toLowerCase();
+  return err.status === 400 && (msg.includes('credit') || msg.includes('billing') || msg.includes('quota'));
+}
+
 // ── POST /api/insights — original chat endpoint (kept for InsightsPanel) ──
 router.post('/', async (req, res, next) => {
   try {
@@ -59,7 +64,10 @@ router.post('/', async (req, res, next) => {
       messages: [{ role: 'user', content: message }],
     });
     res.json({ text: response.content?.[0]?.text || '' });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (isQuotaError(err)) return res.status(503).json({ error: 'AI insights are temporarily unavailable.' });
+    next(err);
+  }
 });
 
 // ── POST /api/insights/weekly — cached weekly coaching insight ──
@@ -124,7 +132,10 @@ Write a 3-5 sentence personalized weekly insight. Be a supportive coach: acknowl
     );
 
     res.json({ insight, cached: false });
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (isQuotaError(err)) return res.json({ insight: null });
+    next(err);
+  }
 });
 
 // ── POST /api/insights/quit-plan — 4-week structured quit plan for a vice ──
