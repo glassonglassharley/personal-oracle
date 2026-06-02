@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useApi, useDemoAuth } from '../useApi';
+import { useApi } from '../useApi';
 
 const LEVEL_ICONS = ['🌱','🌿','🪴','🌳','🌲','🌴','🏵️','💪','⭐','👑'];
 const getLevelIcon = lvl => LEVEL_ICONS[Math.min(Math.max((lvl || 1) - 1, 0), 9)];
@@ -11,7 +11,6 @@ const getArchetypeEmoji = id => ARCHETYPE_EMOJIS[id] || '⚔️';
 
 export default function Partners() {
   const api = useApi();
-  const { isDemo } = useDemoAuth();
   const [partners, setPartners] = useState([]);
   const [pending, setPending] = useState([]);
   const [sent, setSent] = useState([]);
@@ -45,7 +44,6 @@ export default function Partners() {
   };
 
   const load = useCallback(() => {
-    if (isDemo) { setLoading(false); return; }
     Promise.all([
       api('/api/partners'),
       api('/api/partners/pending'),
@@ -58,7 +56,7 @@ export default function Partners() {
       setLeaderboard(lb);
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, [api, isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -178,19 +176,6 @@ export default function Partners() {
       setChatSending(prev => ({ ...prev, [partnerId]: false }));
     }
   };
-
-  if (isDemo) {
-    return (
-      <main className="main">
-        <h1 className="page-title">Accountability Partners</h1>
-        <div className="empty-state">
-          <div className="empty-icon">🤝</div>
-          <h2>Sign in to connect with partners</h2>
-          <p>Accountability partners require a real account. Create a free account to add partners and keep each other on track.</p>
-        </div>
-      </main>
-    );
-  }
 
   const thisMonthLabel = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const hasLeaderboard = leaderboard.length > 1;
