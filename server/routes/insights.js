@@ -94,43 +94,31 @@ function generateFallbackInsight(prompt, vices, stats) {
   return `I've been looking at your numbers and I want to share what I see.\n\nYou're spending $${totalMonthly.toFixed(2)}/month across your vices — $${totalAnnual.toFixed(0)} a year. Over ten years at 7%, that's $${totalTen.toLocaleString()} that could be building something else.\n\n${cleanDays > 0 ? `You've had ${cleanDays} clean day${cleanDays !== 1 ? 's' : ''}. That matters more than you might think — that's discipline showing up, and discipline compounds just like money does.` : `Your biggest opportunity is ${worst.emoji} ${worst.name}. That's where I'd focus first.`}\n\nWhat's been the hardest part of the week?`;
 }
 
-// ── POST /api/insights — original chat endpoint (kept for InsightsPanel) ──
+// ── POST /api/insights — multi-turn chat endpoint ──
 router.post('/', async (req, res, next) => {
-  const { vices = [], stats = {}, user_name = 'User', prompt: userPrompt } = req.body;
+  const { vices = [], stats = {}, messages: clientMessages, prompt: legacyPrompt } = req.body;
+
+  // Support both new multi-turn format (messages array) and legacy single-prompt
+  const apiMessages = (clientMessages && clientMessages.length > 0)
+    ? clientMessages
+    : [{ role: 'user', content: legacyPrompt || 'Give me personalized insights on my vice spending.' }];
+
   try {
     const client = getClient();
-    const dataContext = [
-      `User: ${user_name}`,
-      'Vices tracked:',
-      ...vices.map(v => {
-        const s = stats[v.id];
-        if (!s) return `- ${v.emoji} ${v.name} (no data yet)`;
-        return [
-          `- ${v.emoji} ${v.name}`,
-          `  This week: $${s.week?.spend?.toFixed(2) ?? '0.00'}`,
-          `  This month: $${s.month?.spend?.toFixed(2) ?? '0.00'}`,
-          `  Avg daily spend: $${s.avg_daily_spend?.toFixed(2) ?? '0.00'}`,
-          `  Clean days: ${s.clean_days ?? 0}`,
-          `  Savings from clean days: $${s.savings_from_clean_days?.toFixed(2) ?? '0.00'}`,
-        ].join('\n');
-      }),
-    ].join('\n');
-    const message = userPrompt
-      ? `${userPrompt}\n\n${dataContext}`
-      : `Give me personalized insights on my vice spending.\n\n${dataContext}`;
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 512,
+      max_tokens: 600,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: message }],
+      messages: apiMessages,
     });
     res.json({ text: response.content?.[0]?.text || '' });
   } catch (err) {
-    // Always fall back to local data-driven insight — insights are never "unavailable"
+    // Always fall back to data-driven insight — never show "unavailable"
     try {
-      const text = generateFallbackInsight(userPrompt, vices, stats);
+      const lastUserText = [...apiMessages].reverse().find(m => m.role === 'user')?.content || '';
+      const text = generateFallbackInsight(lastUserText, vices, stats);
       return res.json({ text, fallback: true });
-    } catch (fallbackErr) {
+    } catch {
       next(err);
     }
   }

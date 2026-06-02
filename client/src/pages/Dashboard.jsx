@@ -556,7 +556,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <InsightsPanel />
+          <InsightsPanel stats={stats} xpData={xpData} />
 
           <GoalsSection
             goals={goals}

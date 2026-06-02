@@ -3,133 +3,201 @@ import { VtvMark } from '../Logo';
 import { useViceContext } from '../ViceContext';
 import { useApi } from '../useApi';
 
-const PRESET_PROMPTS = [
+const PRESETS = [
   "What's my worst vice financially?",
   'Show me my 10-year projection',
   'Where should I cut first?',
+  'How am I doing this week?',
 ];
 
-export default function InsightsPanel() {
+export default function InsightsPanel({ stats, xpData }) {
   const api = useApi();
   const { vices, viceStats } = useViceContext();
 
-  const [insight, setInsight] = useState('');
-  const [streaming, setStreaming] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const typewriterRef = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
-  useEffect(() => () => clearInterval(typewriterRef.current), []);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
-  const runInsight = useCallback(async (prompt = null) => {
-    if (streaming) return;
-    clearInterval(typewriterRef.current);
-    setInsight('');
+  const buildDataContext = useCallback(() => {
+    const lines = ['Current vice spending data:'];
+    vices.forEach(v => {
+      const s = viceStats[v.id];
+      if (!s) { lines.push(`- ${v.emoji} ${v.name}: no entries yet`); return; }
+      lines.push(`- ${v.emoji} ${v.name}`);
+      lines.push(`  Today: $${(s.today?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This week: $${(s.week?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This month: $${(s.month?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This year: $${(s.year?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  Avg daily: $${(s.avg_daily_spend ?? 0).toFixed(2)}`);
+      lines.push(`  Clean days: ${s.clean_days ?? 0}`);
+      lines.push(`  Current streak: ${s.current_streak ?? 0} days`);
+      lines.push(`  Best streak: ${s.best_streak ?? 0} days`);
+      lines.push(`  Saved from clean days: $${(s.savings_from_clean_days ?? 0).toFixed(2)}`);
+    });
+    if (stats) {
+      lines.push('\nCombined totals:');
+      lines.push(`  Today: $${(stats.today?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This week: $${(stats.week?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This month: $${(stats.month?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  This year: $${(stats.year?.spend ?? 0).toFixed(2)}`);
+      lines.push(`  Overall clean days: ${stats.clean_days ?? 0}`);
+      lines.push(`  Current streak: ${stats.current_streak ?? 0} days`);
+      lines.push(`  Best streak: ${stats.best_streak ?? 0} days`);
+      lines.push(`  Saved from clean days: $${(stats.savings_from_clean_days ?? 0).toFixed(2)}`);
+      lines.push(`  Avg daily spend: $${(stats.avg_daily_spend ?? 0).toFixed(2)}`);
+    }
+    if (xpData) {
+      lines.push('\nProgress:');
+      lines.push(`  Level: ${xpData.level} — ${xpData.level_name} ${xpData.level_icon}`);
+      lines.push(`  Total XP: ${xpData.total_xp}`);
+    }
+    return lines.join('\n');
+  }, [vices, viceStats, stats, xpData]);
+
+  const send = useCallback(async (text) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
     setError('');
-    setStreaming(true);
+    setInput('');
+
+    // Attach data context to first user message so Claude always has full picture
+    const isFirst = messages.length === 0;
+    const userContent = isFirst ? `${trimmed}\n\n${buildDataContext()}` : trimmed;
+    const next = [...messages, { role: 'user', content: userContent }];
+    setMessages(next);
+    setLoading(true);
 
     try {
-      const { text } = await api('/api/insights', {
+      const { text: reply } = await api('/api/insights', {
         method: 'POST',
         body: JSON.stringify({
-          vices: vices.map(v => ({
-            id: v.id,
-            name: v.name,
-            emoji: v.emoji,
-            price_per_unit: v.price_per_unit,
-            unit: v.unit,
-          })),
+          vices: vices.map(v => ({ id: v.id, name: v.name, emoji: v.emoji })),
           stats: viceStats,
-          prompt: prompt || undefined,
+          messages: next,
         }),
       });
-      if (!text) throw new Error('No response from AI.');
-
-      let i = 0;
-      typewriterRef.current = setInterval(() => {
-        i++;
-        setInsight(text.slice(0, i));
-        if (i >= text.length) {
-          clearInterval(typewriterRef.current);
-          setStreaming(false);
-        }
-      }, 14);
-    } catch (err) {
-      setError('Could not load insights. Try again in a moment.');
-      setStreaming(false);
+      setMessages(prev => [...prev, { role: 'assistant', content: reply || '' }]);
+    } catch {
+      setError('Could not reach your coach right now. Try again in a moment.');
+    } finally {
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [streaming, vices, viceStats, api]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messages, loading, vices, viceStats, buildDataContext, api]);
+
+  const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
   const hasData = vices.length > 0;
+  const hasConversation = messages.length > 0;
+
+  // Displayed messages hide the injected data context from the user bubble
+  const displayMessages = messages.map((m, i) => {
+    if (m.role === 'user' && i === 0) {
+      const firstLine = m.content.split('\n\nCurrent vice spending data:')[0];
+      return { ...m, display: firstLine };
+    }
+    return { ...m, display: m.content };
+  });
 
   return (
     <section style={s.wrap}>
       <div style={s.header}>
         <span style={s.sparkle}>✦</span>
-        <span style={s.title}>AI Insights</span>
-        {streaming && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
+        <span style={s.title}>AI Coach</span>
+        {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
+        {hasConversation && !loading && (
+          <button style={s.clearBtn} onClick={() => { setMessages([]); setError(''); }}>
+            New chat
+          </button>
+        )}
       </div>
 
       {!hasData && (
-        <p style={s.noData}>Add vices and log some entries to get personalized insights.</p>
+        <p style={s.hint}>Add vices and log some entries to start talking with your coach.</p>
       )}
 
-      {hasData && !insight && !streaming && !error && (
-        <p style={s.hint}>Your personal financial accountability coach — powered by AI.</p>
+      {hasData && !hasConversation && (
+        <>
+          <p style={s.hint}>Your personal financial accountability coach — ask anything.</p>
+          <div style={s.presets}>
+            {PRESETS.map(p => (
+              <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
+                {p}
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
-      {streaming && !insight && (
-        <div style={s.skeleton}>
-          <div style={{ ...s.skelLine, width: '85%' }} />
-          <div style={{ ...s.skelLine, width: '70%', marginTop: 10 }} />
-          <div style={{ ...s.skelLine, width: '55%', marginTop: 10 }} />
-        </div>
-      )}
+      {hasConversation && (
+        <div style={s.thread}>
+          {displayMessages.map((m, i) => (
+            <div key={i} style={m.role === 'user' ? s.userBubble : s.coachBubble}>
+              {m.role === 'assistant' && <div style={s.coachLabel}>Coach</div>}
+              <p style={m.role === 'user' ? s.userText : s.coachText}>
+                {m.display}
+              </p>
+            </div>
+          ))}
 
-      {insight && (
-        <div style={s.response}>
-          <p style={s.responseText}>
-            {insight}
-            {streaming && <span style={s.cursor} className="insights-cursor">▌</span>}
-          </p>
+          {loading && (
+            <div style={s.coachBubble}>
+              <div style={s.coachLabel}>Coach</div>
+              <div style={s.skelWrap}>
+                <div style={{ ...s.skelLine, width: '82%' }} />
+                <div style={{ ...s.skelLine, width: '67%', marginTop: 8 }} />
+                <div style={{ ...s.skelLine, width: '48%', marginTop: 8 }} />
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
         </div>
       )}
 
       {error && <p style={s.errorText}>{error}</p>}
 
       {hasData && (
-        <div style={s.actions}>
-          <button
-            style={{ ...s.mainBtn, opacity: streaming ? 0.6 : 1 }}
-            onClick={() => runInsight(null)}
-            disabled={streaming}
-          >
-            {streaming ? 'Analyzing…' : insight ? 'Refresh Insights' : 'Get My Insights'}
-          </button>
-        </div>
-      )}
-
-      {hasData && (
-        <div style={s.presets}>
-          {PRESET_PROMPTS.map(p => (
+        <div style={s.inputArea}>
+          {hasConversation && (
+            <div style={{ ...s.presets, marginBottom: 10 }}>
+              {PRESETS.map(p => (
+                <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+          <form style={s.inputRow} onSubmit={handleSubmit}>
+            <input
+              ref={inputRef}
+              style={s.input}
+              placeholder="Ask your coach anything…"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              disabled={loading}
+              autoComplete="off"
+            />
             <button
-              key={p}
-              style={{ ...s.presetBtn, opacity: streaming ? 0.5 : 1 }}
-              onClick={() => runInsight(p)}
-              disabled={streaming}
+              type="submit"
+              style={{ ...s.sendBtn, opacity: (!input.trim() || loading) ? 0.45 : 1 }}
+              disabled={!input.trim() || loading}
             >
-              {p}
+              ↑
             </button>
-          ))}
+          </form>
         </div>
       )}
 
       <style>{`
-        @keyframes insights-cursor-blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-        .insights-cursor { animation: insights-cursor-blink 0.8s step-end infinite; }
-
         @keyframes insights-pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.5; transform: scale(0.95); }
@@ -175,62 +243,25 @@ const s = {
     width: 22,
     height: 22,
   },
+  clearBtn: {
+    background: 'transparent',
+    border: '1px solid rgba(212,175,55,0.3)',
+    borderRadius: 20,
+    padding: '4px 12px',
+    fontSize: 12,
+    color: 'rgba(212,175,55,0.7)',
+    cursor: 'pointer',
+  },
   hint: {
     fontSize: 14,
     color: 'var(--ink-3, #8e9a85)',
     marginBottom: 16,
-  },
-  noData: {
-    fontSize: 14,
-    color: 'var(--ink-3, #8e9a85)',
-  },
-  skeleton: {
-    padding: '4px 0 16px',
-  },
-  skelLine: {
-    height: 14,
-    borderRadius: 7,
-    background: 'linear-gradient(90deg, var(--paper-3,#1a3328) 25%, var(--rule-2,rgba(232,239,224,0.1)) 50%, var(--paper-3,#1a3328) 75%)',
-    backgroundSize: '200% 100%',
-    animation: 'insights-skel 1.4s ease infinite',
-  },
-  response: {
-    marginBottom: 20,
-  },
-  responseText: {
-    fontSize: 14.5,
-    lineHeight: 1.7,
-    color: '#d4af37',
-    whiteSpace: 'pre-wrap',
-  },
-  cursor: {
-    color: '#d4af37',
-    marginLeft: 1,
-  },
-  errorText: {
-    fontSize: 13,
-    color: 'var(--warn, #d9583a)',
-    marginBottom: 16,
-  },
-  actions: {
-    marginBottom: 16,
-  },
-  mainBtn: {
-    background: '#d4af37',
-    color: '#040c06',
-    border: 'none',
-    borderRadius: 8,
-    padding: '10px 22px',
-    fontSize: 14,
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'opacity 0.15s',
+    lineHeight: 1.5,
   },
   presets: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
   },
   presetBtn: {
     background: 'transparent',
@@ -241,5 +272,97 @@ const s = {
     color: 'rgba(212,175,55,0.8)',
     cursor: 'pointer',
     transition: 'border-color 0.12s, color 0.12s',
+  },
+  thread: {
+    maxHeight: 420,
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    marginBottom: 16,
+    paddingRight: 4,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    maxWidth: '78%',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.2)',
+    borderRadius: '14px 14px 4px 14px',
+    padding: '10px 14px',
+  },
+  coachBubble: {
+    alignSelf: 'flex-start',
+    maxWidth: '88%',
+  },
+  coachLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#d4af37',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  userText: {
+    fontSize: 13.5,
+    color: 'rgba(212,175,55,0.9)',
+    lineHeight: 1.6,
+    margin: 0,
+    whiteSpace: 'pre-wrap',
+  },
+  coachText: {
+    fontSize: 14.5,
+    color: 'var(--ink, #f0f7ec)',
+    lineHeight: 1.75,
+    margin: 0,
+    whiteSpace: 'pre-wrap',
+  },
+  skelWrap: {
+    padding: '4px 0',
+  },
+  skelLine: {
+    height: 13,
+    borderRadius: 7,
+    background: 'linear-gradient(90deg, var(--paper-3,#1a3328) 25%, var(--rule-2,rgba(232,239,224,0.1)) 50%, var(--paper-3,#1a3328) 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'insights-skel 1.4s ease infinite',
+  },
+  errorText: {
+    fontSize: 13,
+    color: 'var(--warn, #d9583a)',
+    marginBottom: 12,
+  },
+  inputArea: {
+    marginTop: 4,
+  },
+  inputRow: {
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    background: 'var(--paper-3, #1a3328)',
+    border: '1px solid rgba(212,175,55,0.25)',
+    borderRadius: 10,
+    padding: '10px 14px',
+    fontSize: 14,
+    color: 'var(--ink, #f0f7ec)',
+    outline: 'none',
+  },
+  sendBtn: {
+    background: '#d4af37',
+    color: '#040c06',
+    border: 'none',
+    borderRadius: 10,
+    width: 40,
+    height: 40,
+    fontSize: 18,
+    fontWeight: 700,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'opacity 0.15s',
   },
 };
