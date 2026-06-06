@@ -447,15 +447,18 @@ function CategoryBars({ activeViceId, setViceId, currentQty, currentPrice }) {
 }
 
 // ============ Invested-instead ============
-// roughly the last 10 years (representative, not advice).
+// Static fallback CAGRs used when live fetch fails or is loading.
 const ASSETS = [
-  { id: "spy",   ticker: "SPY",   name: "S&P 500 ETF",      sub: "large-cap blend · 10y avg", cagr: 0.130, kind: "etf" },
-  { id: "voo",   ticker: "VOO",   name: "Vanguard 500",     sub: "S&P 500 · low-cost",        cagr: 0.131, kind: "etf" },
-  { id: "qqq",   ticker: "QQQ",   name: "Nasdaq 100 ETF",   sub: "tech-heavy · 10y avg",      cagr: 0.180, kind: "etf" },
-  { id: "btc",   ticker: "BTC",   name: "Bitcoin",          sub: "volatile · 10y avg",        cagr: 0.550, kind: "crypto" },
-  { id: "gold",  ticker: "GOLD",  name: "Gold",             sub: "spot price · 10y avg",      cagr: 0.085, kind: "metal" },
-  { id: "hysa",  ticker: "HYSA",  name: "High-yield savings", sub: "Marcus / Ally · APY",     cagr: 0.043, kind: "cash" },
+  { id: "spy",   ticker: "SPY",   name: "S&P 500 ETF",        sub: "large-cap blend · 10y",  cagr: 0.130, kind: "etf" },
+  { id: "voo",   ticker: "VOO",   name: "Vanguard 500",       sub: "S&P 500 · low-cost",     cagr: 0.131, kind: "etf" },
+  { id: "qqq",   ticker: "QQQ",   name: "Nasdaq 100 ETF",     sub: "tech-heavy · 10y",       cagr: 0.180, kind: "etf" },
+  { id: "btc",   ticker: "BTC",   name: "Bitcoin",            sub: "volatile · 10y",         cagr: 0.550, kind: "crypto" },
+  { id: "gold",  ticker: "GOLD",  name: "Gold",               sub: "spot price · 10y",       cagr: 0.085, kind: "metal" },
+  { id: "hysa",  ticker: "HYSA",  name: "High-yield savings", sub: "Marcus / Ally · APY",    cagr: 0.043, kind: "cash" },
 ];
+
+// Yahoo Finance tickers for live CAGR fetch (HYSA has no ticker — stays static)
+const ASSET_TICKERS = { spy: "SPY", voo: "VOO", qqq: "QQQ", btc: "BTC-USD", gold: "GLD" };
 
 // FV of daily deposits at annual rate, compounded daily.
 function investedFV(dailyDeposit, days, annualRate) {
@@ -489,14 +492,49 @@ function Sparkline({ dailyDeposit, days, cagr, accent, win }) {
   );
 }
 
+function useAssetCAGRs() {
+  const [cagrMap, setCagrMap] = useState({});
+  const [priceStatus, setPriceStatus] = useState("loading");
+  useEffect(() => {
+    let active = true;
+    Promise.allSettled(
+      Object.entries(ASSET_TICKERS).map(([id, ticker]) =>
+        fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=10y&interval=1y`)
+          .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(json => {
+            const result = json?.chart?.result?.[0];
+            const closes = (
+              result?.indicators?.adjclose?.[0]?.adjclose ??
+              result?.indicators?.quote?.[0]?.close ?? []
+            ).filter(v => v != null && isFinite(v));
+            if (closes.length < 2) throw new Error("insufficient data");
+            const cagr = Math.pow(closes[closes.length - 1] / closes[0], 1 / (closes.length - 1)) - 1;
+            return { id, cagr };
+          })
+      )
+    ).then(results => {
+      if (!active) return;
+      const map = {};
+      let live = 0;
+      results.forEach(r => { if (r.status === "fulfilled") { map[r.value.id] = r.value.cagr; live++; } });
+      setCagrMap(map);
+      setPriceStatus(live > 0 ? "live" : "fallback");
+    });
+    return () => { active = false; };
+  }, []);
+  return { cagrMap, priceStatus };
+}
+
 function InvestedInstead({ dailySaving, days, total, accent }) {
-  const rows = ASSETS.map(a => ({
-    ...a,
-    value: investedFV(dailySaving, days, a.cagr),
-  }));
-  rows.sort((a, b) => b.value - a.value);
-  const max = rows[0].value;
-  const winId = rows[0].id;
+  const { cagrMap, priceStatus } = useAssetCAGRs();
+
+  const rows = useMemo(() => ASSETS.map(a => {
+    const cagr = cagrMap[a.id] ?? a.cagr;
+    return { ...a, cagr, value: investedFV(dailySaving, days, cagr) };
+  }).sort((a, b) => b.value - a.value), [cagrMap, dailySaving, days]);
+
+  const max = rows[0]?.value || 1;
+  const winId = rows[0]?.id;
 
   return (
     <div className="invested">
@@ -504,7 +542,13 @@ function InvestedInstead({ dailySaving, days, total, accent }) {
         <div>
           <div className="invested-eyebrow">DCA · {money(dailySaving, { cents: true })}/day for {days} days · principal {money(total)}</div>
         </div>
-        <div className="invested-legend">past returns · not advice</div>
+        <div className="invested-legend" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {priceStatus === "loading" && <span>fetching live rates…</span>}
+          {priceStatus === "live" && (
+            <><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--money)", display: "inline-block", flexShrink: 0 }} /><span style={{ color: "var(--money)" }}>live · 10yr actual</span></>
+          )}
+          {priceStatus === "fallback" && <span>past returns · not advice</span>}
+        </div>
       </div>
       <div className="inv-table">
         <div className="inv-thead">
