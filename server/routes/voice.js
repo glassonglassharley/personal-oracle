@@ -119,15 +119,16 @@ logRouter.post('/', async (req, res, next) => {
       : Number(matched.default_price ?? 0);
 
     const today = new Date().toISOString().split('T')[0];
-    await pool.query(
-      'INSERT INTO entries (vice_id, date, quantity, price_per_unit) VALUES ($1, $2, $3, $4)',
+    const insertResult = await pool.query(
+      'INSERT INTO entries (vice_id, date, quantity, price_per_unit) VALUES ($1, $2, $3, $4) RETURNING *',
       [matched.id, today, quantity, pricePerUnit]
     );
+    console.log('[voice-log] inserted entry:', insertResult.rows[0]);
 
     awardXP(userId, 5).catch(() => {});
 
     const amountStr = amount !== null ? ` for $${amount.toFixed(2)}` : '';
-    console.log('[voice-log] success:', { quantity, keyword, normalized, amount, pricePerUnit, viceId: matched.id });
+    console.log('[voice-log] success:', { userId, quantity, keyword, normalized, amount, pricePerUnit, viceId: matched.id, viceName: matched.name });
     return res.json({ success: true, message: `Logged ${quantity} ${keyword}${amountStr}` });
   } catch (err) {
     console.log('[voice-log] caught error:', err.message, err.stack);
