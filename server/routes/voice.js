@@ -10,9 +10,18 @@ function hashVoiceToken(token) {
 // ── /api/voice-log — custom bearer-token auth (not Clerk/JWT) ─────────────
 const logRouter = express.Router();
 
+// Accept both application/json and text/plain (Siri Shortcuts may send either)
+logRouter.use(express.text({ type: 'text/plain' }));
+
 logRouter.post('/', async (req, res, next) => {
   try {
+    console.log('[voice-log] request received');
+    console.log('[voice-log] content-type:', req.get('content-type'));
+    console.log('[voice-log] body type:', typeof req.body);
+    console.log('[voice-log] body raw:', JSON.stringify(req.body));
+
     const authHeader = String(req.get('Authorization') || '');
+    console.log('[voice-log] auth header present:', authHeader.startsWith('Bearer '));
     if (!authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ success: false, message: 'Authorization required' });
     }
@@ -23,50 +32,72 @@ logRouter.post('/', async (req, res, next) => {
       'SELECT id, user_id FROM voice_tokens WHERE token_hash = $1',
       [tokenHash]
     );
+    console.log('[voice-log] token lookup rows:', tokenRow.rows.length);
     if (tokenRow.rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
     const userId = tokenRow.rows[0].user_id;
+    console.log('[voice-log] authenticated userId:', userId);
 
-    const { text } = req.body;
-    const input = String(text || '');
-    if (!input) return res.json({ success: false, message: 'Could not parse entry' });
+    // Handle both JSON body ({text: "..."}) and plain-text body ("I spent...")
+    let input;
+    if (typeof req.body === 'string') {
+      input = req.body.trim();
+    } else {
+      const { text } = (req.body || {});
+      input = String(text || '');
+    }
+    console.log('[voice-log] input text:', JSON.stringify(input));
+
+    if (!input) {
+      console.log('[voice-log] empty input, returning parse failure');
+      return res.json({ success: false, message: 'Could not parse entry' });
+    }
 
     // Qty + vice keyword — works regardless of word order
     const qtyMatch = input.match(/(\d+)\s+(beer|cigarette|drink|smoke|coffee|wine|shot|can|bottle|vape|weed)/i);
+    console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
 
     // Amount: prefer explicit $ prefix, then any decimal number, then fallback any integer
     // This handles reversed order ("2 beers for 7.12") without capturing the quantity as the amount
     let amount = null;
     const dollarMatch = input.match(/\$(\d+\.?\d{0,2})/);
+    console.log('[voice-log] dollarMatch:', dollarMatch ? dollarMatch[1] : null);
     if (dollarMatch) {
       amount = parseFloat(dollarMatch[1]);
     } else {
       const decimalMatch = input.match(/\b(\d+\.\d{1,2})\b/);
+      console.log('[voice-log] decimalMatch:', decimalMatch ? decimalMatch[1] : null);
       if (decimalMatch) {
         amount = parseFloat(decimalMatch[1]);
       } else if (!qtyMatch) {
-        // Fallback: no vice keyword found — try any number as amount
         const anyNum = input.match(/\b(\d+)\b/);
         if (anyNum) amount = parseFloat(anyNum[1]);
       }
     }
 
-    console.log('[voice-log] parsed:', { input, quantity: qtyMatch ? parseInt(qtyMatch[1], 10) : null, keyword: qtyMatch?.[2]?.toLowerCase(), amount });
+    console.log('[voice-log] parsed:', {
+      input,
+      quantity: qtyMatch ? parseInt(qtyMatch[1], 10) : null,
+      keyword: qtyMatch?.[2]?.toLowerCase(),
+      amount,
+    });
 
     if (!qtyMatch) {
+      console.log('[voice-log] no qty+vice match, returning parse failure');
       return res.json({ success: false, message: 'Could not parse entry' });
     }
     const quantity = parseInt(qtyMatch[1], 10);
     const keyword = qtyMatch[2].toLowerCase();
 
     const vices = await pool.query('SELECT * FROM vices WHERE user_id = $1', [userId]);
+    console.log('[voice-log] user vices:', vices.rows.map(v => v.name));
     const matched = vices.rows.find(v => {
       const vname = v.name.toLowerCase();
       return vname.includes(keyword) || keyword.includes(vname);
     });
     if (!matched) {
-      console.log('[voice-log] no vice match for keyword:', keyword, 'user vices:', vices.rows.map(v => v.name));
+      console.log('[voice-log] no vice match for keyword:', keyword);
       return res.json({ success: false, message: 'Could not parse entry' });
     }
 
@@ -86,7 +117,10 @@ logRouter.post('/', async (req, res, next) => {
     const amountStr = amount !== null ? ` for $${amount.toFixed(2)}` : '';
     console.log('[voice-log] success:', { quantity, keyword, amount, pricePerUnit, viceId: matched.id });
     return res.json({ success: true, message: `Logged ${quantity} ${plural}${amountStr}` });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.log('[voice-log] caught error:', err.message, err.stack);
+    next(err);
+  }
 });
 
 // ── /api/voice-tokens — standard JWT/Clerk auth ───────────────────────────
