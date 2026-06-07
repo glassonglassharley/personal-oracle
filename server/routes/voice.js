@@ -32,10 +32,28 @@ logRouter.post('/', async (req, res, next) => {
     const input = String(text || '');
     if (!input) return res.json({ success: false, message: 'Could not parse entry' });
 
-    const amountMatch = input.match(/\$?(\d+\.?\d{0,2})/);
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : null;
+    // Qty + vice keyword — works regardless of word order
+    const qtyMatch = input.match(/(\d+)\s+(beer|cigarette|drink|smoke|coffee|wine|shot|can|bottle|vape|weed)/i);
 
-    const qtyMatch = input.match(/(\d+)\s+(beer|cigarette|drink|smoke|coffee|wine|shot|can|bottle)/i);
+    // Amount: prefer explicit $ prefix, then any decimal number, then fallback any integer
+    // This handles reversed order ("2 beers for 7.12") without capturing the quantity as the amount
+    let amount = null;
+    const dollarMatch = input.match(/\$(\d+\.?\d{0,2})/);
+    if (dollarMatch) {
+      amount = parseFloat(dollarMatch[1]);
+    } else {
+      const decimalMatch = input.match(/\b(\d+\.\d{1,2})\b/);
+      if (decimalMatch) {
+        amount = parseFloat(decimalMatch[1]);
+      } else if (!qtyMatch) {
+        // Fallback: no vice keyword found — try any number as amount
+        const anyNum = input.match(/\b(\d+)\b/);
+        if (anyNum) amount = parseFloat(anyNum[1]);
+      }
+    }
+
+    console.log('[voice-log] parsed:', { input, quantity: qtyMatch ? parseInt(qtyMatch[1], 10) : null, keyword: qtyMatch?.[2]?.toLowerCase(), amount });
+
     if (!qtyMatch) {
       return res.json({ success: false, message: 'Could not parse entry' });
     }
@@ -48,6 +66,7 @@ logRouter.post('/', async (req, res, next) => {
       return vname.includes(keyword) || keyword.includes(vname);
     });
     if (!matched) {
+      console.log('[voice-log] no vice match for keyword:', keyword, 'user vices:', vices.rows.map(v => v.name));
       return res.json({ success: false, message: 'Could not parse entry' });
     }
 
@@ -65,6 +84,7 @@ logRouter.post('/', async (req, res, next) => {
 
     const plural = quantity !== 1 ? `${keyword}s` : keyword;
     const amountStr = amount !== null ? ` for $${amount.toFixed(2)}` : '';
+    console.log('[voice-log] success:', { quantity, keyword, amount, pricePerUnit, viceId: matched.id });
     return res.json({ success: true, message: `Logged ${quantity} ${plural}${amountStr}` });
   } catch (err) { next(err); }
 });
