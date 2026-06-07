@@ -7,6 +7,17 @@ function hashVoiceToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Maps captured keyword variants to their canonical form for DB fuzzy matching
+const KEYWORD_ALIASES = {
+  'beers':            'beer',
+  'food deliveries':  'food delivery',
+  'delivery':         'food delivery',
+  'prescription':     'rx',
+  'chip':             'chips',
+  'woman':            'women',
+  'fastfood':         'fast food',
+};
+
 // ── /api/voice-log — custom bearer-token auth (not Clerk/JWT) ─────────────
 const logRouter = express.Router();
 
@@ -55,7 +66,7 @@ logRouter.post('/', async (req, res, next) => {
     }
 
     // Qty + vice keyword — works regardless of word order
-    const qtyMatch = input.match(/(\d+)\s+(beer|cigarette|drink|smoke|coffee|wine|shot|can|bottle|vape|weed)/i);
+    const qtyMatch = input.match(/(\d+)\s+(beer|beers|food delivery|food deliveries|delivery|rx|prescription|chips|chip|women|woman|fast food|fastfood)/i);
     console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
 
     // Amount: prefer explicit $ prefix, then any decimal number, then fallback any integer
@@ -89,12 +100,14 @@ logRouter.post('/', async (req, res, next) => {
     }
     const quantity = parseInt(qtyMatch[1], 10);
     const keyword = qtyMatch[2].toLowerCase();
+    const normalized = KEYWORD_ALIASES[keyword] || keyword;
+    console.log('[voice-log] keyword:', keyword, '→ normalized:', normalized);
 
     const vices = await pool.query('SELECT * FROM vices WHERE user_id = $1', [userId]);
     console.log('[voice-log] user vices:', vices.rows.map(v => v.name));
     const matched = vices.rows.find(v => {
       const vname = v.name.toLowerCase();
-      return vname.includes(keyword) || keyword.includes(vname);
+      return vname.includes(normalized) || normalized.includes(vname);
     });
     if (!matched) {
       console.log('[voice-log] no vice match for keyword:', keyword);
@@ -113,10 +126,9 @@ logRouter.post('/', async (req, res, next) => {
 
     awardXP(userId, 5).catch(() => {});
 
-    const plural = quantity !== 1 ? `${keyword}s` : keyword;
     const amountStr = amount !== null ? ` for $${amount.toFixed(2)}` : '';
-    console.log('[voice-log] success:', { quantity, keyword, amount, pricePerUnit, viceId: matched.id });
-    return res.json({ success: true, message: `Logged ${quantity} ${plural}${amountStr}` });
+    console.log('[voice-log] success:', { quantity, keyword, normalized, amount, pricePerUnit, viceId: matched.id });
+    return res.json({ success: true, message: `Logged ${quantity} ${keyword}${amountStr}` });
   } catch (err) {
     console.log('[voice-log] caught error:', err.message, err.stack);
     next(err);
