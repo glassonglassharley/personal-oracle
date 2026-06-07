@@ -18,7 +18,13 @@ const KEYWORD_ALIASES = {
   'fastfood':         'fast food',
 };
 
-// Qty + vice keyword regex — number must precede the keyword (e.g. "1 beer", "2 food delivery")
+// Written-number → digit, whole-word case-insensitive
+const WORD_NUMS = {
+  one:'1', two:'2', three:'3', four:'4', five:'5',
+  six:'6', seven:'7', eight:'8', nine:'9', ten:'10',
+};
+
+// Qty + vice keyword regex
 const QTY_VICE_RE = /(\d+)\s+(beer|beers|food delivery|food deliveries|delivery|rx|prescription|chips|chip|women|woman|fast food|fastfood)/i;
 
 // ── /api/voice-log — custom bearer-token auth (not Clerk/JWT) ─────────────
@@ -71,35 +77,45 @@ logRouter.post('/', async (req, res, next) => {
       return res.json({ success: false, message: 'Could not parse entry' });
     }
 
-    // Collapse non-breaking spaces and exotic Unicode whitespace to plain ASCII space
-    // Covers U+00A0, U+2009, U+200B, U+200C, U+200D, U+FEFF, U+2060, U+0009 (tab)
+    // 1. Collapse exotic Unicode whitespace (U+00A0, U+2009, U+200B, U+FEFF, etc.) to ASCII space
     const normalised = input
       .replace(/[  ​‌‍﻿⁠	]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     console.log('[voice-log] normalised:', JSON.stringify(normalised));
 
-    // Amount: prefer explicit $ prefix, then any decimal number
+    // 2. Convert written numbers to digits (whole-word, case-insensitive)
+    const digitised = normalised.replace(
+      /\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/gi,
+      w => WORD_NUMS[w.toLowerCase()]
+    );
+    if (digitised !== normalised) console.log('[voice-log] digitised:', JSON.stringify(digitised));
+
+    // 3. Qty + vice keyword — run before amount so we can exclude the qty number by position
+    console.log('[voice-log] testing QTY_VICE_RE against:', JSON.stringify(digitised));
+    const qtyMatch = digitised.match(QTY_VICE_RE);
+    console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
+
+    // 4. Amount: prefer explicit $ prefix; otherwise collect all numbers, exclude the qty
+    //    digit by string position, and take the largest remaining value.
+    //    This handles "1 beer for 4" → amount 4, and "7.12 on 2 beers" → amount 7.12.
     let amount = null;
-    const dollarMatch = normalised.match(/\$(\d+\.?\d{0,2})/);
+    const dollarMatch = digitised.match(/\$(\d+\.?\d{0,2})/);
     console.log('[voice-log] dollarMatch:', dollarMatch ? dollarMatch[1] : null);
     if (dollarMatch) {
       amount = parseFloat(dollarMatch[1]);
     } else {
-      const decimalMatch = normalised.match(/\b(\d+\.\d{1,2})\b/);
-      console.log('[voice-log] decimalMatch:', decimalMatch ? decimalMatch[1] : null);
-      if (decimalMatch) {
-        amount = parseFloat(decimalMatch[1]);
-      }
+      const allNums = [...digitised.matchAll(/(\d+(?:\.\d{1,2})?)/g)];
+      const qtyStart = qtyMatch ? qtyMatch.index : -1;
+      const candidates = allNums
+        .filter(m => m.index !== qtyStart)
+        .map(m => parseFloat(m[1]));
+      console.log('[voice-log] amount candidates (excl qty):', candidates);
+      if (candidates.length > 0) amount = Math.max(...candidates);
     }
 
-    // Qty + vice — works regardless of surrounding words (bought/spent/had/etc.)
-    console.log('[voice-log] testing QTY_VICE_RE against:', JSON.stringify(normalised));
-    const qtyMatch = normalised.match(QTY_VICE_RE);
-    console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
-
     console.log('[voice-log] parsed:', {
-      normalised,
+      digitised,
       quantity: qtyMatch ? parseInt(qtyMatch[1], 10) : null,
       keyword: qtyMatch?.[2]?.toLowerCase(),
       amount,
