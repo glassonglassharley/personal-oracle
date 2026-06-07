@@ -18,6 +18,9 @@ const KEYWORD_ALIASES = {
   'fastfood':         'fast food',
 };
 
+// Qty + vice keyword regex — number must precede the keyword (e.g. "1 beer", "2 food delivery")
+const QTY_VICE_RE = /(\d+)\s+(beer|beers|food delivery|food deliveries|delivery|rx|prescription|chips|chip|women|woman|fast food|fastfood)/i;
+
 // ── /api/voice-log — custom bearer-token auth (not Clerk/JWT) ─────────────
 const logRouter = express.Router();
 
@@ -58,37 +61,45 @@ logRouter.post('/', async (req, res, next) => {
       const { text } = (req.body || {});
       input = String(text || '');
     }
+
     console.log('[voice-log] input text:', JSON.stringify(input));
+    console.log('[voice-log] input length:', input.length);
+    console.log('[voice-log] input char codes:', [...input].map(c => `${c}(${c.charCodeAt(0)})`).join(''));
 
     if (!input) {
       console.log('[voice-log] empty input, returning parse failure');
       return res.json({ success: false, message: 'Could not parse entry' });
     }
 
-    // Qty + vice keyword — works regardless of word order
-    const qtyMatch = input.match(/(\d+)\s+(beer|beers|food delivery|food deliveries|delivery|rx|prescription|chips|chip|women|woman|fast food|fastfood)/i);
-    console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
+    // Collapse non-breaking spaces and exotic Unicode whitespace to plain ASCII space
+    // Covers U+00A0, U+2009, U+200B, U+200C, U+200D, U+FEFF, U+2060, U+0009 (tab)
+    const normalised = input
+      .replace(/[  ​‌‍﻿⁠	]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    console.log('[voice-log] normalised:', JSON.stringify(normalised));
 
-    // Amount: prefer explicit $ prefix, then any decimal number, then fallback any integer
-    // This handles reversed order ("2 beers for 7.12") without capturing the quantity as the amount
+    // Amount: prefer explicit $ prefix, then any decimal number
     let amount = null;
-    const dollarMatch = input.match(/\$(\d+\.?\d{0,2})/);
+    const dollarMatch = normalised.match(/\$(\d+\.?\d{0,2})/);
     console.log('[voice-log] dollarMatch:', dollarMatch ? dollarMatch[1] : null);
     if (dollarMatch) {
       amount = parseFloat(dollarMatch[1]);
     } else {
-      const decimalMatch = input.match(/\b(\d+\.\d{1,2})\b/);
+      const decimalMatch = normalised.match(/\b(\d+\.\d{1,2})\b/);
       console.log('[voice-log] decimalMatch:', decimalMatch ? decimalMatch[1] : null);
       if (decimalMatch) {
         amount = parseFloat(decimalMatch[1]);
-      } else if (!qtyMatch) {
-        const anyNum = input.match(/\b(\d+)\b/);
-        if (anyNum) amount = parseFloat(anyNum[1]);
       }
     }
 
+    // Qty + vice — works regardless of surrounding words (bought/spent/had/etc.)
+    console.log('[voice-log] testing QTY_VICE_RE against:', JSON.stringify(normalised));
+    const qtyMatch = normalised.match(QTY_VICE_RE);
+    console.log('[voice-log] qtyMatch:', qtyMatch ? { qty: qtyMatch[1], kw: qtyMatch[2] } : null);
+
     console.log('[voice-log] parsed:', {
-      input,
+      normalised,
       quantity: qtyMatch ? parseInt(qtyMatch[1], 10) : null,
       keyword: qtyMatch?.[2]?.toLowerCase(),
       amount,
