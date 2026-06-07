@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApi } from '../useApi';
 
 const STEPS = [
@@ -72,10 +72,47 @@ const NOTIF_OPTIONS = [
 export default function Support() {
   const api = useApi();
   const [notifPrefs, setNotifPrefs] = useState(null);
+  const [voiceTokens, setVoiceTokens] = useState([]);
+  const [newToken, setNewToken] = useState(null);
+  const [labelInput, setLabelInput] = useState('');
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenErr, setTokenErr] = useState('');
+  const tokenBoxRef = useRef(null);
 
   useEffect(() => {
     api('/api/notifications/preferences').then(setNotifPrefs).catch(() => {});
+    api('/api/voice-tokens').then(setVoiceTokens).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const generateToken = async () => {
+    setTokenLoading(true);
+    setTokenErr('');
+    setNewToken(null);
+    try {
+      const result = await api('/api/voice-tokens', {
+        method: 'POST',
+        body: JSON.stringify({ label: labelInput.trim() || null }),
+      });
+      setVoiceTokens(prev => [{ id: result.id, label: result.label, created_at: result.created_at }, ...prev]);
+      setNewToken(result.token);
+      setLabelInput('');
+      setTimeout(() => tokenBoxRef.current?.select(), 50);
+    } catch (err) {
+      setTokenErr(err.message || 'Failed to generate token');
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const revokeToken = async (id) => {
+    try {
+      await api(`/api/voice-tokens/${id}`, { method: 'DELETE' });
+      setVoiceTokens(prev => prev.filter(t => t.id !== id));
+      if (newToken) setNewToken(null);
+    } catch (err) {
+      setTokenErr(err.message || 'Failed to revoke token');
+    }
+  };
 
   const togglePref = async (key) => {
     const next = !notifPrefs[key];
@@ -171,6 +208,126 @@ export default function Support() {
           </div>
         </div>
       )}
+
+      {/* Voice Logging */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Voice Logging (Siri Shortcuts)</span>
+        </div>
+        <div style={{ padding: '0 0 12px', color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.5 }}>
+          Generate an API token to use with iOS Siri Shortcuts. Say something like
+          &ldquo;I spent 7 on 2 beers&rdquo; and it logs instantly.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+          <input
+            type="text"
+            placeholder="Token label (e.g. iPhone Siri)"
+            value={labelInput}
+            onChange={e => setLabelInput(e.target.value)}
+            style={{
+              flex: 1,
+              minWidth: 160,
+              background: 'var(--paper-2)',
+              border: '1px solid var(--rule-2)',
+              borderRadius: 8,
+              padding: '8px 12px',
+              color: 'var(--ink)',
+              fontSize: 14,
+            }}
+          />
+          <button
+            className="btn"
+            onClick={generateToken}
+            disabled={tokenLoading}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {tokenLoading ? 'Generating…' : 'Generate API Token'}
+          </button>
+        </div>
+
+        {tokenErr && (
+          <div style={{ color: 'var(--warn)', fontSize: 13, marginBottom: 10 }}>{tokenErr}</div>
+        )}
+
+        {newToken && (
+          <div style={{
+            background: 'var(--paper-3)',
+            border: '1px solid var(--rule-2)',
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 16,
+          }}>
+            <div style={{ color: 'var(--warn)', fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+              Copy this token now — it will not be shown again.
+            </div>
+            <textarea
+              ref={tokenBoxRef}
+              readOnly
+              value={newToken}
+              rows={2}
+              onClick={e => e.target.select()}
+              style={{
+                width: '100%',
+                background: 'var(--paper-2)',
+                border: '1px solid var(--rule-2)',
+                borderRadius: 6,
+                padding: '8px 10px',
+                color: 'var(--ink)',
+                fontFamily: 'var(--mono)',
+                fontSize: 12,
+                resize: 'none',
+                wordBreak: 'break-all',
+                boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>
+              Use as <code style={{ fontFamily: 'var(--mono)' }}>Authorization: Bearer &lt;token&gt;</code> in your Siri Shortcut POST to <code style={{ fontFamily: 'var(--mono)' }}>/api/voice-log</code>
+            </div>
+          </div>
+        )}
+
+        {voiceTokens.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {voiceTokens.map(t => (
+              <div key={t.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--paper-2)',
+                border: '1px solid var(--rule)',
+                borderRadius: 8,
+                padding: '10px 14px',
+                gap: 12,
+              }}>
+                <div>
+                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500 }}>
+                    {t.label || 'Unnamed token'}
+                  </div>
+                  <div style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 2 }}>
+                    Created {new Date(t.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <button
+                  onClick={() => revokeToken(t.id)}
+                  style={{
+                    background: 'none',
+                    border: '1px solid var(--warn)',
+                    color: 'var(--warn)',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Contact */}
       <div className="panel sup-contact-panel">

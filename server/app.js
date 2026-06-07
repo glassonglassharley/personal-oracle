@@ -124,6 +124,8 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/auth/username', usernameAuthRouter); // kept for backward compat / token-exchange
 app.use('/api/auth/phantom', phantomAuthRouter);
 app.use('/api/auth', authRouter);
+// voice-log uses its own bearer-token auth (SHA-256 lookup in voice_tokens), not Clerk/JWT
+app.use('/api/voice-log', require('./routes/voice').logRouter);
 app.use('/api', usernameOrClerkAuth, ensureUser);
 
 app.use('/api/users',   require('./routes/users'));
@@ -137,10 +139,11 @@ app.use('/api/goals',   require('./routes/goals'));
 app.use('/api/wrapped', require('./routes/wrapped'));
 app.use('/api/companion', require('./routes/companion'));
 app.use('/api/plaid',    require('./routes/plaid'));
-app.use('/api/badges',   require('./routes/badges'));
-app.use('/api/xp',       require('./routes/xp'));
-app.use('/api/insights', require('./routes/insights'));
-app.use('/api/assets',  require('./routes/assets'));
+app.use('/api/badges',        require('./routes/badges'));
+app.use('/api/xp',            require('./routes/xp'));
+app.use('/api/insights',      require('./routes/insights'));
+app.use('/api/assets',        require('./routes/assets'));
+app.use('/api/voice-tokens',  require('./routes/voice').tokenRouter);
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;

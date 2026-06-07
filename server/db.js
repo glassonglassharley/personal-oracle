@@ -170,6 +170,14 @@ const MIGRATIONS = `
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS user_assets_user_id_idx ON user_assets (user_id);
+
+  CREATE TABLE IF NOT EXISTS voice_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    label TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
 `;
 
 const { backupEntries } = require('./backup');
