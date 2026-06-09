@@ -136,26 +136,54 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .side-collapse:hover { color: var(--ink); background: var(--paper-2); }
 
-.brand { display: flex; align-items: center; gap: var(--vtv-brand-gap, 8px); min-width: 0; }
-.brand-logo-svg {
-  display: block;
-  width: auto; height: 36px;
-  object-fit: contain; object-position: left center;
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.brand-letter {
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  border-radius: 8px;
-  image-rendering: crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--rule-2);
+  background: linear-gradient(145deg, var(--paper-3), var(--paper-2));
+  color: var(--money);
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.08em;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.16);
 }
-/* Sidebar wordmark — hidden on desktop, shown in mobile drawer */
-.side-brand-wordmark { display: none; }
-/* collapsed sidebar mark — same PNG at natural aspect ratio */
-.brand-mark-svg {
-  display: block;
-  width: auto; max-width: 56px; height: 52px;
-  object-fit: contain; object-position: left center;
-  flex-shrink: 0;
-  image-rendering: crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
+.brand-letter-full {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 21px;
+}
+.side-brand-wordmark {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
+}
+.side-brand-wordmark > span {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.side-brand-wordmark small {
+  font-family: var(--sans);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--money);
+  white-space: nowrap;
 }
 .brand-sub { font-size: 11px; color: var(--ink-3); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
 
@@ -927,9 +955,9 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   display: block; height: 28px; width: auto; flex-shrink: 0; border-radius: 6px;
 }
 .mobile-brand-wordmark {
-  font-family: var(--serif); font-size: 16px; font-weight: 600;
-  color: var(--money); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; letter-spacing: -0.02em; line-height: 1;
+  font-family: var(--serif); font-size: 19px; font-weight: 700;
+  color: var(--ink); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; letter-spacing: -0.03em; line-height: 1;
 }
 .mobile-user-pill {
   width: 28px; height: 28px; border-radius: 50%;
@@ -2400,23 +2428,20 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     flex: 1;
     min-width: 0;
   }
-  .side .brand-logo-svg {
-    height: 36px;
-    width: auto;
-    max-width: none;
-    border-radius: 8px;
+  .side .brand-letter-full {
+    width: 34px;
+    height: 34px;
   }
   .side-brand-wordmark {
-    display: block;
-    font-family: var(--serif);
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--money);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: -0.01em;
-    line-height: 1;
+    display: flex;
+    gap: 3px;
+  }
+  .side-brand-wordmark > span {
+    font-size: 17px;
+  }
+  .side-brand-wordmark small {
+    font-size: 7.5px;
+    letter-spacing: 0.14em;
   }
 
   /* ── Premium mobile landing page ─────────────────── */
@@ -3210,15 +3235,20 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   display: flex; flex-direction: column; justify-content: center; gap: 30px;
   min-height: 100dvh;
 }
-.landing-logo-row { display: flex; align-items: center; gap: 14px; }
-.landing-logo-img {
-  height: 80px; width: 80px; border-radius: 18px; object-fit: contain; flex-shrink: 0;
-  mix-blend-mode: screen;
-  box-shadow: 0 0 32px rgba(74, 222, 128, 0.25);
-}
+.landing-logo-row { display: flex; align-items: center; gap: 0; }
+.landing-logo-img { display: none; }
 .landing-logo-wordmark {
-  font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
-  color: #c9a84c;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 10px 0 12px;
+  border-bottom: 2px solid rgba(212, 168, 74, 0.72);
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+  color: #f4f7ee;
 }
 
 .landing-hero-copy { max-width: 480px; }
@@ -3467,12 +3497,11 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     min-height: 100dvh; justify-content: flex-start; gap: 22px;
     align-items: center; text-align: center;
   }
-  .landing-logo-row { justify-content: center; flex-direction: column; gap: 16px; }
-  .landing-logo-img {
-    height: 110px; width: 110px; border-radius: 20px;
-    box-shadow: 0 0 40px rgba(74, 222, 128, 0.3);
+  .landing-logo-row { justify-content: center; flex-direction: row; gap: 0; }
+  .landing-logo-wordmark {
+    font-size: 30px;
+    padding: 8px 0 10px;
   }
-  .landing-logo-wordmark { font-size: 26px; }
   .landing-hero-copy { max-width: 100%; text-align: center; }
   .landing-hero-copy h1 { font-size: 40px; max-width: none; }
   .landing-hero-copy p { font-size: 14.5px; max-width: 100%; }

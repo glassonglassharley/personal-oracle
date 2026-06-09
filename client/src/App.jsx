@@ -14,7 +14,6 @@ const Settings            = lazy(() => import('./pages/Settings'));
 const History             = lazy(() => import('./pages/History'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
-import { VtvLogo, VtvMark } from './Logo';
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neon'];
@@ -73,10 +72,13 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
     <aside className={`side${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="side-top">
         <div className="brand">
-          {collapsed
-            ? <VtvMark className="brand-mark-svg" />
-            : <VtvLogo className="brand-logo-svg" />}
-          <span className="side-brand-wordmark">Vice to Value</span>
+          <span className={collapsed ? 'brand-letter' : 'brand-letter brand-letter-full'}>V</span>
+          {!collapsed && (
+            <span className="side-brand-wordmark">
+              <span>Vice to Value</span>
+              <small>Cut today · grow tomorrow</small>
+            </span>
+          )}
         </div>
         <button className="side-collapse" onClick={() => setCollapsed(c => !c)} aria-label="Toggle sidebar">
           {collapsed ? '›' : '‹'}
@@ -259,7 +261,6 @@ function MobileTopBar({ mobileOpen, setMobileOpen }) {
       </button>
 
       <div className="mobile-brand">
-        <VtvMark className="mobile-brand-mark" />
         <span className="mobile-brand-wordmark">Vice to Value</span>
       </div>
 
@@ -1371,7 +1372,6 @@ function SignedOutContent() {
       {/* Hero / left column */}
       <section className="landing-hero" aria-label="Vice to Value">
         <div className="landing-logo-row">
-          <img src="/icon-512.png" alt="Vice to Value" className="landing-logo-img" />
           <span className="landing-logo-wordmark">Vice to Value</span>
         </div>
 
