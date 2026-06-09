@@ -16,6 +16,7 @@ router.post('/', async (req, res, next) => {
     const uid = await getInternalUserId(req.auth.userId);
     const { name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
+    if (name.length > 100) return res.status(400).json({ error: 'Vice name must be 100 characters or fewer.' });
     const r = await pool.query(
       `INSERT INTO vices (user_id, name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -30,6 +31,7 @@ router.put('/:id', async (req, res, next) => {
     if (!await verifyViceOwnership(req.params.id, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
     const { name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories } = req.body;
+    if (name && name.length > 100) return res.status(400).json({ error: 'Vice name must be 100 characters or fewer.' });
     const r = await pool.query(
       `UPDATE vices SET
         name           = COALESCE($1, name),

@@ -106,11 +106,19 @@ router.post('/exchange-token', async (req, res, next) => {
     const { public_token, institution_name } = req.body;
     if (!public_token) return res.status(400).json({ error: 'public_token required' });
 
+    // Look up user before calling Plaid so we fail early with a clear error
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) {
+      console.error('[Plaid exchange-token] user not found:', {
+        authUserId: req.auth.userId,
+        type: typeof req.auth.userId,
+        vtAuth: !!req.vtAuth,
+      });
+      return res.status(404).json({ error: 'Session error — please refresh and try again.' });
+    }
+
     const exchangeRes = await plaid.itemPublicTokenExchange({ public_token });
     const { access_token, item_id } = exchangeRes.data;
-
-    const userId = await getInternalUserId(req.auth.userId);
-    if (!userId) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
       `INSERT INTO plaid_connections (user_id, access_token, item_id, institution_name)

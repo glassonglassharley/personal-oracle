@@ -106,7 +106,27 @@ async function usernameOrClerkAuth(req, res, next) {
   return requireAuth()(req, res, next);
 }
 
-app.use(cors());
+const ALLOWED_ORIGINS = (() => {
+  const env = process.env.ALLOWED_ORIGINS || process.env.APP_URL || '';
+  const origins = env.split(',').map(s => s.trim()).filter(Boolean);
+  if (!origins.length) {
+    // Dev fallback: allow localhost on common ports
+    return [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/127\.0\.0\.1(:\d+)?$/];
+  }
+  return origins;
+})();
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow same-origin / non-browser requests (Siri Shortcuts, server-to-server)
+    if (!origin) return cb(null, true);
+    const allowed = ALLOWED_ORIGINS.some(o =>
+      o instanceof RegExp ? o.test(origin) : o === origin
+    );
+    cb(allowed ? null : new Error('Not allowed by CORS'), allowed);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(clerkMiddleware());
 

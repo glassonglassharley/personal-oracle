@@ -74,7 +74,6 @@ import {
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit } from '../formatUnits';
-import { GoalsSection, CelebOverlay } from './GoalsSection';
 import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 import CompanionCard from '../companions/CompanionCard';
 import InsightsPanel from '../components/InsightsPanel';
@@ -188,15 +187,6 @@ export default function Dashboard() {
   const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Goals state
-  const [goals, setGoals] = useState([]);
-  const [celebGoal, setCelebGoal] = useState(null);
-  const [showGoalForm, setShowGoalForm] = useState(false);
-  const [goalTitle, setGoalTitle] = useState('');
-  const [goalAmt, setGoalAmt] = useState('');
-  const [goalError, setGoalError] = useState('');
-  const celebratedRef = useRef(new Set());
-
   // Challenge notifications
   const [challenges, setChallenges] = useState([]);
   const [newBadges, setNewBadges] = useState([]);
@@ -221,7 +211,6 @@ export default function Dashboard() {
 
   // Load goals + challenges + badge check + XP + weekly insight once on mount
   useEffect(() => {
-    apiRef.current('/api/goals').then(setGoals).catch(() => {});
     apiRef.current('/api/partners/challenges').then(setChallenges).catch(() => {});
     apiRef.current('/api/badges/check', { method: 'POST' })
       .then(({ newly_earned }) => { if (newly_earned?.length) setNewBadges(newly_earned); })
@@ -254,51 +243,6 @@ export default function Dashboard() {
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Celebrate when a goal is first reached
-  useEffect(() => {
-    if (!stats) return;
-    const savings = stats.savings_from_clean_days;
-    goals.filter(g => !g.completed_at).forEach(g => {
-      if (savings >= Number(g.target_amount) && !celebratedRef.current.has(g.id)) {
-        celebratedRef.current.add(g.id);
-        setCelebGoal(g);
-      }
-    });
-  }, [stats, goals]);
-
-  const createGoal = async (e) => {
-    e.preventDefault();
-    setGoalError('');
-    try {
-      const g = await apiRef.current('/api/goals', {
-        method: 'POST',
-        body: JSON.stringify({ title: goalTitle, target_amount: goalAmt }),
-      });
-      setGoals(gs => [g, ...gs]);
-      setGoalTitle(''); setGoalAmt(''); setShowGoalForm(false);
-    } catch (err) {
-      setGoalError(err.message || 'Could not create goal.');
-    }
-  };
-
-  const markGoalDone = async (id) => {
-    try {
-      await apiRef.current(`/api/goals/${id}/complete`, { method: 'PUT' });
-      setGoals(gs => gs.map(g => g.id === id ? { ...g, completed_at: new Date().toISOString() } : g));
-      setCelebGoal(null);
-    } catch (err) {
-      console.error('markGoalDone failed:', err);
-    }
-  };
-
-  const deleteGoal = async (id) => {
-    try {
-      await apiRef.current(`/api/goals/${id}`, { method: 'DELETE' });
-      setGoals(gs => gs.filter(g => g.id !== id));
-    } catch (err) {
-      console.error('deleteGoal failed:', err);
-    }
-  };
 
   useEffect(() => {
     if (vices.length === 0) {
@@ -462,13 +406,6 @@ export default function Dashboard() {
         </div>
       ))}
 
-      {celebGoal && (
-        <CelebOverlay
-          goal={celebGoal}
-          onComplete={() => markGoalDone(celebGoal.id)}
-          onDismiss={() => setCelebGoal(null)}
-        />
-      )}
 
       {newBadges.length > 0 && (
         <BadgeCelebOverlay badges={newBadges} onDismiss={() => setNewBadges([])} />
@@ -600,21 +537,6 @@ export default function Dashboard() {
           )}
 
           <InsightsPanel stats={stats} xpData={xpData} />
-
-          <GoalsSection
-            goals={goals}
-            savings={stats.savings_from_clean_days}
-            avgDailySpend={stats.avg_daily_spend}
-            showForm={showGoalForm}
-            setShowForm={setShowGoalForm}
-            goalTitle={goalTitle}
-            setGoalTitle={setGoalTitle}
-            goalAmt={goalAmt}
-            setGoalAmt={setGoalAmt}
-            goalError={goalError}
-            onCreateGoal={createGoal}
-            onDeleteGoal={deleteGoal}
-          />
 
           <div className="panel">
             <div className="panel-head">

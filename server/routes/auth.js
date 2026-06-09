@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 const { sanitizeUsername, hashToken, validToken, safeEqual } = require('./usernameAuth');
 const { sendMagicLinkEmail } = require('../email');
@@ -12,9 +13,16 @@ const BCRYPT_ROUNDS = 12;
 const SESSION_EXPIRY = '90d';
 const MAGIC_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
+// Rate limiters
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Try again in 15 minutes.' } });
+const signupLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many accounts created from this IP. Try again later.' } });
+const demoLimiter  = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many demo accounts from this IP. Try again later.' } });
+const magicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many magic link requests. Try again in 15 minutes.' } });
+
 function getSecret() {
   const s = process.env.JWT_SECRET;
   if (!s) throw Object.assign(new Error('JWT_SECRET not configured'), { status: 500 });
+  if (s.length < 32) throw Object.assign(new Error('JWT_SECRET must be at least 32 characters'), { status: 500 });
   return s;
 }
 
@@ -39,7 +47,7 @@ function validateEmail(email) {
 }
 
 // POST /api/auth/signup
-router.post('/signup', async (req, res, next) => {
+router.post('/signup', signupLimiter, async (req, res, next) => {
   try {
     const username = sanitizeUsername(req.body?.username);
     const password = String(req.body?.password || '').trim();
@@ -48,6 +56,9 @@ router.post('/signup', async (req, res, next) => {
 
     if (!username || username.length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters.' });
+    }
+    if (username.length > 30) {
+      return res.status(400).json({ error: 'Username must be 30 characters or fewer.' });
     }
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
@@ -91,7 +102,7 @@ router.post('/signup', async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
     const username = sanitizeUsername(req.body?.username);
     const password = String(req.body?.password || '').trim();
@@ -126,7 +137,7 @@ router.post('/login', async (req, res, next) => {
 });
 
 // POST /api/auth/demo — create ephemeral demo account (no password, no email)
-router.post('/demo', async (req, res, next) => {
+router.post('/demo', demoLimiter, async (req, res, next) => {
   try {
     const username = sanitizeUsername(req.body?.username);
     if (!username || username.length < 3) {
@@ -247,7 +258,7 @@ router.post('/token-exchange', async (req, res, next) => {
 });
 
 // POST /api/auth/magic — request magic link (login or password reset)
-router.post('/magic', async (req, res, next) => {
+router.post('/magic', magicLimiter, async (req, res, next) => {
   try {
     const purpose = ['login', 'reset'].includes(req.body?.purpose) ? req.body.purpose : 'login';
     const identifier = String(req.body?.identifier || '').trim().toLowerCase();
@@ -264,14 +275,8 @@ router.post('/magic', async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // Don't leak whether account exists
+    // Always return the same response regardless of account/email existence to prevent enumeration
     if (!user || !user.email) {
-      if (user && !user.email) {
-        return res.status(400).json({
-          error: 'no_email',
-          message: 'No email on file for that account. Add an email in account settings, or migrate using your access token.',
-        });
-      }
       return res.json({ ok: true, message: 'If an account with that identifier exists, a magic link has been sent.' });
     }
 
@@ -376,7 +381,12 @@ router.post('/admin/reset-user', async (req, res, next) => {
   try {
     const provided = String(req.get('X-Admin-Secret') || '').trim();
     const expected = process.env.ADMIN_SECRET;
-    if (!expected || !provided || provided !== expected) {
+    const providedBuf = Buffer.from(provided);
+    const expectedBuf = Buffer.from(expected || '');
+    const valid = expected && provided &&
+      providedBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(providedBuf, expectedBuf);
+    if (!valid) {
       return res.status(401).json({ error: 'Unauthorized.' });
     }
 

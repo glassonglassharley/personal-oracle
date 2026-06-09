@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from '../useApi';
 
 function loadPlaidScript() {
@@ -64,6 +64,7 @@ export default function PlaidConnect({ vices }) {
   const [userVices, setUserVices] = useState([]);
   const [status, setStatus] = useState(null);       // null | { connected, institution_name }
   const [linking, setLinking] = useState(false);
+  const oauthResumed = useRef(false);
   const [syncing, setSyncing] = useState(false);
   const [transactions, setTransactions] = useState(null);
   const [error, setError] = useState('');
@@ -80,6 +81,44 @@ export default function PlaidConnect({ vices }) {
   useEffect(() => {
     api('/api/plaid/status').then(setStatus).catch(() => setStatus({ connected: false }));
     api('/api/vices').then(setUserVices).catch(() => {});
+
+    // Resume OAuth flow if returning from bank redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('oauth_state_id') && !oauthResumed.current) {
+      oauthResumed.current = true;
+      const storedToken = sessionStorage.getItem('plaid_link_token');
+      if (storedToken) {
+        resumeOAuthFlow(storedToken);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const resumeOAuthFlow = useCallback(async (token) => {
+    setLinking(true);
+    setError('');
+    try {
+      await loadPlaidScript();
+      const handler = window.Plaid.create({
+        token,
+        receivedRedirectUri: window.location.href,
+        onSuccess: (public_token, metadata) => {
+          const institution_name = metadata.institution?.name || '';
+          setLinking(false);
+          setPendingExchange({ public_token, institution_name });
+          sessionStorage.removeItem('plaid_link_token');
+          window.history.replaceState({}, '', window.location.pathname);
+        },
+        onExit: (err) => {
+          if (err) setError(err.error_message || 'Plaid Link closed with an error.');
+          setLinking(false);
+          sessionStorage.removeItem('plaid_link_token');
+        },
+      });
+      handler.open();
+    } catch (err) {
+      setError(err.message || 'Could not resume bank connection');
+      setLinking(false);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When transactions or userVices arrive, seed selectedVices with the best-match vice per tx
@@ -109,16 +148,21 @@ export default function PlaidConnect({ vices }) {
         ...(body ? { body } : {}),
       });
 
+      // Store for OAuth redirect resume
+      sessionStorage.setItem('plaid_link_token', link_token);
+
       const handler = window.Plaid.create({
         token: link_token,
         onSuccess: (public_token, metadata) => {
           const institution_name = metadata.institution?.name || '';
+          sessionStorage.removeItem('plaid_link_token');
           setLinking(false);
           // Hold for user confirmation before exchanging the token
           setPendingExchange({ public_token, institution_name });
         },
         onExit: (err) => {
           if (err) setError(err.error_message || 'Plaid Link closed with an error. Please try again.');
+          sessionStorage.removeItem('plaid_link_token');
           setLinking(false);
         },
       });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -6,6 +6,7 @@ import {
 } from 'chart.js';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
+import { GoalsSection, CelebOverlay } from './GoalsSection';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -181,6 +182,15 @@ export default function Savings() {
   const [assetFormError, setAssetFormError] = useState('');
   const [assetSaving, setAssetSaving] = useState(false);
 
+  // Goals state
+  const [goals, setGoals] = useState([]);
+  const [celebGoal, setCelebGoal] = useState(null);
+  const [showGoalForm, setShowGoalForm] = useState(false);
+  const [goalTitle, setGoalTitle] = useState('');
+  const [goalAmt, setGoalAmt] = useState('');
+  const [goalError, setGoalError] = useState('');
+  const celebratedRef = useRef(new Set());
+
   // Resolve CSS vars synchronously during render — useMemo runs in the render
   // phase, so by the time this fires the body class is already updated and
   // getComputedStyle returns the correct values for the active theme.
@@ -248,6 +258,20 @@ export default function Savings() {
     api('/api/assets').then(setUserAssets).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    api('/api/goals').then(setGoals).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const saved = balance.balance;
+    goals.filter(g => !g.completed_at).forEach(g => {
+      if (saved >= Number(g.target_amount) && !celebratedRef.current.has(g.id)) {
+        celebratedRef.current.add(g.id);
+        setCelebGoal(g);
+      }
+    });
+  }, [balance.balance, goals]);
+
   const handleBalanceSave = async (e) => {
     e.preventDefault();
     setBalanceError('');
@@ -267,6 +291,36 @@ export default function Savings() {
     } finally {
       setBalanceSaving(false);
     }
+  };
+
+  const createGoal = async (e) => {
+    e.preventDefault();
+    setGoalError('');
+    try {
+      const g = await api('/api/goals', {
+        method: 'POST',
+        body: JSON.stringify({ title: goalTitle, target_amount: goalAmt }),
+      });
+      setGoals(gs => [g, ...gs]);
+      setGoalTitle(''); setGoalAmt(''); setShowGoalForm(false);
+    } catch (err) {
+      setGoalError(err.message || 'Could not create goal.');
+    }
+  };
+
+  const markGoalDone = async (id) => {
+    try {
+      await api(`/api/goals/${id}/complete`, { method: 'PUT' });
+      setGoals(gs => gs.map(g => g.id === id ? { ...g, completed_at: new Date().toISOString() } : g));
+      setCelebGoal(null);
+    } catch (err) { console.error('markGoalDone failed:', err); }
+  };
+
+  const deleteGoal = async (id) => {
+    try {
+      await api(`/api/goals/${id}`, { method: 'DELETE' });
+      setGoals(gs => gs.filter(g => g.id !== id));
+    } catch (err) { console.error('deleteGoal failed:', err); }
   };
 
   const handleAssetCategoryChange = (label) => {
@@ -864,6 +918,28 @@ export default function Savings() {
         </div>
       </div>
 
+      <GoalsSection
+        goals={goals}
+        savings={balance.balance}
+        avgDailySpend={data?.per_day || 0}
+        showForm={showGoalForm}
+        setShowForm={setShowGoalForm}
+        goalTitle={goalTitle}
+        setGoalTitle={setGoalTitle}
+        goalAmt={goalAmt}
+        setGoalAmt={setGoalAmt}
+        goalError={goalError}
+        onCreateGoal={createGoal}
+        onDeleteGoal={deleteGoal}
+      />
+
+      {celebGoal && (
+        <CelebOverlay
+          goal={celebGoal}
+          onComplete={() => markGoalDone(celebGoal.id)}
+          onDismiss={() => setCelebGoal(null)}
+        />
+      )}
     </main>
   );
 }

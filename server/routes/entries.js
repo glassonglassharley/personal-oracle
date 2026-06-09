@@ -80,6 +80,8 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'quantity must be a non-negative number' });
     if (!Number.isFinite(entryPrice) || entryPrice < 0)
       return res.status(400).json({ error: 'price_per_unit must be a non-negative number' });
+    if (note && note.length > 5000)
+      return res.status(400).json({ error: 'Note must be 5000 characters or fewer.' });
     if (!await verifyViceOwnership(viceId, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
 
