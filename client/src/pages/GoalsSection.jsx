@@ -6,8 +6,39 @@ export function GoalsSection({
   goalTitle, setGoalTitle,
   goalAmt, setGoalAmt,
   goalError,
-  onCreateGoal, onDeleteGoal,
+  onCreateGoal, onDeleteGoal, onUpdateGoal,
 }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmt, setEditAmt]     = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startEdit = (goal) => {
+    setEditingId(goal.id);
+    setEditTitle(goal.title);
+    setEditAmt(String(Number(goal.target_amount)));
+    setEditError('');
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditError(''); };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTitle.trim()) { setEditError('Title is required.'); return; }
+    const amt = Number(editAmt);
+    if (!Number.isFinite(amt) || amt <= 0) { setEditError('Enter a valid target amount.'); return; }
+    setEditSaving(true);
+    try {
+      await onUpdateGoal(editingId, { title: editTitle.trim(), target_amount: amt });
+      setEditingId(null);
+    } catch (err) {
+      setEditError(err.message || 'Could not save. Try again.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const active = goals.filter(g => !g.completed_at);
   const done   = goals.filter(g =>  g.completed_at);
 
@@ -71,26 +102,63 @@ export function GoalsSection({
 
             return (
               <div key={goal.id} className={`goal-card${reached ? ' reached' : ''}`}>
-                <div className="goal-card-top">
-                  <div className="goal-card-title">{goal.title}</div>
-                  <button className="goal-delete" onClick={() => onDeleteGoal(goal.id)} title="Remove">×</button>
-                </div>
-                <div className="goal-amounts">
-                  <span className="goal-saved">${savings.toFixed(0)}</span>
-                  <span className="goal-sep"> of </span>
-                  <span className="goal-target">${target.toFixed(0)}</span>
-                </div>
-                <div className="goal-bar-track">
-                  <div className="goal-bar-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="goal-bar-foot">
-                  <span className="goal-pct">{pct.toFixed(0)}%</span>
-                  {reached
-                    ? <span className="goal-reached-badge">Reached! 🎉</span>
-                    : daysEst !== null
-                      ? <span className="goal-days">~{daysEst} days away</span>
-                      : null}
-                </div>
+                {editingId === goal.id ? (
+                  <form onSubmit={handleEditSubmit}>
+                    <input
+                      className="form-input"
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      placeholder="Goal title"
+                      autoFocus
+                      style={{ marginBottom: 8 }}
+                    />
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={editAmt}
+                      onChange={e => setEditAmt(e.target.value)}
+                      placeholder="Target $"
+                      min="1"
+                      step="0.01"
+                      style={{ marginBottom: 8 }}
+                    />
+                    {editError && <div className="form-error" style={{ marginBottom: 8 }}>{editError}</div>}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn" type="submit" disabled={editSaving} style={{ flex: 1, fontSize: 13 }}>
+                        {editSaving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="btn ghost" type="button" onClick={cancelEdit} style={{ fontSize: 13 }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="goal-card-top">
+                      <div className="goal-card-title">{goal.title}</div>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="goal-delete" onClick={() => startEdit(goal)} title="Edit">✏</button>
+                        <button className="goal-delete" onClick={() => onDeleteGoal(goal.id)} title="Remove">×</button>
+                      </div>
+                    </div>
+                    <div className="goal-amounts">
+                      <span className="goal-saved">${savings.toFixed(0)}</span>
+                      <span className="goal-sep"> of </span>
+                      <span className="goal-target">${target.toFixed(0)}</span>
+                    </div>
+                    <div className="goal-bar-track">
+                      <div className="goal-bar-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="goal-bar-foot">
+                      <span className="goal-pct">{pct.toFixed(0)}%</span>
+                      {reached
+                        ? <span className="goal-reached-badge">Reached! 🎉</span>
+                        : daysEst !== null
+                          ? <span className="goal-days">~{daysEst} days away</span>
+                          : null}
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}

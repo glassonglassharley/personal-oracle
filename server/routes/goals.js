@@ -28,6 +28,20 @@ router.post('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.put('/:id', async (req, res, next) => {
+  try {
+    const myId = await getInternalUserId(req.auth.userId);
+    const { title, target_amount } = req.body;
+    if (!title || !target_amount) return res.status(400).json({ error: 'title and target_amount required' });
+    const r = await pool.query(
+      'UPDATE goals SET title = $1, target_amount = $2 WHERE id = $3 AND user_id = $4 RETURNING *',
+      [title.trim(), Number(target_amount), req.params.id, myId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Goal not found' });
+    res.json(r.rows[0]);
+  } catch (err) { next(err); }
+});
+
 router.put('/:id/complete', async (req, res, next) => {
   try {
     const myId = await getInternalUserId(req.auth.userId);

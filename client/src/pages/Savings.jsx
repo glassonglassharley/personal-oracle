@@ -327,6 +327,14 @@ export default function Savings() {
     } catch (err) { console.error('markGoalDone failed:', err); }
   };
 
+  const updateGoal = async (id, { title, target_amount }) => {
+    const updated = await api(`/api/goals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, target_amount }),
+    });
+    setGoals(gs => gs.map(g => g.id === id ? { ...g, ...updated } : g));
+  };
+
   const deleteGoal = async (id) => {
     try {
       await api(`/api/goals/${id}`, { method: 'DELETE' });
@@ -949,6 +957,7 @@ export default function Savings() {
         setGoalAmt={setGoalAmt}
         goalError={goalError}
         onCreateGoal={createGoal}
+        onUpdateGoal={updateGoal}
         onDeleteGoal={deleteGoal}
       />
 
