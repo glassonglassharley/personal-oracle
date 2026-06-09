@@ -170,21 +170,22 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
                 {g.isDecember && <span className="comp-chip">❄️ Winter</span>}
               </div>
 
-              {/* XP level strip */}
+              {/* XP level strip — show level number only, not name, to avoid
+                  conflicting with tree stage names (both use Seedling/Sprout/…) */}
               {xpData && (
                 <div className="comp-xp-row">
                   <div className="comp-xp-row-head">
                     <span className="comp-xp-row-name">
-                      {xpData.level_icon} {xpData.level_name} · Lv {xpData.level}
+                      {xpData.level_icon} Activity Level {xpData.level}
                     </span>
                     <span className="comp-xp-row-total">{xpData.total_xp.toLocaleString()} XP</span>
                   </div>
                   <div className="comp-progress-bar comp-progress-bar-gold">
                     <div className="comp-progress-fill-gold" style={{ width: `${xpData.progress_percent || 0}%` }} />
                   </div>
-                  {xpData.next_level_name && (
+                  {xpData.xp_to_next_level > 0 && (
                     <span className="comp-xp-row-next">
-                      Next: {xpData.next_level_name} {xpData.next_level_icon}
+                      {xpData.xp_to_next_level.toLocaleString()} XP to next level
                     </span>
                   )}
                 </div>

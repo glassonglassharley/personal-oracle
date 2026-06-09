@@ -15,27 +15,38 @@ router.get('/', async (req, res, next) => {
     const userId = await getMyId(req.auth.userId);
 
     const { rows } = await pool.query(
-      'SELECT companion_type, companion_state, created_at FROM users WHERE id = $1',
+      'SELECT companion_type, companion_state, created_at, savings_balance FROM users WHERE id = $1',
       [userId]
     );
     const user = rows[0];
     if (!user.companion_type) return res.json({ companion_type: null });
 
-    // Live savings (potential $ not spent on clean days)
+    // Actual savings balance (user-entered on Savings page)
+    const totalSaved = Number(user.savings_balance || 0);
+
+    // Clean days = dates where ALL vices were explicitly logged with quantity = 0
+    const cleanQ = await pool.query(`
+      SELECT COUNT(*) AS clean_days
+      FROM (
+        SELECT e.date::date
+        FROM entries e
+        JOIN vices v ON v.id = e.vice_id
+        WHERE v.user_id = $1
+        GROUP BY e.date::date
+        HAVING
+          MAX(e.quantity) = 0
+          AND COUNT(DISTINCT e.vice_id) = (SELECT COUNT(*) FROM vices WHERE user_id = $1)
+      ) clean_dates
+    `, [userId]);
+    const cleanDays = Number(cleanQ.rows[0]?.clean_days || 0);
+
+    // First entry date (for daysTracked)
     const savQ = await pool.query(`
-      SELECT COALESCE(SUM(
-        CASE WHEN e.quantity = 0 THEN v.default_price ELSE 0 END
-      ), 0) AS total_saved,
-      COUNT(CASE WHEN e.quantity = 0 THEN 1 END) AS clean_days,
-      COUNT(e.id) AS total_entries,
-      MIN(e.date) AS first_entry
+      SELECT MIN(e.date) AS first_entry
       FROM entries e
       JOIN vices v ON v.id = e.vice_id
       WHERE v.user_id = $1
     `, [userId]);
-
-    const totalSaved = Number(savQ.rows[0]?.total_saved || 0);
-    const cleanDays = Number(savQ.rows[0]?.clean_days || 0);
     const firstEntry = savQ.rows[0]?.first_entry;
 
     // Days tracked since first entry
@@ -45,12 +56,16 @@ router.get('/', async (req, res, next) => {
       daysTracked = Math.floor(diff / 86400000) + 1;
     }
 
-    // Current streak
+    // Current streak = consecutive clean days (ALL vices logged at 0) ending today
     const streakQ = await pool.query(`
-      SELECT DISTINCT e.date::date AS d
+      SELECT e.date::date AS d
       FROM entries e
       JOIN vices v ON v.id = e.vice_id
-      WHERE v.user_id = $1 AND e.quantity = 0
+      WHERE v.user_id = $1
+      GROUP BY e.date::date
+      HAVING
+        MAX(e.quantity) = 0
+        AND COUNT(DISTINCT e.vice_id) = (SELECT COUNT(*) FROM vices WHERE user_id = $1)
       ORDER BY d DESC
     `, [userId]);
 
