@@ -77,8 +77,7 @@ export default function History() {
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const visibleEntries = entries.filter(e => !deleted.has(e.id));
 
-  const spendTotal = visibleEntries.reduce((s, e) => s + (e.quantity > 0 ? e.quantity * e.price_per_unit : 0), 0);
-  const cleanCount = visibleEntries.filter(e => e.quantity === 0).length;
+  const spendTotal = visibleEntries.reduce((s, e) => s + e.quantity * e.price_per_unit, 0);
 
   return (
     <main className="main hist-page">
@@ -142,12 +141,8 @@ export default function History() {
           <strong>{total.toLocaleString()} entries</strong>
         </span>
         <span className="hist-summary-item">
-          <span className="hist-summary-label">Spent</span>
+          <span className="hist-summary-label">Total spent</span>
           <strong style={{ color: 'var(--warn)' }}>{fmt$(spendTotal)}</strong>
-        </span>
-        <span className="hist-summary-item">
-          <span className="hist-summary-label">Clean days</span>
-          <strong style={{ color: 'var(--money)' }}>{cleanCount}</strong>
         </span>
       </div>
 
@@ -169,27 +164,19 @@ export default function History() {
       ) : (
         <div className="hist-list">
           {visibleEntries.map(entry => {
-            const isClean  = entry.quantity === 0;
-            const amount   = entry.quantity * entry.price_per_unit;
-            const isDel    = deleting.has(entry.id);
+            const amount = entry.quantity * entry.price_per_unit;
+            const isDel  = deleting.has(entry.id);
             return (
-              <div key={entry.id} className={`hist-row${isClean ? ' hist-row-clean' : ''}`}>
+              <div key={entry.id} className="hist-row">
                 <div className="hist-row-date">{fmtDate(entry.date)}</div>
                 <div className="hist-row-vice">
                   <span className="hist-row-emoji">{entry.vice_emoji}</span>
                   <span className="hist-row-vice-name">{entry.vice_name}</span>
                 </div>
-                <div className={`hist-row-amount ${isClean ? 'clean' : 'spent'}`}>
-                  {isClean
-                    ? <span className="hist-clean-badge">Clean</span>
-                    : fmt$(amount)
-                  }
+                <div className="hist-row-amount spent">{fmt$(amount)}</div>
+                <div className="hist-row-detail">
+                  {entry.quantity} × {fmt$(entry.price_per_unit)}
                 </div>
-                {!isClean && (
-                  <div className="hist-row-detail">
-                    {entry.quantity} × {fmt$(entry.price_per_unit)}
-                  </div>
-                )}
                 {entry.note && (
                   <div className="hist-row-note" title={entry.note}>{entry.note}</div>
                 )}

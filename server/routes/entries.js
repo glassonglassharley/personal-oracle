@@ -14,7 +14,7 @@ router.get('/all', async (req, res, next) => {
     const off = Number(req.query.offset) || 0;
 
     const params = [userId];
-    let where = 'WHERE v.user_id = $1';
+    let where = 'WHERE v.user_id = $1 AND e.quantity > 0';
 
     if (vice_id) {
       params.push(Number(vice_id));
