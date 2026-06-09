@@ -209,6 +209,21 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Admin */}
+      {String(username || '').trim().toLowerCase() === 'glassonglass' && (
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Admin</span>
+          </div>
+          <p style={{ color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+            View the privacy-safe signed-up user list. Only email or connected wallet address is shown.
+          </p>
+          <a className="btn" href="/admin/users" style={{ display: 'inline-flex', textDecoration: 'none' }}>
+            Open user management
+          </a>
+        </div>
+      )}
+
       {/* Sign out */}
       <div className="panel">
         <div className="panel-head">

@@ -37,6 +37,9 @@ function isViceTransaction(tx) {
 let _plaidClient = null;
 function getPlaidClient() {
   if (_plaidClient) return _plaidClient;
+  if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+    throw Object.assign(new Error('Plaid is not configured. Add PLAID_CLIENT_ID and PLAID_SECRET in Vercel.'), { status: 503 });
+  }
   const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
   const plaidEnv = process.env.PLAID_ENV || 'sandbox';
   _plaidClient = new PlaidApi(new Configuration({
@@ -81,10 +84,11 @@ router.post('/create-link-token', async (req, res, next) => {
       country_codes: [CountryCode.Us],
       language: 'en',
     };
-    // OAuth institutions (e.g. Navy Federal) require redirect_uri in link token creation
-    const appUrl = process.env.APP_URL || process.env.PLAID_REDIRECT_URI;
-    if (appUrl) {
-      linkParams.redirect_uri = appUrl;
+    // OAuth institutions require redirect_uri in link token creation, but Plaid
+    // rejects unregistered redirect URIs with a 400. Only send the explicit
+    // Plaid allowlisted URI, not the generic app URL.
+    if (process.env.PLAID_REDIRECT_URI) {
+      linkParams.redirect_uri = process.env.PLAID_REDIRECT_URI;
     }
     // Pre-select a specific institution (e.g. Navy Federal ins_133383) to bypass fuzzy search
     if (institution_id && /^ins_[0-9]+$/.test(institution_id)) {
@@ -94,8 +98,16 @@ router.post('/create-link-token', async (req, res, next) => {
     const response = await plaid.linkTokenCreate(linkParams);
     res.json({ link_token: response.data.link_token });
   } catch (err) {
-    console.error('Plaid create-link-token error:', err.response?.data || err.message);
-    next(err);
+    const plaidError = err.response?.data;
+    console.error('Plaid create-link-token error:', plaidError || err.message);
+    if (plaidError) {
+      return res.status(err.response?.status || 400).json({
+        error: plaidError.error_message || plaidError.error_code || 'Could not create Plaid link token.',
+        plaid_error_code: plaidError.error_code,
+        plaid_error_type: plaidError.error_type,
+      });
+    }
+    return res.status(err.status || 500).json({ error: err.message || 'Could not create Plaid link token.' });
   }
 });
 

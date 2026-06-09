@@ -11,6 +11,7 @@ const Wrapped           = lazy(() => import('./pages/Wrapped'));
 const CompanionOnboarding = lazy(() => import('./pages/CompanionOnboarding'));
 const Badges              = lazy(() => import('./pages/Badges'));
 const Settings            = lazy(() => import('./pages/Settings'));
+const AdminUsers          = lazy(() => import('./pages/AdminUsers'));
 const History             = lazy(() => import('./pages/History'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
@@ -407,6 +408,7 @@ function AuthenticatedApp() {
             <Route path="/badges" element={<Badges />} />
             <Route path="/wrapped/:year" element={<Wrapped />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
           </Routes>
           {companionLoaded && showOnboarding && (
             <CompanionOnboarding
