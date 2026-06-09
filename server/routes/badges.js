@@ -7,15 +7,22 @@ const { awardXP, sendPushToUser, getInternalUserId } = require('../utils');
 const STREAK_MILESTONE_XP = { streak_3: 50, streak_7: 100, streak_30: 250, streak_100: 500 };
 const BASE_BADGE_XP = 75;
 
+const SAVINGS_BADGE_THRESHOLDS = {
+  saved_100: 100,
+  saved_500: 500,
+  saved_1000: 1000,
+};
+const SAVINGS_BADGE_IDS = Object.keys(SAVINGS_BADGE_THRESHOLDS);
+
 const BADGE_DEFS = [
   { id: 'first_log',       emoji: '✨', name: 'First Log',        description: 'Logged your first entry ever' },
   { id: 'streak_3',        emoji: '🔥', name: '3-Day Streak',     description: '3 consecutive clean days' },
   { id: 'streak_7',        emoji: '⚡', name: '7-Day Streak',     description: '7 consecutive clean days' },
   { id: 'streak_30',       emoji: '🌱', name: '30-Day Streak',    description: '30 consecutive clean days' },
   { id: 'streak_100',      emoji: '👑', name: '100-Day Streak',   description: '100 consecutive clean days' },
-  { id: 'saved_100',       emoji: '💰', name: '$100 Saved',       description: 'Moved $100 into your savings account' },
-  { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Moved $500 into your savings account' },
-  { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Moved $1,000 into your savings account' },
+  { id: 'saved_100',       emoji: '💰', name: '$100 Saved',       description: 'Record $100 in your connected or manually-entered savings balance' },
+  { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Record $500 in your connected or manually-entered savings balance' },
+  { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Record $1,000 in your connected or manually-entered savings balance' },
   { id: 'logged_30_days',  emoji: '📅', name: '30 Days Logged',   description: 'Logged entries on 30 distinct days' },
   { id: 'plaid_connected', emoji: '🏦', name: 'Bank Connected',   description: 'Connected a bank account via Plaid' },
 ];
@@ -98,9 +105,9 @@ function earnedBadgeIds(stats) {
   if (stats.currentStreak >= 7)   ids.add('streak_7');
   if (stats.currentStreak >= 30)  ids.add('streak_30');
   if (stats.currentStreak >= 100) ids.add('streak_100');
-  if (stats.actualSavings >= 100)  ids.add('saved_100');
-  if (stats.actualSavings >= 500)  ids.add('saved_500');
-  if (stats.actualSavings >= 1000) ids.add('saved_1000');
+  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_100)  ids.add('saved_100');
+  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_500)  ids.add('saved_500');
+  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_1000) ids.add('saved_1000');
   if (stats.totalLoggedDays >= 30) ids.add('logged_30_days');
   if (stats.plaidConnected)       ids.add('plaid_connected');
   return ids;
@@ -133,6 +140,16 @@ router.post('/check', async (req, res, next) => {
     // Already-earned badge IDs in the DB
     const existing = await pool.query('SELECT badge_id FROM badges WHERE user_id = $1', [userId]);
     const alreadyEarned = new Set(existing.rows.map(r => r.badge_id));
+
+    const staleSavingsBadges = [...alreadyEarned]
+      .filter(id => SAVINGS_BADGE_IDS.includes(id) && !shouldEarn.has(id));
+    if (staleSavingsBadges.length > 0) {
+      await pool.query(
+        'DELETE FROM badges WHERE user_id = $1 AND badge_id = ANY($2)',
+        [userId, staleSavingsBadges]
+      );
+      staleSavingsBadges.forEach(id => alreadyEarned.delete(id));
+    }
 
     const toInsert = [...shouldEarn].filter(id => !alreadyEarned.has(id));
     if (toInsert.length === 0) return res.json({ newly_earned: [] });
@@ -205,8 +222,11 @@ router.get('/', async (req, res, next) => {
     const earnedMap = {};
     earned.rows.forEach(r => { earnedMap[r.badge_id] = r.earned_at; });
 
+    const currentlyEarned = earnedBadgeIds(stats);
     const badges = BADGE_DEFS.map(def => {
-      const isEarned = def.id in earnedMap;
+      const isPersisted = def.id in earnedMap;
+      const isStaleSavingsBadge = SAVINGS_BADGE_IDS.includes(def.id) && !currentlyEarned.has(def.id);
+      const isEarned = isPersisted && !isStaleSavingsBadge;
       return {
         ...def,
         earned: isEarned,
