@@ -18,6 +18,68 @@ async function getAcceptedFriendship(myId, partnerId) {
   return result.rows[0] || null;
 }
 
+// Helper: compute current clean-day streak for a user
+async function computeStreak(userId) {
+  const rows = await pool.query(`
+    SELECT e.date::text AS d
+    FROM entries e JOIN vices v ON v.id = e.vice_id
+    WHERE v.user_id = $1
+    GROUP BY e.date::text
+    HAVING MAX(e.quantity) = 0
+       AND COUNT(DISTINCT e.vice_id) = (SELECT COUNT(*) FROM vices WHERE user_id = $1)
+    ORDER BY d DESC
+    LIMIT 60
+  `, [userId]);
+  const cleanSet = new Set(rows.rows.map(r => r.d));
+  let streak = 0;
+  const cur = new Date();
+  cur.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 60; i++) {
+    const ds = cur.toISOString().split('T')[0];
+    if (cleanSet.has(ds)) { streak++; cur.setDate(cur.getDate() - 1); }
+    else if (i === 0) { cur.setDate(cur.getDate() - 1); } // skip today if not yet logged
+    else break;
+  }
+  return streak;
+}
+
+// Helper: resolve privacy prefs with safe defaults
+function resolvePrivacy(raw) {
+  const p = raw || {};
+  return {
+    show_vices:  p.show_vices  !== false,
+    show_spend:  p.show_spend  !== false,
+    show_streak: p.show_streak !== false,
+    show_xp:     p.show_xp    !== false,
+  };
+}
+
+// GET /api/partners/privacy — my own sharing preferences
+router.get('/privacy', async (req, res, next) => {
+  try {
+    const myId = await getMyId(req.auth.userId);
+    if (!myId) return res.json({ show_vices: true, show_spend: true, show_streak: true, show_xp: true });
+    const r = await pool.query('SELECT partner_privacy FROM users WHERE id = $1', [myId]);
+    res.json(resolvePrivacy(r.rows[0]?.partner_privacy));
+  } catch (err) { next(err); }
+});
+
+// PUT /api/partners/privacy — save my sharing preferences
+router.put('/privacy', async (req, res, next) => {
+  try {
+    const myId = await getMyId(req.auth.userId);
+    if (!myId) return res.status(404).json({ error: 'User not found' });
+    const prefs = {
+      show_vices:  req.body.show_vices  !== false,
+      show_spend:  req.body.show_spend  !== false,
+      show_streak: req.body.show_streak !== false,
+      show_xp:     req.body.show_xp    !== false,
+    };
+    await pool.query('UPDATE users SET partner_privacy = $1 WHERE id = $2', [JSON.stringify(prefs), myId]);
+    res.json(prefs);
+  } catch (err) { next(err); }
+});
+
 // GET /api/partners — accepted partners with summary stats
 router.get('/', async (req, res, next) => {
   try {
@@ -28,6 +90,7 @@ router.get('/', async (req, res, next) => {
       SELECT
         u.id, u.name,
         u.companion_type, u.companion_state,
+        u.partner_privacy,
         f.id AS friendship_id, f.requester_id,
         (SELECT json_agg(json_build_object('emoji', v.emoji, 'name', v.name) ORDER BY v.id)
          FROM vices v WHERE v.user_id = u.id) AS vices,
@@ -51,7 +114,24 @@ router.get('/', async (req, res, next) => {
       ORDER BY u.name
     `, [myId]);
 
-    res.json(r.rows);
+    const partners = await Promise.all(r.rows.map(async row => {
+      const priv = resolvePrivacy(row.partner_privacy);
+      const streak = priv.show_streak ? await computeStreak(row.id) : null;
+      return {
+        id: row.id,
+        name: row.name,
+        companion_type: row.companion_type,
+        companion_state: row.companion_state,
+        friendship_id: row.friendship_id,
+        requester_id: row.requester_id,
+        clean_days_this_month: row.clean_days_this_month,
+        vices:            priv.show_vices  ? row.vices            : null,
+        spent_this_month: priv.show_spend  ? row.spent_this_month : null,
+        current_streak:   streak,
+      };
+    }));
+
+    res.json(partners);
   } catch (err) { next(err); }
 });
 
@@ -231,7 +311,7 @@ router.get('/leaderboard', async (req, res, next) => {
 
     const rows = await Promise.all(ids.map(async uid => {
       const [uRow, cleanRow, spentRow, vicesRow, xpRow] = await Promise.all([
-        pool.query('SELECT id, name FROM users WHERE id = $1', [uid]),
+        pool.query('SELECT id, name, partner_privacy FROM users WHERE id = $1', [uid]),
         pool.query(`
           SELECT COUNT(DISTINCT e.date)::int AS cnt
           FROM entries e JOIN vices v ON v.id = e.vice_id
@@ -286,24 +366,33 @@ router.get('/leaderboard', async (req, res, next) => {
         LIMIT 1
       `, [thisMonth, myId, uid]);
 
+      const isMe = uid === myId;
+      const priv = isMe ? { show_vices: true, show_spend: true, show_streak: true, show_xp: true }
+                        : resolvePrivacy(uRow.rows[0]?.partner_privacy);
       return {
         id:               uRow.rows[0].id,
         name:             uRow.rows[0].name,
-        is_me:            uid === myId,
-        vices:            vicesRow.rows[0].vices || [],
+        is_me:            isMe,
         clean_days:       cleanRow.rows[0].cnt,
-        spent_this_month: spentRow.rows[0].total,
-        last_month_clean: lastClean.rows[0].cnt,
         challenge:        chalRow.rows[0] || null,
-        total_xp:         xpRow.rows[0]?.total_xp ?? 0,
-        level:            xpRow.rows[0]?.level ?? 1,
-        current_streak:   curStreak,
+        last_month_clean: priv.show_streak ? lastClean.rows[0].cnt : null,
+        vices:            priv.show_vices  ? vicesRow.rows[0].vices || [] : [],
+        spent_this_month: priv.show_spend  ? spentRow.rows[0].total       : null,
+        current_streak:   priv.show_streak ? curStreak                    : null,
+        total_xp:         priv.show_xp     ? xpRow.rows[0]?.total_xp ?? 0 : null,
+        level:            priv.show_xp     ? xpRow.rows[0]?.level ?? 1    : null,
+        _sort_streak:     curStreak,
+        _sort_xp:         xpRow.rows[0]?.total_xp ?? 0,
       };
     }));
 
-    // Rank: longest current streak first, then total XP as tiebreaker
-    rows.sort((a, b) => b.current_streak - a.current_streak || b.total_xp - a.total_xp);
-    rows.forEach((r, i) => { r.rank = i + 1; });
+    // Rank using internal sort keys (always available, unaffected by privacy masking)
+    rows.sort((a, b) => b._sort_streak - a._sort_streak || b._sort_xp - a._sort_xp);
+    rows.forEach((r, i) => {
+      r.rank = i + 1;
+      delete r._sort_streak;
+      delete r._sort_xp;
+    });
 
     // Annotate last month winner for each challenged pair
     const myLastClean = rows.find(r => r.is_me)?.last_month_clean ?? 0;

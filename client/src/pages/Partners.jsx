@@ -31,6 +31,8 @@ export default function Partners() {
   const [removingId, setRemovingId] = useState(null);
   const [challengingId, setChallengingId] = useState(null);
   const [sendingReqId, setSendingReqId] = useState(null);
+  const [privacy, setPrivacy] = useState({ show_vices: true, show_spend: true, show_streak: true, show_xp: true });
+  const [privacySaving, setPrivacySaving] = useState(false);
 
   const showSuccess = msg => {
     setSuccessMsg(msg);
@@ -49,14 +51,27 @@ export default function Partners() {
       api('/api/partners/pending'),
       api('/api/partners/sent'),
       api('/api/partners/leaderboard'),
-    ]).then(([p, pend, s, lb]) => {
+      api('/api/partners/privacy'),
+    ]).then(([p, pend, s, lb, priv]) => {
       setPartners(p);
       setPending(pend);
       setSent(s);
       setLeaderboard(lb);
+      setPrivacy(priv);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updatePrivacy = async (next) => {
+    setPrivacy(next);
+    setPrivacySaving(true);
+    try {
+      await api('/api/partners/privacy', { method: 'PUT', body: JSON.stringify(next) });
+    } catch (_) {}
+    setPrivacySaving(false);
+  };
+
+  const togglePrivacy = (key) => updatePrivacy({ ...privacy, [key]: !privacy[key] });
 
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -190,6 +205,47 @@ export default function Partners() {
 
       <div className="page-title">Accountability Partners</div>
 
+      {/* ── What you share ── */}
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          <span className="panel-title">What you share with partners</span>
+          {privacySaving && <span className="form-hint">Saving…</span>}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.5 }}>
+          Choose what partners can see on your card. Display name and clean days are always visible.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { key: null,          label: 'Display name',    sub: 'Always visible',   locked: true  },
+            { key: null,          label: 'Clean days',      sub: 'Always visible',   locked: true  },
+            { key: 'show_vices',  label: 'Vice list',       sub: 'Emojis on your card'             },
+            { key: 'show_spend',  label: 'Monthly spending',sub: 'How much you spent this month'   },
+            { key: 'show_streak', label: 'Current streak',  sub: 'Your active clean-day streak'    },
+            { key: 'show_xp',     label: 'XP & level',      sub: 'Your experience and rank'        },
+          ].map(({ key, label, sub, locked }) => (
+            <label
+              key={label}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, cursor: locked ? 'default' : 'pointer',
+                opacity: locked ? 0.55 : 1,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={locked ? true : !!privacy[key]}
+                disabled={locked}
+                onChange={locked ? undefined : () => togglePrivacy(key)}
+                style={{ width: 16, height: 16, accentColor: 'var(--money)', flexShrink: 0 }}
+              />
+              <div>
+                <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{sub}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
       {errorMsg && <div className="inline-error" style={{ marginBottom: 16 }}>{errorMsg}</div>}
       {successMsg && <div className="inline-success" style={{ marginBottom: 16 }}>✓ {successMsg}</div>}
 
@@ -237,8 +293,12 @@ export default function Partners() {
                     <div className="lb-trophy lb-trophy-me">🏆 You won last month</div>
                   )}
                 </div>
-                <span className="lb-cell-right lb-streak" title="Current streak">{row.current_streak ?? 0}🔥</span>
-                <span className="lb-cell-right lb-xp" title="Total XP">{(row.total_xp ?? 0).toLocaleString()} XP</span>
+                <span className="lb-cell-right lb-streak" title="Current streak">
+                  {row.current_streak !== null ? `${row.current_streak}🔥` : '—'}
+                </span>
+                <span className="lb-cell-right lb-xp" title="Total XP">
+                  {row.total_xp !== null ? `${row.total_xp.toLocaleString()} XP` : '—'}
+                </span>
                 <span className="lb-actions">
                   {!row.is_me && (
                     row.challenge
@@ -424,11 +484,19 @@ export default function Partners() {
                 </div>
                 <div className="ap-stats">
                   <div className="ap-stat">
-                    <div className="ap-stat-val">{p.current_streak ?? 0}🔥</div>
+                    <div className="ap-stat-val">{Number(p.clean_days_this_month || 0)} days</div>
+                    <div className="ap-stat-key">Clean this month</div>
+                  </div>
+                  <div className="ap-stat">
+                    <div className="ap-stat-val">
+                      {p.current_streak !== null ? `${p.current_streak}🔥` : '—'}
+                    </div>
                     <div className="ap-stat-key">Current streak</div>
                   </div>
                   <div className="ap-stat">
-                    <div className="ap-stat-val">${Number(p.spent_this_month || 0).toFixed(0)}</div>
+                    <div className="ap-stat-val">
+                      {p.spent_this_month !== null ? `$${Number(p.spent_this_month).toFixed(0)}` : '—'}
+                    </div>
                     <div className="ap-stat-key">Spent this month</div>
                   </div>
                 </div>
