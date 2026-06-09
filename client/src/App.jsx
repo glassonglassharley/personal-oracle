@@ -261,6 +261,7 @@ function MobileTopBar({ mobileOpen, setMobileOpen }) {
       </button>
 
       <div className="mobile-brand">
+        <span className="brand-letter brand-letter-full mobile-brand-icon" aria-hidden="true">V</span>
         <span className="mobile-brand-wordmark">Vice to Value</span>
       </div>
 
