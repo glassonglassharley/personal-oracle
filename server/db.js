@@ -178,6 +178,9 @@ const MIGRATIONS = `
     label TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
+
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_balance NUMERIC NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_updated_at TIMESTAMPTZ;
 `;
 
 const { backupEntries } = require('./backup');

@@ -1127,6 +1127,30 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 /* ── Savings dark page ───────────────────────────── */
 .sv-page { background: var(--paper); }
 
+/* ── Savings balance panel ───────────────────────── */
+.sv-balance-panel { margin-bottom: 28px; }
+.sv-balance-note  { font-size: 13px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.5; }
+.sv-balance-body  { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.sv-balance-amount {
+  font-size: 36px; font-weight: 700; color: var(--money);
+  font-feature-settings: "tnum"; min-width: 80px;
+}
+.sv-balance-form  { display: flex; gap: 8px; flex: 1; min-width: 200px; }
+.sv-balance-input {
+  flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--rule-2); background: var(--paper-2);
+  color: var(--ink); font-size: 15px;
+}
+.sv-balance-input:focus { outline: 2px solid var(--money); border-color: transparent; }
+.sv-balance-badges { display: flex; flex-direction: column; gap: 10px; }
+.sv-bb-item       { display: flex; flex-direction: column; gap: 4px; }
+.sv-bb-label      { display: flex; justify-content: space-between; }
+.sv-bb-name       { font-size: 12px; color: var(--ink-3); }
+.sv-bb-item.earned .sv-bb-name { color: var(--money); }
+.sv-bb-bar        { height: 4px; border-radius: 2px; background: var(--rule-2); overflow: hidden; }
+.sv-bb-fill       { height: 100%; border-radius: 2px; background: var(--money); transition: width 0.4s ease; }
+.sv-bb-item.earned .sv-bb-fill { background: var(--money); }
+
 .sv-hero {
   padding: 32px 0 44px;
   border-bottom: 1px solid var(--rule);

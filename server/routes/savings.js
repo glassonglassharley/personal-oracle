@@ -1,7 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { verifyViceOwnership } = require('../utils');
+const { verifyViceOwnership, getInternalUserId } = require('../utils');
+
+// GET /api/savings/balance — return actual savings balance
+router.get('/balance', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.json({ balance: 0, updated_at: null });
+    const r = await pool.query('SELECT savings_balance, savings_updated_at FROM users WHERE id = $1', [userId]);
+    const row = r.rows[0];
+    res.json({ balance: Number(row?.savings_balance || 0), updated_at: row?.savings_updated_at || null });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/savings/balance — manually update actual savings balance
+router.put('/balance', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+    const balance = Number(req.body?.balance);
+    if (!Number.isFinite(balance) || balance < 0) return res.status(400).json({ error: 'Invalid balance' });
+    await pool.query(
+      'UPDATE users SET savings_balance = $1, savings_updated_at = NOW() WHERE id = $2',
+      [balance, userId]
+    );
+    res.json({ balance, updated_at: new Date().toISOString() });
+  } catch (err) { next(err); }
+});
 
 router.get('/:vice_id', async (req, res, next) => {
   try {

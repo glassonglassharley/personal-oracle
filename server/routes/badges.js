@@ -13,16 +13,16 @@ const BADGE_DEFS = [
   { id: 'streak_7',        emoji: '⚡', name: '7-Day Streak',     description: '7 consecutive clean days' },
   { id: 'streak_30',       emoji: '🌱', name: '30-Day Streak',    description: '30 consecutive clean days' },
   { id: 'streak_100',      emoji: '👑', name: '100-Day Streak',   description: '100 consecutive clean days' },
-  { id: 'saved_100',       emoji: '💰', name: '$100 Saved',       description: 'Saved $100 from clean days' },
-  { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Saved $500 from clean days' },
-  { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Saved $1,000 from clean days' },
+  { id: 'saved_100',       emoji: '💰', name: '$100 Saved',       description: 'Moved $100 into your savings account' },
+  { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Moved $500 into your savings account' },
+  { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Moved $1,000 into your savings account' },
   { id: 'logged_30_days',  emoji: '📅', name: '30 Days Logged',   description: 'Logged entries on 30 distinct days' },
   { id: 'plaid_connected', emoji: '🏦', name: 'Bank Connected',   description: 'Connected a bank account via Plaid' },
 ];
 
 // ── Shared stats computation ────────────────────────────────────────────────
 async function computeUserStats(userId) {
-  const [entryRows, plaidRow] = await Promise.all([
+  const [entryRows, plaidRow, userRow] = await Promise.all([
     pool.query(`
       SELECT e.date, e.quantity::float, e.price_per_unit::float
       FROM entries e JOIN vices v ON v.id = e.vice_id
@@ -30,6 +30,7 @@ async function computeUserStats(userId) {
       ORDER BY e.date ASC
     `, [userId]),
     pool.query('SELECT 1 FROM plaid_connections WHERE user_id = $1 LIMIT 1', [userId]),
+    pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
   ]);
 
   const rows = entryRows.rows;
@@ -76,10 +77,13 @@ async function computeUserStats(userId) {
     currentStreak = cleanStreak;
   }
 
+  const actualSavings = Number(userRow.rows[0]?.savings_balance || 0);
+
   return {
     totalLoggedDays,
     totalCleanDays,
     totalSavings: Math.round(totalSavings * 100) / 100,
+    actualSavings: Math.round(actualSavings * 100) / 100,
     currentStreak,
     longestStreak,
     hasAnyEntry: rows.length > 0,
@@ -94,9 +98,9 @@ function earnedBadgeIds(stats) {
   if (stats.currentStreak >= 7)   ids.add('streak_7');
   if (stats.currentStreak >= 30)  ids.add('streak_30');
   if (stats.currentStreak >= 100) ids.add('streak_100');
-  if (stats.totalSavings >= 100)  ids.add('saved_100');
-  if (stats.totalSavings >= 500)  ids.add('saved_500');
-  if (stats.totalSavings >= 1000) ids.add('saved_1000');
+  if (stats.actualSavings >= 100)  ids.add('saved_100');
+  if (stats.actualSavings >= 500)  ids.add('saved_500');
+  if (stats.actualSavings >= 1000) ids.add('saved_1000');
   if (stats.totalLoggedDays >= 30) ids.add('logged_30_days');
   if (stats.plaidConnected)       ids.add('plaid_connected');
   return ids;
@@ -108,9 +112,9 @@ function badgeProgress(badgeId, stats) {
     case 'streak_7':        return { value: stats.currentStreak, max: 7 };
     case 'streak_30':       return { value: stats.currentStreak, max: 30 };
     case 'streak_100':      return { value: stats.currentStreak, max: 100 };
-    case 'saved_100':       return { value: stats.totalSavings, max: 100 };
-    case 'saved_500':       return { value: stats.totalSavings, max: 500 };
-    case 'saved_1000':      return { value: stats.totalSavings, max: 1000 };
+    case 'saved_100':       return { value: stats.actualSavings, max: 100 };
+    case 'saved_500':       return { value: stats.actualSavings, max: 500 };
+    case 'saved_1000':      return { value: stats.actualSavings, max: 1000 };
     case 'logged_30_days':  return { value: stats.totalLoggedDays, max: 30 };
     default:                return null;
   }
@@ -216,6 +220,7 @@ router.get('/', async (req, res, next) => {
       longest_streak:   stats.longestStreak,
       total_clean_days: stats.totalCleanDays,
       total_savings:    stats.totalSavings,
+      actual_savings:   stats.actualSavings,
       badges,
     });
   } catch (err) { next(err); }

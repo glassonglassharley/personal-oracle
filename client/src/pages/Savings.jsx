@@ -167,6 +167,13 @@ export default function Savings() {
   const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
   const [customGoalError, setCustomGoalError] = useState('');
 
+  // Actual savings balance
+  const [balance, setBalance] = useState({ balance: 0, updated_at: null });
+  const [balanceInput, setBalanceInput] = useState('');
+  const [balanceSaving, setBalanceSaving] = useState(false);
+  const [balanceError, setBalanceError] = useState('');
+  const [balanceSaved, setBalanceSaved] = useState(false);
+
   // Custom assets (server-backed)
   const [userAssets, setUserAssets] = useState([]);
   const [assetModalOpen, setAssetModalOpen] = useState(false);
@@ -229,8 +236,38 @@ export default function Savings() {
   }, [customGoals]);
 
   useEffect(() => {
+    api('/api/savings/balance')
+      .then(data => {
+        setBalance(data);
+        setBalanceInput(data.balance > 0 ? String(data.balance) : '');
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     api('/api/assets').then(setUserAssets).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleBalanceSave = async (e) => {
+    e.preventDefault();
+    setBalanceError('');
+    const val = Number(balanceInput);
+    if (!Number.isFinite(val) || val < 0) { setBalanceError('Enter a valid dollar amount.'); return; }
+    setBalanceSaving(true);
+    try {
+      const data = await api('/api/savings/balance', {
+        method: 'PUT',
+        body: JSON.stringify({ balance: val }),
+      });
+      setBalance(data);
+      setBalanceSaved(true);
+      setTimeout(() => setBalanceSaved(false), 2500);
+    } catch (err) {
+      setBalanceError(err.message || 'Could not save. Try again.');
+    } finally {
+      setBalanceSaving(false);
+    }
+  };
 
   const handleAssetCategoryChange = (label) => {
     const preset = CATEGORY_PRESETS.find(p => p.label === label);
@@ -449,6 +486,55 @@ export default function Savings() {
           <span className="dot" />
           All vices
         </span>
+      </div>
+
+      {/* ── Actual Savings Balance ── */}
+      <div className="panel sv-balance-panel">
+        <div className="panel-head">
+          <span className="panel-title">My Savings Balance</span>
+          {balance.updated_at && (
+            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+              Updated {new Date(balance.updated_at).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        <p className="sv-balance-note">
+          Enter money you've actually moved into savings. This unlocks the $100, $500, and $1,000 Saved badges.
+        </p>
+        <div className="sv-balance-body">
+          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="sv-balance-input"
+              value={balanceInput}
+              onChange={e => setBalanceInput(e.target.value)}
+              placeholder="0.00"
+            />
+            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0 }}>
+              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
+            </button>
+          </form>
+          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
+        </div>
+        <div className="sv-balance-badges">
+          {[100, 500, 1000].map(target => {
+            const pct = Math.min(100, (balance.balance / target) * 100);
+            const earned = balance.balance >= target;
+            return (
+              <div key={target} className={`sv-bb-item${earned ? ' earned' : ''}`}>
+                <div className="sv-bb-label">
+                  <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} ${target.toLocaleString()} saved</span>
+                </div>
+                <div className="sv-bb-bar">
+                  <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Hero ── */}
