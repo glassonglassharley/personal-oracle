@@ -31,7 +31,7 @@ const FAQS = [
   },
   {
     q: 'How are savings calculated?',
-    a: 'Savings = days without spending × your default price per unit. The Savings page compounds this over time and shows investment equivalents at different return rates.',
+    a: 'Projected savings = clean days × your default price per unit — this shows what you could save if you redirected that money. The Savings page also has a "My Savings Balance" section where you can track money you\'ve actually moved into savings, which unlocks the $100, $500, and $1,000 Saved badges.',
   },
   {
     q: 'Can I track multiple vices?',
@@ -43,7 +43,7 @@ const FAQS = [
   },
   {
     q: 'Can I edit or delete a past entry?',
-    a: 'Yes. On the Log Entry page or Dashboard, click Edit next to any entry to change the quantity or price.',
+    a: 'Yes. The History tab shows every entry across all vices — tap the × on any row to delete it. You can also edit quantity or price directly from the Dashboard or Log Entry page.',
   },
   {
     q: 'Does demo mode save my data?',
