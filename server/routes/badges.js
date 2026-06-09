@@ -44,7 +44,7 @@ async function computeUserStats(userId) {
     pool.query(`
       SELECT COUNT(*)::int AS cnt FROM friendships
       WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
-    `, [userId]),
+    `, [userId]).catch(() => ({ rows: [{ cnt: 0 }] })),
   ]);
 
   const rows = entryRows.rows;

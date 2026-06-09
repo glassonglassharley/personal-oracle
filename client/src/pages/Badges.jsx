@@ -44,9 +44,12 @@ function BadgeCard({ badge }) {
 export default function Badges() {
   const api = useApi();
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    api('/api/badges').then(setData).catch(() => {});
+    api('/api/badges')
+      .then(setData)
+      .catch(err => setError(err?.message || 'Could not load badges'));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const earnedCount = data?.badges.filter(b => b.earned).length ?? 0;
@@ -71,6 +74,9 @@ export default function Badges() {
         </div>
       </div>
 
+      {error && (
+        <p style={{ color: 'var(--red, #e06c75)', marginBottom: 16, fontSize: 14 }}>{error}</p>
+      )}
 
       {data ? (
         <div className="bdg-grid">
@@ -78,13 +84,13 @@ export default function Badges() {
             <BadgeCard key={badge.id} badge={badge} />
           ))}
         </div>
-      ) : (
+      ) : !error ? (
         <div className="bdg-grid">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {Array.from({ length: 13 }).map((_, i) => (
             <div key={i} className="bdg-card bdg-locked skeleton" style={{ minHeight: 130 }} />
           ))}
         </div>
-      )}
+      ) : null}
     </main>
   );
 }
