@@ -3040,35 +3040,17 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .db-hero-chip-sep { color: var(--ink-4); font-size: 13px; }
 
 
-  /* ── Stats strip — horizontal scroll on mobile ──────
-     Override the <520px single-column that fires later
-     in the existing CSS — these rules are appended last
-     so cascade order wins without needing !important on
-     every property.                                     */
+  /* ── Stats strip — 2×2 grid on mobile ────────────── */
   .stats-strip {
-    display: flex !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow-x: visible !important;
     border-radius: 16px;
     margin-bottom: 16px;
-    /* kill grid columns the earlier breakpoint may set */
-    grid-template-columns: none !important;
   }
-  .stats-strip::-webkit-scrollbar { display: none; }
-
-  .stat {
-    flex: 0 0 auto !important;
-    width: clamp(130px, 44vw, 175px) !important;
-    scroll-snap-align: start;
-    border-top: none !important;
-    border-left: 1px solid var(--rule) !important;
-    padding: 16px 16px !important;
-  }
-  .stat:first-child { border-left: none !important; }
-  .stat-val { font-size: 26px !important; }
+  .stat:nth-child(3),
+  .stat:nth-child(4) { border-top: 1px solid var(--rule); }
+  .stat:nth-child(3) { border-left: none; }
 
   /* ── Grid spacing refinements ──────────────────────── */
   .grid-2 { gap: 12px; }
