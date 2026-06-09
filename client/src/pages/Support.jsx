@@ -39,7 +39,7 @@ const FAQS = [
   },
   {
     q: 'What can my accountability partners see?',
-    a: 'Partners see your display name, your list of vice emojis, how many clean days you\'ve logged this month, and your total spending this month. They cannot see individual log entries.',
+    a: 'Partners always see your display name and clean days. Everything else — your vice list, monthly spending, streak, and XP — is optional. You control it from the "What you share" checklist at the top of the Partners page.',
   },
   {
     q: 'Can I edit or delete a past entry?',
@@ -48,6 +48,10 @@ const FAQS = [
   {
     q: 'Does demo mode save my data?',
     a: 'Demo mode stores data tied to your chosen username in the same database as real accounts. Creating a real account is recommended for long-term tracking.',
+  },
+  {
+    q: 'What data is collected?',
+    a: 'We collect the minimum needed to run your account: your email address, wallet address, or phone number depending on how you signed up, and the date you joined. Your vice entries, spending, and streaks are stored privately and never sold or shared with advertisers.',
   },
   {
     q: 'How do I delete my account?',
