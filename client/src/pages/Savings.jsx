@@ -71,40 +71,6 @@ const MILESTONES = [
   { days: 10950, label: '30 Years', sub: '10,950 days clean' },
 ];
 
-const BUYS = [
-  { label: 'Coffee run',         sub: 'Local café treat',              cost: 25 },
-  { label: 'Nice dinner',        sub: 'For two, with drinks',          cost: 120 },
-  { label: 'AirPods Pro',        sub: 'Apple AirPods Pro',             cost: 249 },
-  { label: 'Weekend getaway',    sub: 'Airbnb + travel',               cost: 500 },
-  { label: 'New iPhone',         sub: 'Latest iPhone Pro',             cost: 999 },
-  { label: 'MacBook Air',        sub: 'M4, 16 GB RAM',                 cost: 1299 },
-  { label: 'Round-trip flights', sub: 'US → Europe, economy',         cost: 900 },
-  { label: 'MacBook Pro',        sub: 'M4 Pro, fully loaded',          cost: 2499 },
-  { label: 'E-bike',             sub: 'Premium commuter bike',         cost: 3500 },
-  { label: 'Dream vacation',     sub: 'Two weeks abroad',              cost: 4000 },
-  { label: 'Down payment fund',  sub: '1 month saved toward a home',  cost: 10000 },
-  { label: '10-year milestone',  sub: 'A decade of clean living',      cost: 36500 },
-];
-
-const CUSTOM_GOALS_KEY = 'viceTracker.customSavingsGoals.v1';
-
-function normalizeCustomGoals(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((goal, index) => {
-      const label = String(goal?.label || '').trim().slice(0, 60);
-      const cost = Number(goal?.cost);
-      if (!label || !Number.isFinite(cost) || cost <= 0) return null;
-      return {
-        id: String(goal?.id || `custom-${index}`),
-        label,
-        sub: 'Custom savings goal',
-        cost,
-        custom: true,
-      };
-    })
-    .filter(Boolean);
-}
 
 function dcaFV(dailyPMT, annualRate, days) {
   const r = annualRate / 365;
@@ -157,17 +123,6 @@ export default function Savings() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [horizon, setHorizon] = useState(1825);
-  const [customGoals, setCustomGoals] = useState(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      return normalizeCustomGoals(JSON.parse(window.localStorage.getItem(CUSTOM_GOALS_KEY) || '[]'));
-    } catch {
-      return [];
-    }
-  });
-  const [customGoalForm, setCustomGoalForm] = useState({ label: '', cost: '' });
-  const [customGoalError, setCustomGoalError] = useState('');
-
   // Actual savings balance
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
   const [balanceInput, setBalanceInput] = useState('');
@@ -190,6 +145,41 @@ export default function Savings() {
   const [goalAmt, setGoalAmt] = useState('');
   const [goalError, setGoalError] = useState('');
   const celebratedRef = useRef(new Set());
+
+  // Partner connection badges
+  const [partnerBadges, setPartnerBadges] = useState(null);
+  useEffect(() => {
+    api('/api/badges').then(res => {
+      setPartnerBadges((res.badges || []).filter(b => b.id.startsWith('partner_')));
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Opportunity-cost tracker (localStorage-backed)
+  const OPP_KEY = 'vt-opp-goals';
+  const [oppItems, setOppItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(OPP_KEY) || '[]'); } catch { return []; }
+  });
+  const [oppForm, setOppForm] = useState({ title: '', note: '', cost: '' });
+  const [oppFormError, setOppFormError] = useState('');
+  const [showOppForm, setShowOppForm] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(OPP_KEY, JSON.stringify(oppItems));
+  }, [oppItems]);
+
+  const handleOppSubmit = (e) => {
+    e.preventDefault();
+    setOppFormError('');
+    const title = oppForm.title.trim();
+    const cost = Number(oppForm.cost);
+    if (!title) { setOppFormError('Give it a name.'); return; }
+    if (!Number.isFinite(cost) || cost <= 0) { setOppFormError('Enter a cost greater than $0.'); return; }
+    setOppItems(prev => [...prev, { id: Date.now(), title, note: oppForm.note.trim(), cost }]);
+    setOppForm({ title: '', note: '', cost: '' });
+    setShowOppForm(false);
+  };
+
+  const removeOppItem = (id) => setOppItems(prev => prev.filter(item => item.id !== id));
 
   // Resolve CSS vars synchronously during render — useMemo runs in the render
   // phase, so by the time this fires the body class is already updated and
@@ -239,11 +229,6 @@ export default function Savings() {
       })
       .catch(() => setLoading(false));
   }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(CUSTOM_GOALS_KEY, JSON.stringify(customGoals));
-  }, [customGoals]);
 
   useEffect(() => {
     api('/api/savings/balance')
@@ -370,38 +355,6 @@ export default function Savings() {
     await api(`/api/assets/${id}`, { method: 'DELETE' }).catch(() => {});
   };
 
-  const handleCustomGoalSubmit = event => {
-    event.preventDefault();
-    const label = customGoalForm.label.trim();
-    const cost = Number(customGoalForm.cost);
-
-    if (!label) {
-      setCustomGoalError('Name the thing you want to compare.');
-      return;
-    }
-    if (!Number.isFinite(cost) || cost <= 0) {
-      setCustomGoalError('Enter a valid dollar amount.');
-      return;
-    }
-
-    setCustomGoals(goals => [
-      ...goals,
-      {
-        id: `custom-${Date.now()}`,
-        label: label.slice(0, 60),
-        sub: 'Custom savings goal',
-        cost,
-        custom: true,
-      },
-    ]);
-    setCustomGoalForm({ label: '', cost: '' });
-    setCustomGoalError('');
-  };
-
-  const removeCustomGoal = id => {
-    setCustomGoals(goals => goals.filter(goal => goal.id !== id));
-  };
-
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
   const assetColors = {
@@ -478,16 +431,6 @@ export default function Savings() {
       .toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
   }));
 
-  const allBuyComparisons = [...BUYS, ...customGoals].sort((a, b) => a.cost - b.cost);
-  const nextItems  = allBuyComparisons.filter(b => b.cost > projected).slice(0, 3);
-  const customGoalCards = customGoals
-    .map(goal => {
-      const savedPct = goal.cost > 0 ? Math.min(100, (projected / goal.cost) * 100) : 0;
-      const remaining = Math.max(0, goal.cost - projected);
-      const daysAway = perDay > 0 && remaining > 0 ? Math.ceil(remaining / perDay) : 0;
-      return { ...goal, savedPct, remaining, daysAway };
-    })
-    .sort((a, b) => a.cost - b.cost);
   const builtInInvestmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
@@ -645,88 +588,6 @@ export default function Savings() {
         </div>
       )}
 
-      {/* ── What could you do ── */}
-      {!loading && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">What could you do with that?</span>
-            <span className="sv-section-sub">
-              {fmt$2(perDay)}/day × {horizon} days = {fmt$0(projected)}
-            </span>
-          </div>
-
-          <form className="sv-custom-goal-form" onSubmit={handleCustomGoalSubmit}>
-            <div>
-              <div className="sv-custom-goal-title">Track your own opportunity cost</div>
-              <div className="sv-custom-goal-copy">Add anything you want to compare against your avoided vice spending.</div>
-            </div>
-            <input
-              className="form-input"
-              type="text"
-              value={customGoalForm.label}
-              onChange={event => setCustomGoalForm(form => ({ ...form, label: event.target.value }))}
-              placeholder="Thing to save for"
-              maxLength={60}
-            />
-            <input
-              className="form-input"
-              type="number"
-              min="1"
-              step="1"
-              value={customGoalForm.cost}
-              onChange={event => setCustomGoalForm(form => ({ ...form, cost: event.target.value }))}
-              placeholder="Cost"
-            />
-            <button className="btn" type="submit">Add</button>
-            {customGoalError && <div className="form-error sv-custom-goal-error">{customGoalError}</div>}
-          </form>
-
-          {customGoalCards.length > 0 && (
-            <div className="sv-custom-goals">
-              {customGoalCards.map(goal => (
-                <div key={goal.id} className="sv-custom-goal-card">
-                  <div className="sv-custom-goal-main">
-                    <div className="sv-buy-name">{goal.label}</div>
-                    <div className="sv-buy-sub">
-                      {goal.remaining === 0
-                        ? 'Goal covered now'
-                        : `${fmt$0(goal.remaining)} away${goal.daysAway ? ` • about ${goal.daysAway} more days` : ''}`}
-                    </div>
-                    <div className="sv-custom-progress"><span style={{ width: `${goal.savedPct}%` }} /></div>
-                  </div>
-                  <div className="sv-custom-goal-side">
-                    <div className="sv-buy-cost">{fmt$0(goal.cost)}</div>
-                    <button className="sv-custom-delete" type="button" onClick={() => removeCustomGoal(goal.id)} aria-label={`Remove ${goal.label}`}>×</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="sv-buys">
-            {nextItems.length > 0 && (
-              <div className="sv-buys-group">
-                <div className="sv-buys-label">Almost there…</div>
-                {nextItems.map(b => (
-                  <div key={b.id || b.label} className="sv-buy sv-buy-soon">
-                    <div>
-                      <div className="sv-buy-name">{b.label}{b.custom && <span className="sv-custom-pill">Custom</span>}</div>
-                      <div className="sv-buy-sub">{b.sub}</div>
-                    </div>
-                    <div className="sv-buy-cost sv-buy-cost-locked">{fmt$0(b.cost)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {nextItems.length === 0 && projected < 25 && (
-              <p className="text-muted" style={{ padding: '24px 0' }}>
-                Log more entries to see personalized suggestions here.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* ── Add Asset Modal ── */}
       {assetModalOpen && (
         <div className="sv-modal-backdrop" onClick={() => setAssetModalOpen(false)}>
@@ -821,6 +682,85 @@ export default function Savings() {
         </div>
       )}
 
+      {/* ── What could you do with that? ── */}
+      {perDay > 0 && (
+        <div className="sv-section sv-opp-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">What could you do with that?</span>
+          </div>
+          <p className="sv-opp-meta">
+            {fmt$2(perDay)}/day × {horizon} days = <strong style={{ color: 'var(--money)' }}>{fmt$0(projected)}</strong>
+          </p>
+          <p className="sv-opp-sub">Track your own opportunity cost — add anything you want to compare against your avoided vice spending.</p>
+
+          {oppItems.length > 0 && (
+            <div className="sv-opp-grid">
+              {oppItems.map(item => {
+                const cost = Number(item.cost);
+                const pct = cost > 0 ? Math.min(100, (projected / cost) * 100) : 0;
+                const canAfford = projected >= cost;
+                const almostThere = !canAfford && pct >= 75;
+                return (
+                  <div key={item.id} className={`sv-opp-card${canAfford ? ' sv-opp-can' : almostThere ? ' sv-opp-close' : ''}`}>
+                    <button className="sv-opp-del" onClick={() => removeOppItem(item.id)} aria-label="Remove">×</button>
+                    {(canAfford || almostThere) && (
+                      <div className="sv-opp-status">
+                        {canAfford ? '✓ You could afford it!' : 'Almost there…'}
+                      </div>
+                    )}
+                    <div className="sv-opp-name">{item.title}</div>
+                    {item.note && <div className="sv-opp-note">{item.note}</div>}
+                    <div className="sv-opp-cost">{fmt$0(cost)}</div>
+                    <div className="sv-opp-track"><div className="sv-opp-fill" style={{ width: `${pct}%` }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showOppForm ? (
+            <form className="sv-opp-form" onSubmit={handleOppSubmit}>
+              <div className="sv-opp-form-row">
+                <input
+                  className="form-input"
+                  placeholder="Thing to save for"
+                  value={oppForm.title}
+                  onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))}
+                  maxLength={80}
+                  autoFocus
+                />
+                <input
+                  className="form-input"
+                  placeholder="Cost"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={oppForm.cost}
+                  onChange={e => setOppForm(f => ({ ...f, cost: e.target.value }))}
+                />
+              </div>
+              <input
+                className="form-input"
+                placeholder="Description (optional)"
+                value={oppForm.note}
+                onChange={e => setOppForm(f => ({ ...f, note: e.target.value }))}
+                maxLength={120}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              {oppFormError && <div className="form-error" style={{ marginTop: 6 }}>{oppFormError}</div>}
+              <div className="sv-opp-form-actions">
+                <button type="button" className="btn ghost" onClick={() => { setShowOppForm(false); setOppFormError(''); }}>Cancel</button>
+                <button type="submit" className="btn">Add</button>
+              </div>
+            </form>
+          ) : (
+            <button className="sv-add-asset-btn" onClick={() => setShowOppForm(true)} style={{ marginTop: oppItems.length > 0 ? 4 : 0 }}>
+              + Add opportunity cost
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Milestone cards (time horizon) ── */}
       <div className="sv-section">
         <div className="sv-section-head">
@@ -870,19 +810,8 @@ export default function Savings() {
       )}
 
       {/* ── Actual Savings Balance ── */}
-      <div className="panel sv-balance-panel">
-        <div className="panel-head">
-          <span className="panel-title">My Savings Balance</span>
-          {balance.updated_at && (
-            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
-              Updated {new Date(balance.updated_at).toLocaleDateString()}
-            </span>
-          )}
-        </div>
-        <p className="sv-balance-note">
-          Enter money you've actually moved into savings. This unlocks the $100, $500, and $1,000 Saved badges.
-        </p>
-        <div className="sv-balance-body">
+      <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
+        <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
           <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
           <form className="sv-balance-form" onSubmit={handleBalanceSave}>
             <input
@@ -894,29 +823,65 @@ export default function Savings() {
               onChange={e => setBalanceInput(e.target.value)}
               placeholder="0.00"
             />
-            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0 }}>
+            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '5px 12px' }}>
               {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
             </button>
           </form>
           {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
         </div>
-        <div className="sv-balance-badges">
-          {[100, 500, 1000].map(target => {
-            const pct = Math.min(100, (balance.balance / target) * 100);
-            const earned = balance.balance >= target;
+        {goals.filter(g => !g.completed_at).length > 0 ? (
+          <div className="sv-balance-badges">
+            {goals.filter(g => !g.completed_at).map(g => {
+              const target = Number(g.target_amount);
+              const pct = target > 0 ? Math.min(100, (balance.balance / target) * 100) : 0;
+              const earned = balance.balance >= target;
+              return (
+                <div key={g.id} className={`sv-bb-item${earned ? ' earned' : ''}`}>
+                  <div className="sv-bb-label">
+                    <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} {g.title}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{fmt$0(target)}</span>
+                  </div>
+                  <div className="sv-bb-bar">
+                    <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: 0 }}>
+            Set a savings goal below to track progress here.
+          </p>
+        )}
+      </div>
+
+      {/* ── Partner connection badges ── */}
+      {partnerBadges && (
+        <div className="sv-partner-badges">
+          {partnerBadges.map(b => {
+            const pct = b.progress ? Math.min(100, (b.progress.value / b.progress.max) * 100) : 0;
             return (
-              <div key={target} className={`sv-bb-item${earned ? ' earned' : ''}`}>
-                <div className="sv-bb-label">
-                  <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} ${target.toLocaleString()} saved</span>
+              <div key={b.id} className={`sv-pbadge${b.earned ? ' earned' : ''}`}>
+                <span className="sv-pbadge-emoji">{b.emoji}</span>
+                <div className="sv-pbadge-info">
+                  <span className="sv-pbadge-name">{b.name}</span>
+                  {b.earned ? (
+                    <span className="sv-pbadge-sub">Unlocked</span>
+                  ) : (
+                    <span className="sv-pbadge-sub">{b.progress ? `${b.progress.value} / ${b.progress.max} friends` : 'Locked'}</span>
+                  )}
                 </div>
-                <div className="sv-bb-bar">
-                  <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
-                </div>
+                {!b.earned && b.progress && (
+                  <div className="sv-pbadge-bar">
+                    <div className="sv-pbadge-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                )}
               </div>
             );
           })}
+          <a className="sv-pbadge-cta" href="/partners">+ Find friends</a>
         </div>
-      </div>
+      )}
 
       <GoalsSection
         goals={goals}

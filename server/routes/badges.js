@@ -24,12 +24,15 @@ const BADGE_DEFS = [
   { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Record $500 in your connected or manually-entered savings balance' },
   { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Record $1,000 in your connected or manually-entered savings balance' },
   { id: 'logged_30_days',  emoji: '📅', name: '30 Days Logged',   description: 'Logged entries on 30 distinct days' },
-  { id: 'plaid_connected', emoji: '🏦', name: 'Bank Connected',   description: 'Connected a bank account via Plaid' },
+  { id: 'plaid_connected', emoji: '🏦', name: 'Bank Connected',      description: 'Connected a bank account via Plaid' },
+  { id: 'partner_1',      emoji: '🤝', name: 'First Friend',        description: 'Connected 1 accountability partner' },
+  { id: 'partner_5',      emoji: '👥', name: 'Squad Goals',          description: 'Connected 5 accountability partners' },
+  { id: 'partner_10',     emoji: '🌐', name: 'Community Builder',    description: 'Connected 10 accountability partners' },
 ];
 
 // ── Shared stats computation ────────────────────────────────────────────────
 async function computeUserStats(userId) {
-  const [entryRows, plaidRow, userRow] = await Promise.all([
+  const [entryRows, plaidRow, userRow, partnerRow] = await Promise.all([
     pool.query(`
       SELECT e.date, e.quantity::float, e.price_per_unit::float
       FROM entries e JOIN vices v ON v.id = e.vice_id
@@ -38,6 +41,10 @@ async function computeUserStats(userId) {
     `, [userId]),
     pool.query('SELECT 1 FROM plaid_connections WHERE user_id = $1 LIMIT 1', [userId]),
     pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
+    pool.query(`
+      SELECT COUNT(*)::int AS cnt FROM friendships
+      WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'
+    `, [userId]),
   ]);
 
   const rows = entryRows.rows;
@@ -85,6 +92,7 @@ async function computeUserStats(userId) {
   }
 
   const actualSavings = Number(userRow.rows[0]?.savings_balance || 0);
+  const partnerCount  = partnerRow.rows[0]?.cnt ?? 0;
 
   return {
     totalLoggedDays,
@@ -95,6 +103,7 @@ async function computeUserStats(userId) {
     longestStreak,
     hasAnyEntry: rows.length > 0,
     plaidConnected: plaidRow.rowCount > 0,
+    partnerCount,
   };
 }
 
@@ -110,6 +119,9 @@ function earnedBadgeIds(stats) {
   if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_1000) ids.add('saved_1000');
   if (stats.totalLoggedDays >= 30) ids.add('logged_30_days');
   if (stats.plaidConnected)       ids.add('plaid_connected');
+  if (stats.partnerCount >= 1)    ids.add('partner_1');
+  if (stats.partnerCount >= 5)    ids.add('partner_5');
+  if (stats.partnerCount >= 10)   ids.add('partner_10');
   return ids;
 }
 
@@ -123,6 +135,9 @@ function badgeProgress(badgeId, stats) {
     case 'saved_500':       return { value: stats.actualSavings, max: 500 };
     case 'saved_1000':      return { value: stats.actualSavings, max: 1000 };
     case 'logged_30_days':  return { value: stats.totalLoggedDays, max: 30 };
+    case 'partner_1':       return { value: stats.partnerCount, max: 1,  unit: 'friends' };
+    case 'partner_5':       return { value: stats.partnerCount, max: 5,  unit: 'friends' };
+    case 'partner_10':      return { value: stats.partnerCount, max: 10, unit: 'friends' };
     default:                return null;
   }
 }

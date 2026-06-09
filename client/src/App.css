@@ -1261,28 +1261,66 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-page { background: var(--paper); }
 
 /* ── Savings balance panel ───────────────────────── */
-.sv-balance-panel { margin-bottom: 28px; }
-.sv-balance-note  { font-size: 13px; color: var(--ink-3); margin: 0 0 16px; line-height: 1.5; }
-.sv-balance-body  { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+.sv-balance-panel { margin-bottom: 18px; }
+.sv-balance-note  { font-size: 12px; color: var(--ink-3); margin: 0 0 10px; line-height: 1.5; }
+.sv-balance-body  { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sv-balance-amount {
-  font-size: 36px; font-weight: 700; color: var(--money);
-  font-feature-settings: "tnum"; min-width: 80px;
+  font-size: 22px; font-weight: 700; color: var(--money);
+  font-feature-settings: "tnum"; min-width: 60px;
 }
-.sv-balance-form  { display: flex; gap: 8px; flex: 1; min-width: 200px; }
+.sv-balance-form  { display: flex; gap: 6px; flex: 1; min-width: 160px; }
 .sv-balance-input {
-  flex: 1; min-width: 0; padding: 8px 12px; border-radius: 8px;
+  flex: 1; min-width: 0; padding: 5px 9px; border-radius: 7px;
   border: 1px solid var(--rule-2); background: var(--paper-2);
-  color: var(--ink); font-size: 15px;
+  color: var(--ink); font-size: 13px;
 }
 .sv-balance-input:focus { outline: 2px solid var(--money); border-color: transparent; }
-.sv-balance-badges { display: flex; flex-direction: column; gap: 10px; }
-.sv-bb-item       { display: flex; flex-direction: column; gap: 4px; }
+.sv-balance-badges { display: flex; flex-direction: column; gap: 6px; }
+.sv-bb-item       { display: flex; flex-direction: column; gap: 2px; }
 .sv-bb-label      { display: flex; justify-content: space-between; }
-.sv-bb-name       { font-size: 12px; color: var(--ink-3); }
+.sv-bb-name       { font-size: 11px; color: var(--ink-3); }
 .sv-bb-item.earned .sv-bb-name { color: var(--money); }
-.sv-bb-bar        { height: 4px; border-radius: 2px; background: var(--rule-2); overflow: hidden; }
+.sv-bb-bar        { height: 3px; border-radius: 2px; background: var(--rule-2); overflow: hidden; }
 .sv-bb-fill       { height: 100%; border-radius: 2px; background: var(--money); transition: width 0.4s ease; }
 .sv-bb-item.earned .sv-bb-fill { background: var(--money); }
+
+/* ── Partner connection badges strip ───────────────────────────────── */
+.sv-partner-badges {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 18px;
+}
+.sv-pbadge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--rule-2);
+  background: var(--paper-2);
+  flex: 1; min-width: 120px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.2s, background 0.2s;
+}
+.sv-pbadge.earned {
+  border-color: var(--money);
+  background: color-mix(in srgb, var(--money) 10%, var(--paper-2));
+}
+.sv-pbadge-emoji { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.sv-pbadge-info  { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.sv-pbadge-name  { font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-pbadge.earned .sv-pbadge-name { color: var(--money); }
+.sv-pbadge-sub   { font-size: 10px; color: var(--ink-4); }
+.sv-pbadge.earned .sv-pbadge-sub  { color: var(--money); opacity: 0.75; }
+.sv-pbadge-bar   { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--rule-2); }
+.sv-pbadge-fill  { height: 100%; background: var(--money); opacity: 0.5; transition: width 0.4s ease; }
+.sv-pbadge-cta {
+  font-size: 12px; color: var(--money); text-decoration: none;
+  padding: 8px 12px; border: 1px dashed var(--money);
+  border-radius: 10px; white-space: nowrap; opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.sv-pbadge-cta:hover { opacity: 1; }
+@media (max-width: 480px) {
+  .sv-pbadge     { min-width: calc(50% - 4px); flex: none; }
+  .sv-pbadge-cta { width: 100%; text-align: center; }
+}
 
 .sv-hero {
   padding: 32px 0 44px;
@@ -1470,6 +1508,51 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .sv-modal-row .sv-modal-field { flex: unset !important; width: 100% !important; }
   .sv-modal-actions { flex-direction: column-reverse; gap: 8px; margin-top: 20px; padding-top: 16px; }
   .sv-modal-actions .btn { width: 100%; min-width: unset; justify-content: center; min-height: 48px; }
+}
+
+/* ── Opportunity cost ─────────────────────────────── */
+.sv-opp-section { margin-top: 8px; }
+.sv-opp-meta { font-size: 13px; color: var(--ink-2); margin: 0 0 6px; font-family: var(--mono); }
+.sv-opp-sub  { font-size: 13px; color: var(--ink-3); margin: 0 0 20px; line-height: 1.5; }
+.sv-opp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.sv-opp-card {
+  position: relative; background: var(--paper-2); border: 1px solid var(--rule-2);
+  border-radius: 14px; padding: 18px 18px 14px;
+  transition: border-color 0.2s;
+}
+.sv-opp-card.sv-opp-can  { border-color: rgba(94,196,138,0.4); }
+.sv-opp-card.sv-opp-close { border-color: rgba(212,175,55,0.35); }
+.sv-opp-del {
+  position: absolute; top: 10px; right: 10px;
+  background: transparent; border: none; color: var(--ink-4);
+  font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 6px; border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.sv-opp-del:hover { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.sv-opp-status {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--money); margin-bottom: 5px;
+}
+.sv-opp-card.sv-opp-close .sv-opp-status { color: #d4af37; }
+.sv-opp-name { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 3px; padding-right: 20px; }
+.sv-opp-note { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; line-height: 1.4; }
+.sv-opp-cost { font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 10px; font-family: var(--mono); }
+.sv-opp-track { height: 4px; border-radius: 2px; background: var(--rule-2); overflow: hidden; }
+.sv-opp-fill  { height: 100%; border-radius: 2px; background: var(--ink-3); transition: width 0.45s ease; }
+.sv-opp-card.sv-opp-close .sv-opp-fill { background: #d4af37; }
+.sv-opp-card.sv-opp-can   .sv-opp-fill { background: var(--money); }
+.sv-opp-form {
+  background: var(--paper-2); border: 1px solid var(--rule-2); border-radius: 12px;
+  padding: 16px; margin-bottom: 4px;
+}
+.sv-opp-form-row { display: flex; gap: 10px; margin-bottom: 8px; }
+.sv-opp-form-row .form-input:first-child { flex: 1; min-width: 0; }
+.sv-opp-form-row .form-input:last-child  { width: 110px; flex-shrink: 0; }
+.sv-opp-form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+@media (max-width: 520px) {
+  .sv-opp-form-row { flex-direction: column; }
+  .sv-opp-form-row .form-input:last-child { width: 100%; }
+  .sv-opp-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* ── Milestone cards ──────────────────────────────── */

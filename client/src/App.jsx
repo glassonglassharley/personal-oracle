@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } f
 import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-const AdminDashboard    = lazy(() => import('./pages/AdminDashboard'));
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
 const Savings           = lazy(() => import('./pages/Savings'));
 const ViceManager       = lazy(() => import('./pages/ViceManager'));
@@ -1499,14 +1498,6 @@ function SignedOutContent() {
 // Routes based on our own auth state — no Clerk routing primitives
 function AppRouter() {
   const { isDemo, isWallet } = useDemoAuth();
-  // Admin dashboard — bypass all user auth, uses its own ADMIN_SECRET protection
-  if (window.location.pathname === '/admin') {
-    return (
-      <Suspense fallback={null}>
-        <AdminDashboard />
-      </Suspense>
-    );
-  }
   // If a magic link is in the URL, always let SignedOutContent process it first —
   // even when already authenticated. Reset links must work from an active session.
   const hasMagic = new URLSearchParams(window.location.search).has('magic');

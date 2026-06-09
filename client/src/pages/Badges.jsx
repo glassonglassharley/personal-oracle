@@ -9,7 +9,8 @@ function fmtDate(str) {
 
 function fmtProgress(progress) {
   if (!progress) return null;
-  const { value, max } = progress;
+  const { value, max, unit } = progress;
+  if (unit) return `${Math.min(value, max)} / ${max} ${unit}`;
   if (max <= 30 && Number.isInteger(max)) {
     return `${Math.min(value, max)} / ${max} days`;
   }

@@ -136,45 +136,60 @@ router.post('/exchange-token', async (req, res, next) => {
   }
 });
 
-// POST /api/plaid/sync  — returns last 90 days of vice-related transactions
+// POST /api/plaid/sync  — returns last 90 days of vice-related transactions from all connected banks
 router.post('/sync', async (req, res, next) => {
   try {
     const plaid = getPlaidClient();
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
-    const connRow = await pool.query(
-      'SELECT access_token, institution_name FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+    const connRows = await pool.query(
+      'SELECT access_token, institution_name FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
-    if (!connRow.rows.length) return res.status(404).json({ error: 'No bank connected' });
-
-    const { access_token, institution_name } = connRow.rows[0];
+    if (!connRows.rows.length) return res.status(404).json({ error: 'No bank connected' });
 
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 90);
     const fmt = d => d.toISOString().split('T')[0];
 
-    const txRes = await plaid.transactionsGet({
-      access_token,
-      start_date: fmt(start),
-      end_date: fmt(end),
-      options: { count: 500, offset: 0, include_personal_finance_category: true },
+    const allViceTxs = [];
+    for (const { access_token, institution_name } of connRows.rows) {
+      try {
+        const txRes = await plaid.transactionsGet({
+          access_token,
+          start_date: fmt(start),
+          end_date: fmt(end),
+          options: { count: 500, offset: 0, include_personal_finance_category: true },
+        });
+        txRes.data.transactions
+          .filter(tx => tx.amount > 0 && isViceTransaction(tx))
+          .forEach(tx => allViceTxs.push({
+            date: tx.date,
+            merchant: tx.merchant_name || tx.name,
+            amount: tx.amount,
+            category: tx.personal_finance_category?.detailed
+              || (tx.category || []).join(' > '),
+            transaction_id: tx.transaction_id,
+            institution: institution_name || 'Bank',
+          }));
+      } catch (bankErr) {
+        console.error(`Plaid sync error for ${institution_name}:`, bankErr.response?.data || bankErr.message);
+      }
+    }
+
+    // Deduplicate by transaction_id (same tx can't appear across banks, but be safe)
+    const seen = new Set();
+    const viceTxs = allViceTxs.filter(tx => {
+      if (seen.has(tx.transaction_id)) return false;
+      seen.add(tx.transaction_id);
+      return true;
     });
 
-    const viceTxs = txRes.data.transactions
-      .filter(tx => tx.amount > 0 && isViceTransaction(tx))
-      .map(tx => ({
-        date: tx.date,
-        merchant: tx.merchant_name || tx.name,
-        amount: tx.amount,
-        category: tx.personal_finance_category?.detailed
-          || (tx.category || []).join(' > '),
-        transaction_id: tx.transaction_id,
-      }));
+    viceTxs.sort((a, b) => b.date.localeCompare(a.date));
 
-    res.json({ transactions: viceTxs, institution_name });
+    res.json({ transactions: viceTxs });
   } catch (err) {
     console.error('Plaid sync error:', err.response?.data || err.message);
     next(err);
@@ -223,19 +238,20 @@ router.post('/move-entries', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/plaid/status — check whether the user has a connected bank
+// GET /api/plaid/status — check whether the user has connected banks (may be multiple)
 router.get('/status', async (req, res, next) => {
   try {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ connected: false });
 
-    const connRow = await pool.query(
-      'SELECT institution_name, created_at FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+    const connRows = await pool.query(
+      'SELECT institution_name FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
-    if (!connRow.rows.length) return res.json({ connected: false });
+    if (!connRows.rows.length) return res.json({ connected: false });
 
-    res.json({ connected: true, institution_name: connRow.rows[0].institution_name });
+    const banks = connRows.rows.map(r => r.institution_name || 'Bank');
+    res.json({ connected: true, banks });
   } catch (err) { next(err); }
 });
 
