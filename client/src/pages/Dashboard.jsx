@@ -376,10 +376,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="db-head-actions">
-          <Link className="btn ghost btn-sm" to="/savings" style={{ textDecoration: 'none' }}>
-            View Savings
-          </Link>
-          <Link className="btn dashboard-log-btn" to="/log" style={{ textDecoration: 'none' }}>
+<Link className="btn dashboard-log-btn" to="/log" style={{ textDecoration: 'none' }}>
             <span>＋</span>
             Log Today
           </Link>
