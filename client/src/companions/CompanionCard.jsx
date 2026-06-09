@@ -70,7 +70,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
         `🌳 ${name} the ${label}`,
         `Growth Stage: ${treeState}/5 — ${progressionName}`,
         `$${Math.round(treeSaved)} saved · ${g.cleanDays || 0} clean days`,
-        g.streak > 0 ? `🔥 ${g.streak}-day streak` : '',
         'Built with Vice Spending',
       ].filter(Boolean).join('\n')
     : [
@@ -163,9 +162,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
               {/* Stat chips */}
               <div className="comp-chips">
                 <span className="comp-chip">📅 {g.cleanDays || 0} days</span>
-                {(g.streak || 0) > 0 && (
-                  <span className="comp-chip comp-chip-hot">🔥 {g.streak}-day streak</span>
-                )}
                 {g.hasFlowers && <span className="comp-chip">🌸 Blooming</span>}
                 {g.isDecember && <span className="comp-chip">❄️ Winter</span>}
               </div>
