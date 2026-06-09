@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { getInternalUserId } = require('../utils');
 
 async function getMyId(clerkUserId) {
-  const r = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [clerkUserId]);
-  return r.rows[0]?.id;
+  return getInternalUserId(clerkUserId);
 }
 
 // GET /api/wrapped/:year

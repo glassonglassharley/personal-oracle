@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { awardXP, sendPushToUser } = require('../utils');
+const { awardXP, sendPushToUser, getInternalUserId } = require('../utils');
 
 // Bonus XP for streak milestone badges on top of the base badge XP
 const STREAK_MILESTONE_XP = { streak_3: 50, streak_7: 100, streak_30: 250, streak_100: 500 };
@@ -120,8 +120,7 @@ function badgeProgress(badgeId, stats) {
 // Evaluate all conditions, persist newly earned badges, return newly_earned[].
 router.post('/check', async (req, res, next) => {
   try {
-    const userRow = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]);
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ newly_earned: [] });
 
     const stats = await computeUserStats(userId);
@@ -191,8 +190,7 @@ router.post('/check', async (req, res, next) => {
 // Returns earned badges from DB merged with full definition list.
 router.get('/', async (req, res, next) => {
   try {
-    const userRow = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]);
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json(emptyResult());
 
     const [earned, stats] = await Promise.all([

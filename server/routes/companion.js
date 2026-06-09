@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { getInternalUserId } = require('../utils');
 
 async function getMyId(clerkUserId) {
-  const { rows } = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [clerkUserId]);
-  if (!rows.length) throw Object.assign(new Error('User not found'), { status: 404 });
-  return rows[0].id;
+  const id = await getInternalUserId(clerkUserId);
+  if (!id) throw Object.assign(new Error('User not found'), { status: 404 });
+  return id;
 }
 
 // GET /api/companion — returns companion state + live growth data
