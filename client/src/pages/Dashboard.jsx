@@ -479,6 +479,43 @@ export default function Dashboard() {
         <LevelUpOverlay data={levelUpOverlay} onDismiss={() => setLevelUpOverlay(null)} />
       )}
 
+      {loading ? (
+        <div className="db-skeleton">
+          <div className="stats-strip">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="stat">
+                <div className="skeleton skeleton-text" style={{ width: '55%', marginBottom: 10 }} />
+                <div className="skeleton skeleton-stat" style={{ width: '75%' }} />
+                <div className="skeleton skeleton-text" style={{ width: '90%', marginTop: 8 }} />
+              </div>
+            ))}
+          </div>
+          <div className="grid-2" style={{ marginTop: 24 }}>
+            <div className="skeleton skeleton-card" />
+            <div className="skeleton skeleton-chart" />
+          </div>
+        </div>
+      ) : stats && (
+        <>
+
+          <div className="stats-strip">
+            {[
+              { key: 'Today', p: stats.today || emptyPeriod() },
+              { key: 'This week', p: stats.week || emptyPeriod() },
+              { key: 'This month', p: stats.month || emptyPeriod() },
+              { key: 'This year', p: stats.year || emptyPeriod() },
+            ].map(({ key, p }) => (
+              <div key={key} className="stat">
+                <div className="stat-key">{key}</div>
+                <div className="stat-val">
+                  {'$' + Number(p.spend || 0).toFixed(0)}
+                  <span className="small">.{Number(p.spend || 0).toFixed(2).split('.')[1]}</span>
+                </div>
+                <div className="stat-delta"><QuantityBreakdown period={p} /></div>
+              </div>
+            ))}
+          </div>
+
       {companion?.companion_type && (() => {
         const compType = companion.companion_type;
         const state = companion.companion_state || {};
@@ -531,43 +568,6 @@ export default function Dashboard() {
           </div>
         );
       })()}
-
-      {loading ? (
-        <div className="db-skeleton">
-          <div className="stats-strip">
-            {[0,1,2,3].map(i => (
-              <div key={i} className="stat">
-                <div className="skeleton skeleton-text" style={{ width: '55%', marginBottom: 10 }} />
-                <div className="skeleton skeleton-stat" style={{ width: '75%' }} />
-                <div className="skeleton skeleton-text" style={{ width: '90%', marginTop: 8 }} />
-              </div>
-            ))}
-          </div>
-          <div className="grid-2" style={{ marginTop: 24 }}>
-            <div className="skeleton skeleton-card" />
-            <div className="skeleton skeleton-chart" />
-          </div>
-        </div>
-      ) : stats && (
-        <>
-
-          <div className="stats-strip">
-            {[
-              { key: 'Today', p: stats.today || emptyPeriod() },
-              { key: 'This week', p: stats.week || emptyPeriod() },
-              { key: 'This month', p: stats.month || emptyPeriod() },
-              { key: 'This year', p: stats.year || emptyPeriod() },
-            ].map(({ key, p }) => (
-              <div key={key} className="stat">
-                <div className="stat-key">{key}</div>
-                <div className="stat-val">
-                  {'$' + Number(p.spend || 0).toFixed(0)}
-                  <span className="small">.{Number(p.spend || 0).toFixed(2).split('.')[1]}</span>
-                </div>
-                <div className="stat-delta"><QuantityBreakdown period={p} /></div>
-              </div>
-            ))}
-          </div>
 
           <Link className="btn btn-lg mobile-log-cta" to="/log" style={{ textDecoration: 'none' }}>
             <span>＋</span> Log Entry
