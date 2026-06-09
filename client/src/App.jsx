@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } f
 import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+const AdminDashboard    = lazy(() => import('./pages/AdminDashboard'));
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
 const Savings           = lazy(() => import('./pages/Savings'));
 const ViceManager       = lazy(() => import('./pages/ViceManager'));
@@ -1287,30 +1288,40 @@ function SignedOutContent() {
   const { isDemo, isWallet, startDemo, verifyMagicToken } = useDemoAuth();
   const [drawer, setDrawer]               = useState(null); // null | 'signIn' | 'signUp'
   const [demoLoading, setDemoLoading]     = useState(false);
-  // magic link: null | 'verifying' | { status:'reset', resetToken, username } | { status:'error', msg }
-  const [magicState, setMagicState]       = useState(null);
+  // Initialise synchronously from the URL so we don't flash <AuthenticatedApp />
+  // on the first render when a ?magic= param is present.
+  // null | 'verifying' | { status:'reset', resetToken, username } | { status:'error', msg }
+  const [magicState, setMagicState] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('magic') ? 'verifying' : null;
+  });
 
   useEffect(() => {
-    if (isDemo || isWallet) return;
     const params = new URLSearchParams(window.location.search);
 
-    // New magic link flow
+    // Process magic links before the isDemo guard — reset links must work even
+    // when the user already has an active session in this browser.
     const magic = params.get('magic');
     if (magic) {
       const clean = new URL(window.location.href);
       clean.searchParams.delete('magic');
       window.history.replaceState({}, '', clean.toString());
-      setMagicState('verifying');
+      // magicState is already 'verifying' from the useState initializer above
       verifyMagicToken(magic)
         .then(body => {
           if (body.purpose === 'reset') {
             setMagicState({ status: 'reset', resetToken: body.resetToken, username: body.username });
+          } else {
+            // Login purpose: verifyMagicToken already stored the session — clear
+            // magic state so the isDemo guard below shows <AuthenticatedApp />.
+            setMagicState(null);
           }
-          // If purpose === 'login', verifyMagicToken already stored the session and set state
         })
         .catch(err => setMagicState({ status: 'error', msg: err.message }));
       return;
     }
+
+    if (isDemo || isWallet) return;
 
     // Legacy device-transfer link (?_vtuser=&_vttoken=) — still supported during migration
     const vtuser = params.get('_vtuser');
@@ -1324,7 +1335,8 @@ function SignedOutContent() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (isDemo || isWallet) return <AuthenticatedApp />;
+  // Already authenticated with no magic link in progress — go straight to the app
+  if ((isDemo || isWallet) && !magicState) return <AuthenticatedApp />;
 
   // Magic link verifying / result overlay
   if (magicState === 'verifying') {
@@ -1487,7 +1499,18 @@ function SignedOutContent() {
 // Routes based on our own auth state — no Clerk routing primitives
 function AppRouter() {
   const { isDemo, isWallet } = useDemoAuth();
-  if (isDemo || isWallet) return <AuthenticatedApp />;
+  // Admin dashboard — bypass all user auth, uses its own ADMIN_SECRET protection
+  if (window.location.pathname === '/admin') {
+    return (
+      <Suspense fallback={null}>
+        <AdminDashboard />
+      </Suspense>
+    );
+  }
+  // If a magic link is in the URL, always let SignedOutContent process it first —
+  // even when already authenticated. Reset links must work from an active session.
+  const hasMagic = new URLSearchParams(window.location.search).has('magic');
+  if ((isDemo || isWallet) && !hasMagic) return <AuthenticatedApp />;
   return <SignedOutContent />;
 }
 
