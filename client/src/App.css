@@ -139,10 +139,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .brand { display: flex; align-items: center; gap: var(--vtv-brand-gap, 8px); min-width: 0; }
 .brand-logo-svg {
   display: block;
-  width: auto; max-width: 220px; height: 64px;
+  width: auto; height: 36px;
   object-fit: contain; object-position: left center;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   image-rendering: crisp-edges;
   image-rendering: -webkit-optimize-contrast;
 }
@@ -924,10 +924,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 
 /* ── Clean mobile topbar logo + wordmark ─────────── */
 .mobile-brand-mark {
-  display: block; height: 36px; width: 36px; flex-shrink: 0;
+  display: block; height: 28px; width: auto; flex-shrink: 0; border-radius: 6px;
 }
 .mobile-brand-wordmark {
-  font-family: var(--serif); font-size: 17px; font-weight: 400;
+  font-family: var(--serif); font-size: 16px; font-weight: 600;
   color: var(--money); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; letter-spacing: -0.02em; line-height: 1;
 }
@@ -2348,11 +2348,11 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: var(--vtv-brand-gap, 8px);
+    gap: 8px;
     pointer-events: none;
     white-space: nowrap;
   }
-  .mobile-brand-mark { height: var(--vtv-logo-mark-h, 28px); width: auto; }
+  .mobile-brand-mark { height: 28px; width: auto; border-radius: 6px; }
   .mobile-brand-name {
     font-family: var(--serif); font-size: 18px; line-height: 1.05;
     color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -2401,9 +2401,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     min-width: 0;
   }
   .side .brand-logo-svg {
-    height: var(--vtv-logo-h-mobile, 28px);
+    height: 36px;
+    width: auto;
     max-width: none;
-    border-radius: 6px;
+    border-radius: 8px;
   }
   .side-brand-wordmark {
     display: block;
