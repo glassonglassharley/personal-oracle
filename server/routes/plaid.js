@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { getInternalUserId } = require('../utils');
 
 // Vice-related Plaid personal_finance_category primary/detailed values
 const VICE_CATEGORIES = new Set([
@@ -80,6 +81,11 @@ router.post('/create-link-token', async (req, res, next) => {
       country_codes: [CountryCode.Us],
       language: 'en',
     };
+    // OAuth institutions (e.g. Navy Federal) require redirect_uri in link token creation
+    const appUrl = process.env.APP_URL || process.env.PLAID_REDIRECT_URI;
+    if (appUrl) {
+      linkParams.redirect_uri = appUrl;
+    }
     // Pre-select a specific institution (e.g. Navy Federal ins_133383) to bypass fuzzy search
     if (institution_id && /^ins_[0-9]+$/.test(institution_id)) {
       linkParams.institution_id = institution_id;
@@ -103,10 +109,7 @@ router.post('/exchange-token', async (req, res, next) => {
     const exchangeRes = await plaid.itemPublicTokenExchange({ public_token });
     const { access_token, item_id } = exchangeRes.data;
 
-    const userRow = await pool.query(
-      'SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]
-    );
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
     await pool.query(
@@ -129,10 +132,7 @@ router.post('/exchange-token', async (req, res, next) => {
 router.post('/sync', async (req, res, next) => {
   try {
     const plaid = getPlaidClient();
-    const userRow = await pool.query(
-      'SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]
-    );
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
     const connRow = await pool.query(
@@ -176,8 +176,7 @@ router.post('/sync', async (req, res, next) => {
 // DELETE /api/plaid/imports — remove all entries tagged "(imported from bank)" for this user
 router.delete('/imports', async (req, res, next) => {
   try {
-    const userRow = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]);
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
     const result = await pool.query(
@@ -198,8 +197,7 @@ router.post('/move-entries', async (req, res, next) => {
     const { from_vice_id, to_vice_id } = req.body;
     if (!from_vice_id || !to_vice_id) return res.status(400).json({ error: 'from_vice_id and to_vice_id required' });
 
-    const userRow = await pool.query('SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]);
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
     // Verify the user owns both vices
@@ -220,10 +218,7 @@ router.post('/move-entries', async (req, res, next) => {
 // GET /api/plaid/status — check whether the user has a connected bank
 router.get('/status', async (req, res, next) => {
   try {
-    const userRow = await pool.query(
-      'SELECT id FROM users WHERE clerk_user_id = $1', [req.auth.userId]
-    );
-    const userId = userRow.rows[0]?.id;
+    const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ connected: false });
 
     const connRow = await pool.query(
