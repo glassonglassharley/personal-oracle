@@ -14,27 +14,43 @@ function fmtProgress(progress) {
   if (max <= 30 && Number.isInteger(max)) {
     return `${Math.min(value, max)} / ${max} days`;
   }
-  return `$${Number(value).toFixed(0)} of $${max.toLocaleString()}`;
+  return `$${Math.min(value, max).toLocaleString(undefined, { maximumFractionDigits: 0 })} of $${max.toLocaleString()}`;
+}
+
+function SkeletonCard() {
+  return (
+    <div className="bdg-card bdg-locked">
+      <div className="bdg-skel bdg-skel-emoji skeleton" />
+      <div className="bdg-skel bdg-skel-name skeleton" />
+      <div className="bdg-skel bdg-skel-desc skeleton" />
+      <div className="bdg-skel bdg-skel-bar skeleton" />
+    </div>
+  );
 }
 
 function BadgeCard({ badge }) {
   const pct = badge.progress
     ? Math.min(100, (badge.progress.value / badge.progress.max) * 100)
     : 0;
+  const label = fmtProgress(badge.progress);
 
   return (
     <div className={`bdg-card${badge.earned ? ' bdg-earned' : ' bdg-locked'}`}>
-      <div className="bdg-emoji">{badge.earned ? badge.emoji : '🔒'}</div>
+      <div className="bdg-emoji">{badge.emoji}</div>
       <div className="bdg-name">{badge.name}</div>
       <div className="bdg-desc">{badge.description}</div>
+
       {badge.earned ? (
-        <div className="bdg-date">Earned {fmtDate(badge.earned_at)}</div>
-      ) : badge.progress ? (
+        <div className="bdg-earned-row">
+          <span className="bdg-check">✓</span>
+          <span className="bdg-date">{fmtDate(badge.earned_at)}</span>
+        </div>
+      ) : label ? (
         <div className="bdg-progress">
+          <div className="bdg-bar-label">{label}</div>
           <div className="bdg-bar-track">
             <div className="bdg-bar-fill" style={{ width: `${pct}%` }} />
           </div>
-          <div className="bdg-bar-label">{fmtProgress(badge.progress)}</div>
         </div>
       ) : null}
     </div>
@@ -43,17 +59,19 @@ function BadgeCard({ badge }) {
 
 export default function Badges() {
   const api = useApi();
-  const [data, setData] = useState(null);
+  const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
+  const [tick, setTick]   = useState(0);
 
   useEffect(() => {
+    setError(null);
     api('/api/badges')
       .then(setData)
       .catch(err => setError(err?.message || 'Could not load badges'));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const earnedCount = data?.badges.filter(b => b.earned).length ?? 0;
-  const total = data?.badges.length ?? 0;
+  const total       = data?.badges.length ?? 0;
 
   return (
     <main className="main">
@@ -67,29 +85,61 @@ export default function Badges() {
         <div>
           <div className="page-title">Badges</div>
           <p className="page-subtitle">
-            {data
-              ? `${earnedCount} of ${total} unlocked`
-              : 'Track your milestones'}
+            {data ? `${earnedCount} of ${total} unlocked` : 'Track your milestones'}
           </p>
         </div>
       </div>
 
-      {error && (
-        <p style={{ color: 'var(--red, #e06c75)', marginBottom: 16, fontSize: 14 }}>{error}</p>
+      {/* Stats strip */}
+      {data && (
+        <div className="bdg-stats-strip">
+          <div className="bdg-stat">
+            <div className="bdg-stat-val">{earnedCount}</div>
+            <div className="bdg-stat-label">Earned</div>
+          </div>
+          <div className="bdg-stat">
+            <div className="bdg-stat-val">{data.current_streak ?? 0}</div>
+            <div className="bdg-stat-label">Day streak</div>
+          </div>
+          <div className="bdg-stat">
+            <div className="bdg-stat-val">{data.longest_streak ?? 0}</div>
+            <div className="bdg-stat-label">Longest</div>
+          </div>
+          <div className="bdg-stat">
+            <div className="bdg-stat-val">{data.total_clean_days ?? 0}</div>
+            <div className="bdg-stat-label">Clean days</div>
+          </div>
+        </div>
       )}
 
-      {data ? (
-        <div className="bdg-grid">
-          {data.badges.map(badge => (
-            <BadgeCard key={badge.id} badge={badge} />
-          ))}
+      {/* Error state */}
+      {error && (
+        <div className="bdg-error">
+          <span className="bdg-error-msg">⚠ {error}</span>
+          <button className="btn ghost" onClick={() => setTick(t => t + 1)} style={{ fontSize: 13 }}>
+            Retry
+          </button>
         </div>
-      ) : !error ? (
+      )}
+
+      {/* Badge grid */}
+      {!data && !error ? (
         <div className="bdg-grid">
-          {Array.from({ length: 13 }).map((_, i) => (
-            <div key={i} className="bdg-card bdg-locked skeleton" style={{ minHeight: 130 }} />
-          ))}
+          {Array.from({ length: 13 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
+      ) : data ? (
+        <>
+          <div className="bdg-grid">
+            {data.badges.map(badge => <BadgeCard key={badge.id} badge={badge} />)}
+          </div>
+          {earnedCount === 0 && (
+            <div className="bdg-empty">
+              <span className="bdg-empty-emoji">🌱</span>
+              <p className="bdg-empty-title">Your first badge is close</p>
+              <p className="bdg-empty-sub">Log your first entry or hit a 3-day streak to unlock your first badge.</p>
+            </div>
+          )}
+        </>
       ) : null}
     </main>
   );
