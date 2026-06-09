@@ -21,11 +21,11 @@ const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neo
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/history', label: 'History' },
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
   { to: '/badges', label: '🏅 Badges' },
   { to: '/partners', label: 'Partners' },
+  { to: '/history', label: 'History' },
   { to: '/support', label: 'FAQ' },
 ];
 
