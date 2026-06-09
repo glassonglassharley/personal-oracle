@@ -77,7 +77,6 @@ import { formatQuantityWithUnit } from '../formatUnits';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 import CompanionCard from '../companions/CompanionCard';
-import BadgesSection from './BadgesSection';
 import InsightsPanel from '../components/InsightsPanel';
 import { TREE_SPECIES, CHARACTER_ARCHETYPES, getProgressionName, getProgressionIcon } from '../companions/companionData';
 
@@ -616,8 +615,6 @@ export default function Dashboard() {
             onCreateGoal={createGoal}
             onDeleteGoal={deleteGoal}
           />
-
-          <BadgesSection />
 
           <div className="panel">
             <div className="panel-head">
