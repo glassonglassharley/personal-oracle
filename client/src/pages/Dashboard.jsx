@@ -79,7 +79,7 @@ import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 import CompanionCard from '../companions/CompanionCard';
 import BadgesSection from './BadgesSection';
 import InsightsPanel from '../components/InsightsPanel';
-import { getProgressionName, getProgressionIcon } from '../companions/companionData';
+import { TREE_SPECIES, CHARACTER_ARCHETYPES, getProgressionName, getProgressionIcon } from '../companions/companionData';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -479,13 +479,58 @@ export default function Dashboard() {
         <LevelUpOverlay data={levelUpOverlay} onDismiss={() => setLevelUpOverlay(null)} />
       )}
 
-      {companion?.companion_type && (
-        <CompanionCard
-          companion={companion}
-          growth={companion?.growth}
-          onEditCompanion={() => setShowOnboarding(true)}
-        />
-      )}
+      {companion?.companion_type && (() => {
+        const compType = companion.companion_type;
+        const state = companion.companion_state || {};
+        const isChar = compType === 'character';
+        const species = TREE_SPECIES.find(s => s.id === state.species);
+        const archetype = CHARACTER_ARCHETYPES.find(a => a.id === state.archetype);
+        const companionKind = isChar ? (archetype?.name || 'Character') : (species?.name || 'Tree');
+        const progressKicker = isChar ? `${companionKind} rank` : `${companionKind} growth`;
+        const levelName = xpData
+          ? getProgressionName(xpData.level, compType, state.archetype)
+          : null;
+        const nextLevelName = xpData
+          ? getProgressionName(xpData.level + 1, compType, state.archetype)
+          : null;
+        const levelIcon = isChar
+          ? (getProgressionIcon(compType, state.archetype) || '⚔️')
+          : (xpData?.level_icon || species?.emoji || '🌱');
+        const nextIcon = isChar
+          ? levelIcon
+          : (xpData?.next_level_icon || species?.emoji || '🌿');
+
+        return (
+          <div className={`companion-dashboard-card ${isChar ? 'is-character' : 'is-tree'}`}>
+            <CompanionCard
+              companion={companion}
+              growth={companion?.growth}
+              onEditCompanion={() => setShowOnboarding(true)}
+            />
+            {xpData && (
+              <div className="xp-card companion-xp-card">
+                {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
+                <div className="xp-card-kicker">{progressKicker}</div>
+                <div className="xp-card-top">
+                  <div className="xp-level-icon">{levelIcon}</div>
+                  <div>
+                    <div className="xp-level-name">{levelName}</div>
+                    <div className="xp-level-num">Level {xpData.level}</div>
+                  </div>
+                  <div className="xp-total">{xpData.total_xp.toLocaleString()} XP</div>
+                </div>
+                <div className="xp-bar-track">
+                  <div className="xp-bar-fill" style={{ width: `${xpData.progress_percent}%` }} />
+                </div>
+                <div className="xp-bar-foot">
+                  <span>{xpData.total_xp} / {xpData.total_xp + xpData.xp_to_next_level} XP</span>
+                  {nextLevelName && <span>Next: {nextLevelName} {nextIcon}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {loading ? (
         <div className="db-skeleton">
@@ -554,43 +599,6 @@ export default function Dashboard() {
               )}
             </div>
           )}
-
-          {xpData && (() => {
-            const compType = companion?.companion_type;
-            const archetype = companion?.companion_state?.archetype;
-            const isChar = compType === 'character';
-            const levelName = compType
-              ? getProgressionName(xpData.level, compType, archetype)
-              : xpData.level_name;
-            const nextLevelName = compType
-              ? getProgressionName(xpData.level + 1, compType, archetype)
-              : xpData.next_level_name;
-            const levelIcon = isChar
-              ? (getProgressionIcon(compType, archetype) || xpData.level_icon)
-              : xpData.level_icon;
-            return (
-              <div className="xp-card">
-                {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
-                <div className="xp-card-top">
-                  <div className="xp-level-icon">{levelIcon}</div>
-                  <div>
-                    <div className="xp-level-name">{levelName}</div>
-                    <div className="xp-level-num">Level {xpData.level}</div>
-                  </div>
-                  <div className="xp-total">{xpData.total_xp.toLocaleString()} XP</div>
-                </div>
-                <div className="xp-bar-track">
-                  <div className="xp-bar-fill" style={{ width: `${xpData.progress_percent}%` }} />
-                </div>
-                <div className="xp-bar-foot">
-                  <span>{xpData.total_xp} / {xpData.total_xp + xpData.xp_to_next_level} XP</span>
-                  {nextLevelName && (
-                    <span>Next: {nextLevelName} {isChar ? levelIcon : xpData.next_level_icon}</span>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
 
           <InsightsPanel stats={stats} xpData={xpData} />
 
