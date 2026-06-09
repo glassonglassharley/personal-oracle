@@ -488,54 +488,6 @@ export default function Savings() {
         </span>
       </div>
 
-      {/* ── Actual Savings Balance ── */}
-      <div className="panel sv-balance-panel">
-        <div className="panel-head">
-          <span className="panel-title">My Savings Balance</span>
-          {balance.updated_at && (
-            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
-              Updated {new Date(balance.updated_at).toLocaleDateString()}
-            </span>
-          )}
-        </div>
-        <p className="sv-balance-note">
-          Enter money you've actually moved into savings. This unlocks the $100, $500, and $1,000 Saved badges.
-        </p>
-        <div className="sv-balance-body">
-          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
-          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="sv-balance-input"
-              value={balanceInput}
-              onChange={e => setBalanceInput(e.target.value)}
-              placeholder="0.00"
-            />
-            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0 }}>
-              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
-            </button>
-          </form>
-          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
-        </div>
-        <div className="sv-balance-badges">
-          {[100, 500, 1000].map(target => {
-            const pct = Math.min(100, (balance.balance / target) * 100);
-            const earned = balance.balance >= target;
-            return (
-              <div key={target} className={`sv-bb-item${earned ? ' earned' : ''}`}>
-                <div className="sv-bb-label">
-                  <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} ${target.toLocaleString()} saved</span>
-                </div>
-                <div className="sv-bb-bar">
-                  <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* ── Hero ── */}
       <div className="sv-hero">
@@ -877,6 +829,55 @@ export default function Savings() {
           </div>
         </div>
       )}
+
+      {/* ── Actual Savings Balance ── */}
+      <div className="panel sv-balance-panel">
+        <div className="panel-head">
+          <span className="panel-title">My Savings Balance</span>
+          {balance.updated_at && (
+            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+              Updated {new Date(balance.updated_at).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        <p className="sv-balance-note">
+          Enter money you've actually moved into savings. This unlocks the $100, $500, and $1,000 Saved badges.
+        </p>
+        <div className="sv-balance-body">
+          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="sv-balance-input"
+              value={balanceInput}
+              onChange={e => setBalanceInput(e.target.value)}
+              placeholder="0.00"
+            />
+            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0 }}>
+              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
+            </button>
+          </form>
+          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
+        </div>
+        <div className="sv-balance-badges">
+          {[100, 500, 1000].map(target => {
+            const pct = Math.min(100, (balance.balance / target) * 100);
+            const earned = balance.balance >= target;
+            return (
+              <div key={target} className={`sv-bb-item${earned ? ' earned' : ''}`}>
+                <div className="sv-bb-label">
+                  <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} ${target.toLocaleString()} saved</span>
+                </div>
+                <div className="sv-bb-bar">
+                  <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
     </main>
   );
