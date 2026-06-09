@@ -62,9 +62,7 @@ router.get('/pending', async (req, res, next) => {
     if (!myId) return res.json([]);
 
     const r = await pool.query(`
-      SELECT f.id AS friendship_id, u.id, u.name,
-        (SELECT json_agg(json_build_object('emoji', v.emoji))
-         FROM vices v WHERE v.user_id = u.id) AS vices
+      SELECT f.id AS friendship_id, u.id, u.name
       FROM friendships f
       JOIN users u ON u.id = f.requester_id
       WHERE f.addressee_id = $1 AND f.status = 'pending'
