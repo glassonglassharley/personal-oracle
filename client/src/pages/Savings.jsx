@@ -425,7 +425,6 @@ export default function Savings() {
   }));
 
   const allBuyComparisons = [...BUYS, ...customGoals].sort((a, b) => a.cost - b.cost);
-  const affordable = allBuyComparisons.filter(b => b.cost <= projected).slice(-6);
   const nextItems  = allBuyComparisons.filter(b => b.cost > projected).slice(0, 3);
   const customGoalCards = customGoals
     .map(goal => {
@@ -636,7 +635,7 @@ export default function Savings() {
                     <div className="sv-buy-name">{goal.label}</div>
                     <div className="sv-buy-sub">
                       {goal.remaining === 0
-                        ? 'Within reach now'
+                        ? 'Goal covered now'
                         : `${fmt$0(goal.remaining)} away${goal.daysAway ? ` • about ${goal.daysAway} more days` : ''}`}
                     </div>
                     <div className="sv-custom-progress"><span style={{ width: `${goal.savedPct}%` }} /></div>
@@ -651,20 +650,6 @@ export default function Savings() {
           )}
 
           <div className="sv-buys">
-            {affordable.length > 0 && (
-              <div className="sv-buys-group">
-                <div className="sv-buys-label">✓ Within reach</div>
-                {affordable.map(b => (
-                  <div key={b.id || b.label} className="sv-buy sv-buy-yes">
-                    <div>
-                      <div className="sv-buy-name">{b.label}{b.custom && <span className="sv-custom-pill">Custom</span>}</div>
-                      <div className="sv-buy-sub">{b.sub}</div>
-                    </div>
-                    <div className="sv-buy-cost">{fmt$0(b.cost)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
             {nextItems.length > 0 && (
               <div className="sv-buys-group">
                 <div className="sv-buys-label">Almost there…</div>
@@ -679,7 +664,7 @@ export default function Savings() {
                 ))}
               </div>
             )}
-            {affordable.length === 0 && projected < 25 && (
+            {nextItems.length === 0 && projected < 25 && (
               <p className="text-muted" style={{ padding: '24px 0' }}>
                 Log more entries to see personalized suggestions here.
               </p>
