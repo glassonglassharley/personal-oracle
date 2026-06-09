@@ -468,32 +468,6 @@ export default function Dashboard() {
             <span>＋</span> Log Entry
           </Link>
 
-          {(stats.current_streak > 0 || stats.best_streak > 0) && (
-            <div className="streak-card">
-              <div className="streak-main">
-                <div className="streak-flame">{stats.current_streak > 0 ? '🔥' : '💤'}</div>
-                <div>
-                  <div className="streak-num">{stats.current_streak}</div>
-                  <div className="streak-label">day streak</div>
-                </div>
-                {stats.best_streak > 0 && (
-                  <div className="streak-best">
-                    <div className="streak-best-num">{stats.best_streak}</div>
-                    <div className="streak-best-label">best</div>
-                  </div>
-                )}
-              </div>
-              {stats.streakByVice.length > 1 && (
-                <div className="streak-by-vice">
-                  {stats.streakByVice.map(({ vice, current }) => (
-                    <span key={vice.id} className="streak-vice-pill">
-                      {vice.emoji} {current}d
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           <InsightsPanel stats={stats} xpData={xpData} />
 

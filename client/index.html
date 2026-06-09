@@ -8,19 +8,21 @@
     <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json" />
 
-    <!-- Icons -->
+    <!-- Favicon — SVG for modern browsers, PNG fallback for legacy -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
-    <link rel="alternate icon" href="/icon-192.png" type="image/png"/>
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192"/>
+    <link rel="shortcut icon" href="/icon-192.png"/>
 
-    <!-- iOS home screen -->
+    <!-- iOS / iPadOS home screen & Safari tab -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Vice Tracker" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-title" content="Vice to Value" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
 
     <!-- Android / theme -->
-    <meta name="theme-color" content="#1a2e1a" />
+    <meta name="theme-color" content="#0a1f17" />
     <meta name="mobile-web-app-capable" content="yes" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

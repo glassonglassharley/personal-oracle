@@ -1,11 +1,11 @@
 {
   "name": "Vice to Value",
-  "short_name": "Vice Tracker",
+  "short_name": "Vice to Value",
   "description": "Track vice spending, build streaks, and turn habits into savings.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#1a2e1a",
+  "theme_color": "#0a1f17",
   "background_color": "#0a1f17",
   "icons": [
     {

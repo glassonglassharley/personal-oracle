@@ -129,6 +129,11 @@ export default function Savings() {
   const [balanceSaving, setBalanceSaving] = useState(false);
   const [balanceError, setBalanceError] = useState('');
   const [balanceSaved, setBalanceSaved] = useState(false);
+  const [plaidConnected, setPlaidConnected] = useState(false);
+  const [plaidAccounts, setPlaidAccounts] = useState([]);
+  const [syncingPlaid, setSyncingPlaid] = useState(false);
+  const [plaidSyncError, setPlaidSyncError] = useState('');
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
 
   // Custom assets (server-backed)
   const [userAssets, setUserAssets] = useState([]);
@@ -240,6 +245,12 @@ export default function Savings() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    api('/api/plaid/status')
+      .then(d => setPlaidConnected(!!d.connected))
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     api('/api/assets').then(setUserAssets).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -275,6 +286,28 @@ export default function Savings() {
       setBalanceError(err.message || 'Could not save. Try again.');
     } finally {
       setBalanceSaving(false);
+    }
+  };
+
+  const syncFromBank = async () => {
+    setSyncingPlaid(true);
+    setPlaidSyncError('');
+    setShowAccountPicker(false);
+    try {
+      const d = await api('/api/plaid/accounts');
+      const depository = (d.accounts || []).filter(a => a.type === 'depository' && a.balance != null);
+      if (depository.length === 0) {
+        setPlaidSyncError('No checking or savings accounts found in your connected banks.');
+      } else if (depository.length === 1) {
+        setBalanceInput(String(depository[0].balance));
+      } else {
+        setPlaidAccounts(depository);
+        setShowAccountPicker(true);
+      }
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not fetch balances. Try again.');
+    } finally {
+      setSyncingPlaid(false);
     }
   };
 
@@ -792,15 +825,28 @@ export default function Savings() {
           </div>
           <div className="sv-ms-grid">
             {[1000, 5000, 10000, 25000, 50000].map(target => {
-              const daysNeeded = perDay > 0 ? Math.ceil(target / perDay) : Infinity;
-              const reached = projected >= target;
-              const reachDate = new Date(Date.now() + daysNeeded * 86400000)
-                .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+              const reached = balance.balance >= target;
+              const remaining = Math.max(0, target - balance.balance);
+              const daysNeeded = !reached && perDay > 0 ? Math.ceil(remaining / perDay) : Infinity;
+              const reachDate = daysNeeded < Infinity
+                ? new Date(Date.now() + daysNeeded * 86400000)
+                    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                : null;
+              const daysLabel = daysNeeded < 365
+                ? `~${Math.round(daysNeeded)} days`
+                : `~${(daysNeeded / 365).toFixed(1)} yrs`;
               return (
                 <div key={target} className={`sv-ms-card${reached ? ' active' : ''}`}>
-                  <div className="sv-ms-label">{reached ? '✓ Reached' : `~${daysNeeded < 365 ? Math.round(daysNeeded) + ' days' : (daysNeeded / 365).toFixed(1) + ' yrs'}`}</div>
+                  <div className="sv-ms-label">
+                    {reached ? '✓ Reached' : daysNeeded < Infinity ? daysLabel : '—'}
+                  </div>
                   <div className="sv-ms-amount">{fmt$0(target)}</div>
-                  {!reached && <div className="sv-ms-date">by {reachDate}</div>}
+                  {!reached && reachDate && <div className="sv-ms-date">by {reachDate}</div>}
+                  {!reached && balance.balance > 0 && (
+                    <div className="sv-ms-sub" style={{ color: 'var(--money)' }}>
+                      {fmt$0(balance.balance)} saved · {fmt$0(remaining)} to go
+                    </div>
+                  )}
                   <div className="sv-ms-sub">{target >= 10000 ? 'Significant milestone' : target >= 5000 ? 'Major savings' : 'First milestone'}</div>
                 </div>
               );
@@ -811,6 +857,20 @@ export default function Savings() {
 
       {/* ── Actual Savings Balance ── */}
       <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
+        <div className="panel-head" style={{ marginBottom: 10 }}>
+          <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
+          {plaidConnected && (
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ fontSize: 12, padding: '4px 10px' }}
+              onClick={syncFromBank}
+              disabled={syncingPlaid}
+            >
+              {syncingPlaid ? 'Syncing…' : '↻ Sync from bank'}
+            </button>
+          )}
+        </div>
         <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
           <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
           <form className="sv-balance-form" onSubmit={handleBalanceSave}>
@@ -828,6 +888,34 @@ export default function Savings() {
             </button>
           </form>
           {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
+          {plaidSyncError && <p className="form-error" style={{ marginTop: 8 }}>{plaidSyncError}</p>}
+          {showAccountPicker && plaidAccounts.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Choose which account balance to use:</p>
+              {plaidAccounts.map(acct => (
+                <button
+                  key={acct.account_id}
+                  type="button"
+                  className="btn ghost"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onClick={() => {
+                    setBalanceInput(String(acct.balance));
+                    setShowAccountPicker(false);
+                    setPlaidAccounts([]);
+                  }}
+                >
+                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({acct.subtype})</span></span>
+                  <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12 }}>{fmt$2(acct.balance)}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}
+                onClick={() => { setShowAccountPicker(false); setPlaidAccounts([]); }}
+              >Cancel</button>
+            </div>
+          )}
         </div>
         {goals.filter(g => !g.completed_at).length > 0 ? (
           <div className="sv-balance-badges">

@@ -250,6 +250,43 @@ router.post('/move-entries', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/plaid/accounts — real-time balances for all accounts across connected banks
+router.get('/accounts', async (req, res, next) => {
+  try {
+    const plaid = getPlaidClient();
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+
+    const connRows = await pool.query(
+      'SELECT access_token, institution_name FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    if (!connRows.rows.length) return res.json({ accounts: [] });
+
+    const allAccounts = [];
+    for (const { access_token, institution_name } of connRows.rows) {
+      try {
+        const balRes = await plaid.accountsBalanceGet({ access_token });
+        balRes.data.accounts.forEach(acct => {
+          allAccounts.push({
+            account_id: acct.account_id,
+            name: acct.name,
+            official_name: acct.official_name || null,
+            type: acct.type,       // 'depository', 'credit', 'investment', etc.
+            subtype: acct.subtype, // 'checking', 'savings', 'cd', etc.
+            balance: acct.balances.current,
+            institution: institution_name || 'Bank',
+          });
+        });
+      } catch (bankErr) {
+        console.error(`Plaid accounts error for ${institution_name}:`, bankErr.response?.data || bankErr.message);
+      }
+    }
+
+    res.json({ accounts: allAccounts });
+  } catch (err) { next(err); }
+});
+
 // GET /api/plaid/status — check whether the user has connected banks (may be multiple)
 router.get('/status', async (req, res, next) => {
   try {
