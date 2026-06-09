@@ -11,6 +11,7 @@ const Wrapped           = lazy(() => import('./pages/Wrapped'));
 const CompanionOnboarding = lazy(() => import('./pages/CompanionOnboarding'));
 const Badges              = lazy(() => import('./pages/Badges'));
 const Settings            = lazy(() => import('./pages/Settings'));
+const History             = lazy(() => import('./pages/History'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 import { VtvLogo, VtvMark } from './Logo';
@@ -20,6 +21,7 @@ const THEMES = ['emerald', 'mint', 'plum', 'noir', 'red', 'orange', 'pink', 'neo
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/history', label: 'History' },
   { to: '/savings', label: 'Savings' },
   { to: '/vices', label: 'Vices' },
   { to: '/badges', label: '🏅 Badges' },
@@ -289,6 +291,10 @@ function MobileBottomNav() {
         <span className="mbn-icon">🤝</span>
         <span className="mbn-label">Partners</span>
       </NavLink>
+      <NavLink to="/history" className={({ isActive }) => `mbn-tab${isActive ? ' mbn-active' : ''}`}>
+        <span className="mbn-icon">📋</span>
+        <span className="mbn-label">Log</span>
+      </NavLink>
     </nav>
   );
 }
@@ -390,6 +396,7 @@ function AuthenticatedApp() {
         <Suspense fallback={<div className="main"><div className="skeleton skeleton-card" style={{ height: 200, margin: '32px 0' }} /></div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/history" element={<History />} />
             <Route path="/log" element={<LogEntry />} />
             <Route path="/savings" element={<Savings />} />
             <Route path="/vices" element={<ViceManager />} />

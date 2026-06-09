@@ -3,6 +3,53 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyViceOwnership, verifyEntryOwnership, getInternalUserId, awardXP } = require('../utils');
 
+// GET /api/entries/all — all entries across all vices for the current user
+router.get('/all', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.json({ entries: [], total: 0 });
+
+    const { vice_id, from, to, search } = req.query;
+    const lim = Math.min(Number(req.query.limit) || 50, 200);
+    const off = Number(req.query.offset) || 0;
+
+    const params = [userId];
+    let where = 'WHERE v.user_id = $1';
+
+    if (vice_id) {
+      params.push(Number(vice_id));
+      where += ` AND v.id = $${params.length}`;
+    }
+    if (from) {
+      params.push(from);
+      where += ` AND e.date >= $${params.length}`;
+    }
+    if (to) {
+      params.push(to);
+      where += ` AND e.date <= $${params.length}`;
+    }
+    if (search) {
+      params.push(`%${search.trim()}%`);
+      where += ` AND (e.note ILIKE $${params.length} OR v.name ILIKE $${params.length})`;
+    }
+
+    const countQ = `SELECT COUNT(*)::int AS total FROM entries e JOIN vices v ON v.id = e.vice_id ${where}`;
+    const [countR] = await Promise.all([pool.query(countQ, params)]);
+
+    params.push(lim, off);
+    const rows = await pool.query(`
+      SELECT e.id, e.date::text, e.quantity::float, e.price_per_unit::float, e.note, e.created_at,
+             v.id AS vice_id, v.name AS vice_name, v.emoji AS vice_emoji
+      FROM entries e JOIN vices v ON v.id = e.vice_id
+      ${where}
+      ORDER BY e.date DESC, e.created_at DESC, e.id DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    res.json({ entries: rows.rows, total: countR.rows[0].total });
+  } catch (err) { next(err); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { vice_id, from, to } = req.query;
