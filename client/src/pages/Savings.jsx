@@ -151,13 +151,6 @@ export default function Savings() {
   const [goalError, setGoalError] = useState('');
   const celebratedRef = useRef(new Set());
 
-  // Partner connection badges
-  const [partnerBadges, setPartnerBadges] = useState(null);
-  useEffect(() => {
-    api('/api/badges').then(res => {
-      setPartnerBadges((res.badges || []).filter(b => b.id.startsWith('partner_')));
-    }).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Opportunity-cost tracker (localStorage-backed)
   const OPP_KEY = 'vt-opp-goals';
@@ -943,33 +936,6 @@ export default function Savings() {
         )}
       </div>
 
-      {/* ── Partner connection badges ── */}
-      {partnerBadges && (
-        <div className="sv-partner-badges">
-          {partnerBadges.map(b => {
-            const pct = b.progress ? Math.min(100, (b.progress.value / b.progress.max) * 100) : 0;
-            return (
-              <div key={b.id} className={`sv-pbadge${b.earned ? ' earned' : ''}`}>
-                <span className="sv-pbadge-emoji">{b.emoji}</span>
-                <div className="sv-pbadge-info">
-                  <span className="sv-pbadge-name">{b.name}</span>
-                  {b.earned ? (
-                    <span className="sv-pbadge-sub">Unlocked</span>
-                  ) : (
-                    <span className="sv-pbadge-sub">{b.progress ? `${b.progress.value} / ${b.progress.max} friends` : 'Locked'}</span>
-                  )}
-                </div>
-                {!b.earned && b.progress && (
-                  <div className="sv-pbadge-bar">
-                    <div className="sv-pbadge-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          <a className="sv-pbadge-cta" href="/partners">+ Find friends</a>
-        </div>
-      )}
 
       <GoalsSection
         goals={goals}
