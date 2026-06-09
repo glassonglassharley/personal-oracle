@@ -61,13 +61,30 @@ async function addPrivateContactFields(row) {
   };
 }
 
-function authAdmin(req, res, next) {
+async function authAdmin(req, res, next) {
   const secret = process.env.ADMIN_SECRET;
   if (!secret) return res.status(503).json({ error: 'ADMIN_SECRET not configured' });
   const auth = req.get('authorization') || '';
   const header = req.get('x-admin-secret') || '';
-  if (auth === `Bearer ${secret}` || header === secret) return next();
-  return res.status(401).json({ error: 'Unauthorized' });
+  if (auth !== `Bearer ${secret}` && header !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  // Defense-in-depth: verify the session user is the glassonglass account
+  try {
+    const rawId = req.auth?.userId;
+    const numId = rawId != null ? parseInt(rawId, 10) : NaN;
+    if (!numId || isNaN(numId)) return res.status(403).json({ error: 'Forbidden' });
+    const { rows } = await pool.query(
+      'SELECT auth_username FROM users WHERE id = $1',
+      [numId]
+    );
+    if (rows[0]?.auth_username !== 'glassonglass') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+  } catch {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
 }
 
 router.get('/backup', authAdmin, async (req, res, next) => {

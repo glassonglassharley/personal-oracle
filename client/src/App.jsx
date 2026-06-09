@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
 import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
 const Savings           = lazy(() => import('./pages/Savings'));
@@ -302,6 +302,14 @@ function MobileBottomNav() {
   );
 }
 
+function AdminRoute({ element }) {
+  const { demoUsername } = useDemoAuth();
+  if (String(demoUsername || '').trim().toLowerCase() !== 'glassonglass') {
+    return <Navigate to="/" replace />;
+  }
+  return element;
+}
+
 function AuthenticatedApp() {
   const api = useApi();
   const apiRef = useRef(api);
@@ -408,7 +416,7 @@ function AuthenticatedApp() {
             <Route path="/badges" element={<Badges />} />
             <Route path="/wrapped/:year" element={<Wrapped />} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/users" element={<AdminRoute element={<AdminUsers />} />} />
           </Routes>
           {companionLoaded && showOnboarding && (
             <CompanionOnboarding
