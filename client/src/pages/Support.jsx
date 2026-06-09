@@ -10,7 +10,7 @@ const STEPS = [
   {
     icon: '📝',
     title: 'Log daily entries',
-    body: 'Each day, open the Dashboard and log how much you consumed. Enter 0 to mark a clean day — your streak grows automatically.',
+    body: "Open the Dashboard to log your daily consumption. Days you don't log anything are automatically counted as clean days, and your streak grows on its own.",
   },
   {
     icon: '📈',
