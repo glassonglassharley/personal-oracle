@@ -10,8 +10,9 @@ import { VtvLogo, VtvMark } from '../Logo';
 export default function Logo({ size = 40, variant = 'icon', pulse = false }) {
   const style = {
     height: size,
-    width: variant === 'full' ? size * (260 / 72) : size,
+    width: 'auto',
     flexShrink: 0,
+    ...(variant === 'full' ? { borderRadius: Math.round(size * 0.14) } : {}),
     ...(pulse ? { animation: 'vtv-logo-pulse 2s ease-in-out infinite' } : {}),
   };
 

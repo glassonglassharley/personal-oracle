@@ -82,7 +82,7 @@ const s = {
     position: 'relative',
     zIndex: 1,
   },
-  logoRow: { display: 'flex', alignItems: 'center', gap: 14 },
+  logoRow: { display: 'flex', alignItems: 'center', gap: 8 },
   logoImg: {
     height: 80, width: 80, borderRadius: 18, objectFit: 'contain', flexShrink: 0,
     mixBlendMode: 'screen',

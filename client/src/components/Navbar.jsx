@@ -93,8 +93,8 @@ export default function Navbar({ onSignOut }) {
           {menuOpen ? '✕' : '☰'}
         </button>
 
-        <div style={s.logoWrap}>
-          <Logo size={30} variant="full" />
+        <div style={s.logoWrap} className="vtv-navbar-logo">
+          <Logo size={36} variant="full" />
         </div>
 
         <nav style={s.nav} className="vtv-navbar-links">
@@ -144,6 +144,12 @@ export default function Navbar({ onSignOut }) {
         @media (max-width: 680px) {
           .vtv-navbar-links { display: none !important; }
           .vtv-navbar-hamburger { display: flex !important; }
+          .vtv-navbar-logo {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+          }
         }
       `}</style>
     </>

@@ -10,6 +10,7 @@ const Support           = lazy(() => import('./pages/Support'));
 const Wrapped           = lazy(() => import('./pages/Wrapped'));
 const CompanionOnboarding = lazy(() => import('./pages/CompanionOnboarding'));
 const Badges              = lazy(() => import('./pages/Badges'));
+const Settings            = lazy(() => import('./pages/Settings'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 import { VtvLogo, VtvMark } from './Logo';
@@ -27,7 +28,7 @@ const NAV = [
 ];
 
 function AccountControl({ collapsed = false }) {
-  const { isDemo, demoUsername, stopDemo, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
+  const { demoUsername, isWallet, walletPublicKey, stopWallet } = useDemoAuth();
 
   if (isWallet) {
     const abbr = `${walletPublicKey.slice(0, 4)}…${walletPublicKey.slice(-4)}`;
@@ -45,17 +46,15 @@ function AccountControl({ collapsed = false }) {
   }
 
   return (
-    <div className="demo-account" style={{ cursor: 'default' }}>
+    <NavLink to="/settings" className="demo-account" title="Account settings">
       <span className="avatar">{(demoUsername || '?').slice(0, 2).toUpperCase()}</span>
       {!collapsed && (
         <span className="me-text">
           <span className="me-name">{demoUsername}</span>
-          <button className="me-sync-btn" type="button" onClick={stopDemo}>
-            Sign out
-          </button>
+          <span style={{ fontSize: 11, color: 'rgba(212,175,55,0.6)' }}>Settings →</span>
         </span>
       )}
-    </div>
+    </NavLink>
   );
 }
 
@@ -398,6 +397,7 @@ function AuthenticatedApp() {
             <Route path="/support" element={<Support />} />
             <Route path="/badges" element={<Badges />} />
             <Route path="/wrapped/:year" element={<Wrapped />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
           {companionLoaded && showOnboarding && (
             <CompanionOnboarding

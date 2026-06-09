@@ -22,6 +22,11 @@
   --vtv-sage-light:  #8ab89a;
   --vtv-ink:         #f0f7ec;
   --vtv-ink-muted:   #a8c4a0;
+  /* Logo sizing — single source of truth */
+  --vtv-logo-h:        36px;
+  --vtv-logo-h-mobile: 28px;
+  --vtv-logo-mark-h:   28px;
+  --vtv-brand-gap:     8px;
 }
 
 /* ── Cards ───────────────────────────────────────────── */
