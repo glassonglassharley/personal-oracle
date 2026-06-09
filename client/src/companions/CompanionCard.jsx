@@ -26,7 +26,9 @@ function HistoryModal({ milestones, name, onClose }) {
   );
 }
 
-export default function CompanionCard({ companion, growth, onEditCompanion }) {
+const TREE_THRESHOLDS = [0, 50, 150, 500, 1500, Infinity];
+
+export default function CompanionCard({ companion, growth, onEditCompanion, xpData }) {
   const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -46,17 +48,28 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
     ? (speciesData?.name || 'Tree')
     : (archetypeData?.name || 'Hero');
 
+  const treeState = g.treeGrowthState || 1;
+  const treeSaved = g.totalSaved || 0;
+  const stageStart = TREE_THRESHOLDS[treeState - 1];
+  const stageEnd = TREE_THRESHOLDS[treeState];
+  const treeProgressPct = treeState >= 5
+    ? 100
+    : Math.min(100, Math.max(0, ((treeSaved - stageStart) / (stageEnd - stageStart)) * 100));
+
   const progressionName = getProgressionName(
-    isTree ? (g.treeGrowthState || 1) : (g.charLevel || 1),
+    isTree ? treeState : (g.charLevel || 1),
     companion_type,
     state.archetype
   );
+  const nextProgressionName = isTree && treeState < 5
+    ? getProgressionName(treeState + 1, companion_type, state.archetype)
+    : null;
 
   const shareText = isTree
     ? [
         `🌳 ${name} the ${label}`,
-        `Growth Stage: ${g.treeGrowthState || 1}/5`,
-        `$${(g.totalSaved || 0).toFixed(0)} saved · ${g.cleanDays || 0} clean days`,
+        `Growth Stage: ${treeState}/5 — ${progressionName}`,
+        `$${Math.round(treeSaved)} saved · ${g.cleanDays || 0} clean days`,
         g.streak > 0 ? `🔥 ${g.streak}-day streak` : '',
         'Built with Vice Spending',
       ].filter(Boolean).join('\n')
@@ -74,8 +87,7 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
     });
   };
 
-  const xp = g.charXp || 0;
-  const growthPct = isTree ? (((g.treeGrowthState || 1) - 1) / 4) * 100 : xp * 100;
+  const growthPct = isTree ? treeProgressPct : (xpData?.progress_percent || 0);
 
   return (
     <div className="comp-card">
@@ -131,69 +143,95 @@ export default function CompanionCard({ companion, growth, onEditCompanion }) {
         <div className="comp-card-stats">
           {isTree ? (
             <>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Stage</span>
-                <span className="comp-stat-val">{progressionName}</span>
+              {/* Stage header */}
+              <div className="comp-stage-header">
+                <span className="comp-stage-title">{progressionName}</span>
+                <span className="comp-stage-frac">Stage {treeState} / 5</span>
               </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Growth</span>
-                <span className="comp-stat-val">{g.treeGrowthState || 1}/5</span>
-              </div>
+
+              {/* Growth progress bar */}
               <div className="comp-progress-wrap">
                 <div className="comp-progress-bar">
-                  <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
+                  <div className="comp-progress-fill" style={{ width: `${treeProgressPct}%` }} />
+                </div>
+                <div className="comp-progress-foot">
+                  <span>${Math.round(treeSaved)}{treeState < 5 ? ` / $${stageEnd} saved` : ' · max stage'}</span>
+                  {nextProgressionName && <span>→ {nextProgressionName}</span>}
                 </div>
               </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Saved</span>
-                <span className="comp-stat-val comp-money">${(g.totalSaved || 0).toFixed(0)}</span>
+
+              {/* Stat chips */}
+              <div className="comp-chips">
+                <span className="comp-chip">📅 {g.cleanDays || 0} days</span>
+                {(g.streak || 0) > 0 && (
+                  <span className="comp-chip comp-chip-hot">🔥 {g.streak}-day streak</span>
+                )}
+                {g.hasFlowers && <span className="comp-chip">🌸 Blooming</span>}
+                {g.isDecember && <span className="comp-chip">❄️ Winter</span>}
               </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Clean days</span>
-                <span className="comp-stat-val">{g.cleanDays || 0}</span>
-              </div>
-              {(g.streak || 0) > 0 && (
-                <div className="comp-stat-row">
-                  <span className="comp-stat-label">Streak</span>
-                  <span className="comp-stat-val comp-streak">🔥 {g.streak}</span>
+
+              {/* XP level strip */}
+              {xpData && (
+                <div className="comp-xp-row">
+                  <div className="comp-xp-row-head">
+                    <span className="comp-xp-row-name">
+                      {xpData.level_icon} {xpData.level_name} · Lv {xpData.level}
+                    </span>
+                    <span className="comp-xp-row-total">{xpData.total_xp.toLocaleString()} XP</span>
+                  </div>
+                  <div className="comp-progress-bar comp-progress-bar-gold">
+                    <div className="comp-progress-fill-gold" style={{ width: `${xpData.progress_percent || 0}%` }} />
+                  </div>
+                  {xpData.next_level_name && (
+                    <span className="comp-xp-row-next">
+                      Next: {xpData.next_level_name} {xpData.next_level_icon}
+                    </span>
+                  )}
                 </div>
-              )}
-              {g.hasFlowers && (
-                <div className="comp-badge">🌸 Blooming</div>
-              )}
-              {g.isDecember && (
-                <div className="comp-badge">❄️ Winter</div>
               )}
             </>
           ) : (
             <>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Rank</span>
-                <span className="comp-stat-val">{progressionName}</span>
+              {/* Rank + level header */}
+              <div className="comp-stage-header">
+                <span className="comp-stage-title">{progressionName}</span>
+                <span className="comp-stage-frac">Lv {g.charLevel || 1}</span>
               </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Level</span>
-                <span className="comp-stat-val">{g.charLevel || 1}</span>
-              </div>
-              <div className="comp-progress-wrap">
-                <div className="comp-progress-bar">
-                  <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
+
+              {/* XP progress bar */}
+              {xpData ? (
+                <div className="comp-progress-wrap">
+                  <div className="comp-progress-bar comp-progress-bar-gold">
+                    <div className="comp-progress-fill-gold" style={{ width: `${xpData.progress_percent || 0}%` }} />
+                  </div>
+                  <div className="comp-progress-foot">
+                    <span>
+                      {xpData.total_xp.toLocaleString()} / {(xpData.total_xp + xpData.xp_to_next_level).toLocaleString()} XP
+                    </span>
+                    {xpData.next_level_name && (
+                      <span>→ {xpData.next_level_name} {xpData.next_level_icon}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="comp-xp-label">{Math.round(growthPct)}% to next</span>
-              </div>
-              <div className="comp-stat-row">
-                <span className="comp-stat-label">Clean days</span>
-                <span className="comp-stat-val">{g.cleanDays || 0}</span>
-              </div>
-              {(g.streak || 0) > 0 && (
-                <div className="comp-stat-row">
-                  <span className="comp-stat-label">Streak</span>
-                  <span className="comp-stat-val comp-streak">🔥 {g.streak}</span>
+              ) : (
+                <div className="comp-progress-wrap">
+                  <div className="comp-progress-bar">
+                    <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
+                  </div>
+                  <div className="comp-progress-foot"><span>{Math.round(growthPct)}% to next</span></div>
                 </div>
               )}
-              {tier === 'legendary' && (
-                <div className="comp-badge comp-badge-legendary">✨ Legendary</div>
-              )}
+
+              {/* Stat chips */}
+              <div className="comp-chips">
+                <span className="comp-chip">📅 {g.cleanDays || 0} days</span>
+                {(g.streak || 0) > 0 && (
+                  <span className="comp-chip comp-chip-hot">🔥 {g.streak}-day streak</span>
+                )}
+                {tier === 'legendary' && (
+                  <span className="comp-chip comp-chip-gold">✨ Legendary</span>
+                )}
+              </div>
             </>
           )}
         </div>

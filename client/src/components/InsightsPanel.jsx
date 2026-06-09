@@ -18,11 +18,13 @@ export default function InsightsPanel({ stats, xpData }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const bottomRef = useRef(null);
+  const threadRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
   }, [messages, loading]);
 
   const buildDataContext = useCallback(() => {
@@ -94,7 +96,7 @@ export default function InsightsPanel({ stats, xpData }) {
       setError('Could not reach your coach right now. Try again in a moment.');
     } finally {
       setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
   }, [messages, loading, vices, viceStats, buildDataContext, api]);
 
@@ -116,7 +118,7 @@ export default function InsightsPanel({ stats, xpData }) {
     <section style={s.wrap}>
       <div style={s.header}>
         <span style={s.sparkle}>✦</span>
-        <span style={s.title}>AI Coach</span>
+        <span style={s.title}>Coach Insight</span>
         {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
         {hasConversation && !loading && (
           <button style={s.clearBtn} onClick={() => { setMessages([]); setError(''); }}>
@@ -143,7 +145,7 @@ export default function InsightsPanel({ stats, xpData }) {
       )}
 
       {hasConversation && (
-        <div style={s.thread}>
+        <div ref={threadRef} style={s.thread}>
           {displayMessages.map((m, i) => (
             <div key={i} style={m.role === 'user' ? s.userBubble : s.coachBubble}>
               {m.role === 'assistant' && <div style={s.coachLabel}>Coach</div>}
@@ -164,7 +166,6 @@ export default function InsightsPanel({ stats, xpData }) {
             </div>
           )}
 
-          <div ref={bottomRef} />
         </div>
       )}
 
