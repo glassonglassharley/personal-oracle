@@ -208,6 +208,56 @@ export default function Partners() {
       {errorMsg && <div className="inline-error" style={{ marginBottom: 16 }}>{errorMsg}</div>}
       {successMsg && <div className="inline-success" style={{ marginBottom: 16 }}>✓ {successMsg}</div>}
 
+      {/* ── Search ── */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Find a partner <span className="small">by name</span></span>
+        </div>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
+          <input
+            className="form-input"
+            placeholder="Search by name…"
+            value={searchQ}
+            onChange={e => setSearchQ(e.target.value)}
+            style={{ width: '100%', paddingRight: searching ? 36 : undefined }}
+          />
+          {searching && (
+            <div className="btn-spinner" style={{
+              position: 'absolute', right: 12, top: '50%',
+              transform: 'translateY(-50%)', margin: 0,
+            }} />
+          )}
+        </div>
+        {!searching && searchQ.trim() && !searchResults.length && (
+          <div className="ap-no-results">No users found for "{searchQ}"</div>
+        )}
+        {searchResults.length > 0 && (
+          <div className="ap-search-results">
+            {searchResults.map(u => (
+              <div key={u.id} className="ap-search-item">
+                <div className="ap-avatar">{initials(u.name)}</div>
+                <span className="ap-name">{u.name}</span>
+                {u.relationship === 'accepted' && <span className="ap-tag">Partner</span>}
+                {u.relationship === 'pending' && <span className="ap-tag muted">Requested</span>}
+                {!u.relationship && (
+                  <button
+                    className="btn"
+                    style={{ fontSize: 12, padding: '7px 13px' }}
+                    disabled={sendingReqId === u.id}
+                    onClick={() => sendRequest(u.id)}
+                  >
+                    {sendingReqId === u.id
+                      ? <><div className="btn-spinner" />Sending…</>
+                      : 'Add partner'
+                    }
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Leaderboard ── */}
       {loading ? (
         <div className="panel">
@@ -280,56 +330,6 @@ export default function Partners() {
           </div>
         </div>
       )}
-
-      {/* ── Search ── */}
-      <div className="panel">
-        <div className="panel-head">
-          <span className="panel-title">Find a partner <span className="small">by name</span></span>
-        </div>
-        <div style={{ position: 'relative', marginBottom: 10 }}>
-          <input
-            className="form-input"
-            placeholder="Search by name…"
-            value={searchQ}
-            onChange={e => setSearchQ(e.target.value)}
-            style={{ width: '100%', paddingRight: searching ? 36 : undefined }}
-          />
-          {searching && (
-            <div className="btn-spinner" style={{
-              position: 'absolute', right: 12, top: '50%',
-              transform: 'translateY(-50%)', margin: 0,
-            }} />
-          )}
-        </div>
-        {!searching && searchQ.trim() && !searchResults.length && (
-          <div className="ap-no-results">No users found for "{searchQ}"</div>
-        )}
-        {searchResults.length > 0 && (
-          <div className="ap-search-results">
-            {searchResults.map(u => (
-              <div key={u.id} className="ap-search-item">
-                <div className="ap-avatar">{initials(u.name)}</div>
-                <span className="ap-name">{u.name}</span>
-                {u.relationship === 'accepted' && <span className="ap-tag">Partner</span>}
-                {u.relationship === 'pending' && <span className="ap-tag muted">Requested</span>}
-                {!u.relationship && (
-                  <button
-                    className="btn"
-                    style={{ fontSize: 12, padding: '7px 13px' }}
-                    disabled={sendingReqId === u.id}
-                    onClick={() => sendRequest(u.id)}
-                  >
-                    {sendingReqId === u.id
-                      ? <><div className="btn-spinner" />Sending…</>
-                      : 'Add partner'
-                    }
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* ── Incoming requests ── */}
       {pending.length > 0 && (
