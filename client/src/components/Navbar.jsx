@@ -129,6 +129,13 @@ export default function Navbar({ onSignOut }) {
               {label}
             </NavLink>
           ))}
+          <NavLink
+            to="/settings"
+            style={activeMobileStyle}
+            onClick={() => setMenuOpen(false)}
+          >
+            Settings
+          </NavLink>
           {onSignOut && (
             <button
               onClick={() => { setMenuOpen(false); onSignOut(); }}

@@ -205,47 +205,6 @@ export default function Partners() {
 
       <div className="page-title">Accountability Partners</div>
 
-      {/* ── What you share ── */}
-      <div className="panel" style={{ marginBottom: 20 }}>
-        <div className="panel-head">
-          <span className="panel-title">What you share with partners</span>
-          {privacySaving && <span className="form-hint">Saving…</span>}
-        </div>
-        <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.5 }}>
-          Choose what partners can see on your card. Display name and clean days are always visible.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[
-            { key: null,          label: 'Display name',    sub: 'Always visible',   locked: true  },
-            { key: null,          label: 'Clean days',      sub: 'Always visible',   locked: true  },
-            { key: 'show_vices',  label: 'Vice list',       sub: 'Emojis on your card'             },
-            { key: 'show_spend',  label: 'Monthly spending',sub: 'How much you spent this month'   },
-            { key: 'show_streak', label: 'Current streak',  sub: 'Your active clean-day streak'    },
-            { key: 'show_xp',     label: 'XP & level',      sub: 'Your experience and rank'        },
-          ].map(({ key, label, sub, locked }) => (
-            <label
-              key={label}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12, cursor: locked ? 'default' : 'pointer',
-                opacity: locked ? 0.55 : 1,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={locked ? true : !!privacy[key]}
-                disabled={locked}
-                onChange={locked ? undefined : () => togglePrivacy(key)}
-                style={{ width: 16, height: 16, accentColor: 'var(--money)', flexShrink: 0 }}
-              />
-              <div>
-                <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>{label}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{sub}</div>
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
-
       {errorMsg && <div className="inline-error" style={{ marginBottom: 16 }}>{errorMsg}</div>}
       {successMsg && <div className="inline-success" style={{ marginBottom: 16 }}>✓ {successMsg}</div>}
 
@@ -587,6 +546,47 @@ export default function Partners() {
           </div>
         </div>
       )}
+
+      {/* ── What you share ── */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">What you share with partners</span>
+          {privacySaving && <span className="form-hint">Saving…</span>}
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.5 }}>
+          Choose what partners can see on your card. Display name and clean days are always visible.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { key: null,          label: 'Display name',    sub: 'Always visible',   locked: true  },
+            { key: null,          label: 'Clean days',      sub: 'Always visible',   locked: true  },
+            { key: 'show_vices',  label: 'Vice list',       sub: 'Emojis on your card'             },
+            { key: 'show_spend',  label: 'Monthly spending',sub: 'How much you spent this month'   },
+            { key: 'show_streak', label: 'Current streak',  sub: 'Your active clean-day streak'    },
+            { key: 'show_xp',     label: 'XP & level',      sub: 'Your experience and rank'        },
+          ].map(({ key, label, sub, locked }) => (
+            <label
+              key={label}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, cursor: locked ? 'default' : 'pointer',
+                opacity: locked ? 0.55 : 1,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={locked ? true : !!privacy[key]}
+                disabled={locked}
+                onChange={locked ? undefined : () => togglePrivacy(key)}
+                style={{ width: 16, height: 16, accentColor: 'var(--money)', flexShrink: 0 }}
+              />
+              <div>
+                <div style={{ fontSize: 14, color: 'var(--ink)', fontWeight: 500 }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{sub}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
     </main>
   );
 }

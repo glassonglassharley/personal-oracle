@@ -367,8 +367,7 @@ router.get('/leaderboard', async (req, res, next) => {
       `, [thisMonth, myId, uid]);
 
       const isMe = uid === myId;
-      const priv = isMe ? { show_vices: true, show_spend: true, show_streak: true, show_xp: true }
-                        : resolvePrivacy(uRow.rows[0]?.partner_privacy);
+      const priv = resolvePrivacy(uRow.rows[0]?.partner_privacy);
       return {
         id:               uRow.rows[0].id,
         name:             uRow.rows[0].name,

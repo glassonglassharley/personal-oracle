@@ -161,7 +161,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
 
               {/* Stat chips */}
               <div className="comp-chips">
-                <span className="comp-chip">📅 {g.cleanDays || 0} days</span>
                 {g.hasFlowers && <span className="comp-chip">🌸 Blooming</span>}
                 {g.isDecember && <span className="comp-chip">❄️ Winter</span>}
               </div>
@@ -221,7 +220,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
 
               {/* Stat chips */}
               <div className="comp-chips">
-                <span className="comp-chip">📅 {g.cleanDays || 0} days</span>
                 {(g.streak || 0) > 0 && (
                   <span className="comp-chip comp-chip-hot">🔥 {g.streak}-day streak</span>
                 )}

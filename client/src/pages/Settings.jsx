@@ -20,19 +20,50 @@ export default function Settings() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState(null);
 
+  // Display name form
+  const [displayName, setDisplayName] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameMsg, setNameMsg] = useState(null);
+
   // Magic link / device login
   const [magicSending, setMagicSending] = useState(false);
   const [magicMsg, setMagicMsg] = useState(null);
+
+  // Delete account
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState(null);
 
   useEffect(() => {
     api('/api/users/me')
       .then(u => {
         setUser(u);
         setEmail(u?.email || '');
+        setDisplayName(u?.name || '');
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveName = async e => {
+    e.preventDefault();
+    setNameMsg(null);
+    const trimmed = displayName.trim();
+    if (!trimmed) { setNameMsg({ type: 'err', text: 'Display name cannot be empty.' }); return; }
+    setNameSaving(true);
+    try {
+      await api('/api/users/me', {
+        method: 'PUT',
+        body: JSON.stringify({ name: trimmed }),
+      });
+      setNameMsg({ type: 'ok', text: 'Display name saved.' });
+      setUser(u => ({ ...u, name: trimmed }));
+    } catch (err) {
+      setNameMsg({ type: 'err', text: err.message });
+    } finally {
+      setNameSaving(false);
+    }
+  };
 
   const saveEmail = async e => {
     e.preventDefault();
@@ -74,6 +105,18 @@ export default function Settings() {
       setPwMsg({ type: 'err', text: err.message });
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    setDeleteMsg(null);
+    try {
+      await api('/api/users/me', { method: 'DELETE' });
+      stopDemo();
+    } catch (err) {
+      setDeleteMsg({ type: 'err', text: err.message });
+      setDeleting(false);
     }
   };
 
@@ -127,6 +170,25 @@ export default function Settings() {
             <div style={s.label}>Username</div>
             <div style={s.readOnly}>{username}</div>
           </div>
+          <form onSubmit={saveName} style={{ ...s.form, marginBottom: 20 }}>
+            <label style={s.label} htmlFor="st-name">
+              Display name <span className="form-hint">— shown to accountability partners</span>
+            </label>
+            <input
+              id="st-name"
+              className="form-input"
+              type="text"
+              value={displayName}
+              placeholder="Your display name"
+              autoComplete="name"
+              maxLength={60}
+              onChange={e => { setDisplayName(e.target.value); setNameMsg(null); }}
+            />
+            <button className="btn btn-primary" type="submit" disabled={nameSaving} style={{ alignSelf: 'flex-start' }}>
+              {nameSaving ? 'Saving…' : 'Save name'}
+            </button>
+            {nameMsg && <Feedback msg={nameMsg} />}
+          </form>
           <form onSubmit={saveEmail} style={s.form}>
             <label style={s.label} htmlFor="st-email">
               Email address <span className="form-hint">— for login links and password recovery</span>
@@ -236,6 +298,55 @@ export default function Settings() {
           <button className="btn btn-danger" type="button" onClick={stopDemo}>
             Sign out
           </button>
+        </div>
+      </div>
+
+      {/* Delete account */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Delete account</span>
+        </div>
+        <div style={{ padding: '4px 0 16px' }}>
+          {!deleteConfirm ? (
+            <>
+              <p style={{ color: 'var(--ink-3)', fontSize: 13, marginBottom: 12 }}>
+                Permanently deletes your account and all data — vices, entries, savings, goals, and partner connections. This cannot be undone.
+              </p>
+              <button
+                className="btn ghost"
+                type="button"
+                style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}
+                onClick={() => setDeleteConfirm(true)}
+              >
+                Delete my account
+              </button>
+            </>
+          ) : (
+            <>
+              <p style={{ color: 'var(--warn)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                Are you sure? Everything will be permanently deleted.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-danger"
+                  type="button"
+                  disabled={deleting}
+                  onClick={deleteAccount}
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete everything'}
+                </button>
+                <button
+                  className="btn ghost"
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => { setDeleteConfirm(false); setDeleteMsg(null); }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {deleteMsg && <Feedback msg={deleteMsg} style={{ marginTop: 10 }} />}
+            </>
+          )}
         </div>
       </div>
     </main>
