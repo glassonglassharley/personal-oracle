@@ -1,5 +1,9 @@
+# Signing secrets — never commit
 *.keystore
 *.jks
+keystore.properties
+
+# Android build artifacts
 local.properties
 .gradle/
 build/

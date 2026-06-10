@@ -37,6 +37,11 @@ const { router: authRouter, verifySession } = require('./routes/auth');
 
 const app = express();
 
+// Digital Asset Links — served unauthenticated for TWA domain verification
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.sendFile(require('path').join(__dirname, '..', 'android', 'assetlinks.json'));
+});
+
 function validWalletToken(token) {
   return /^vtw_[A-Za-z0-9_-]{40,}$/.test(String(token || ''));
 }
