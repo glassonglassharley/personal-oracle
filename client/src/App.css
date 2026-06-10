@@ -759,6 +759,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sidebar-logout-btn:hover { color: var(--ink); border-color: var(--rule-2); background: var(--paper-3); }
 .sidebar-logout-btn .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 12%, transparent); flex-shrink: 0; }
 .side.collapsed .sidebar-logout-btn { justify-content: center; padding: 9px 0; }
+.sidebar-legal-links { display: flex; gap: 8px; align-items: center; padding: 2px 4px; }
+.sidebar-legal-links a { font-size: 11px; color: var(--ink-3); text-decoration: none; transition: color 0.15s; }
+.sidebar-legal-links a:hover { color: var(--ink-2); }
+.sidebar-legal-links span { font-size: 10px; color: var(--ink-3); opacity: 0.5; }
 .nightly-reminder-card {
   display: grid; gap: 8px; padding: 12px; border: 1px solid var(--rule);
   border-radius: 12px; background: var(--paper-2); color: var(--ink-2);

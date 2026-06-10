@@ -126,6 +126,13 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
         <div className="me">
           <AccountControl collapsed={collapsed} />
         </div>
+        {!collapsed && (
+          <div className="sidebar-legal-links">
+            <a href="/privacy">Privacy</a>
+            <span>·</span>
+            <a href="/terms">Terms</a>
+          </div>
+        )}
       </div>
     </aside>
   );

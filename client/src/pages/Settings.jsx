@@ -31,6 +31,7 @@ export default function Settings() {
 
   // Delete account
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState(null);
 
@@ -114,17 +115,16 @@ export default function Settings() {
   const exportData = async () => {
     setExporting(true);
     try {
-      // Read JWT from the same localStorage key that useApi uses
       let jwt = '';
       try { jwt = JSON.parse(localStorage.getItem('vt-session') || '{}')?.jwt || ''; } catch {}
       const headers = jwt ? { Authorization: `Bearer ${jwt}` } : {};
-      const res = await fetch('/api/users/me/export', { headers });
+      const res = await fetch('/api/account/export', { headers });
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'vice-tracker-export.csv';
+      a.download = `vice-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -135,10 +135,11 @@ export default function Settings() {
   };
 
   const deleteAccount = async () => {
+    if (deleteText !== 'DELETE') return;
     setDeleting(true);
     setDeleteMsg(null);
     try {
-      await api('/api/users/me', { method: 'DELETE' });
+      await api('/api/account', { method: 'DELETE' });
       stopDemo();
     } catch (err) {
       setDeleteMsg({ type: 'err', text: err.message });
@@ -334,7 +335,7 @@ export default function Settings() {
         </div>
         <div style={{ padding: '4px 0 16px' }}>
           <p style={{ color: 'var(--ink-3)', fontSize: 13, marginBottom: 12 }}>
-            Download all your logged entries as a CSV file — dates, vices, quantities, and spending.
+            Download all your data — vices, logs, goals, badges, savings, and settings — as a single JSON file.
           </p>
           <button
             className="btn ghost"
@@ -342,7 +343,7 @@ export default function Settings() {
             disabled={exporting}
             onClick={exportData}
           >
-            {exporting ? 'Preparing…' : 'Download CSV'}
+            {exporting ? 'Preparing…' : 'Download JSON export'}
           </button>
         </div>
       </div>
@@ -370,22 +371,35 @@ export default function Settings() {
           ) : (
             <>
               <p style={{ color: 'var(--warn)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                Are you sure? Everything will be permanently deleted.
+                This is permanent and cannot be undone. All your vices, logs, goals, badges, and partner connections will be deleted.
               </p>
+              <label style={{ ...s.label, marginBottom: 4 }} htmlFor="del-confirm-text">
+                Type <strong>DELETE</strong> to confirm
+              </label>
+              <input
+                id="del-confirm-text"
+                className="form-input"
+                value={deleteText}
+                placeholder="DELETE"
+                autoComplete="off"
+                maxLength={10}
+                style={{ maxWidth: 200, marginBottom: 12 }}
+                onChange={e => setDeleteText(e.target.value)}
+              />
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button
                   className="btn btn-danger"
                   type="button"
-                  disabled={deleting}
+                  disabled={deleting || deleteText !== 'DELETE'}
                   onClick={deleteAccount}
                 >
-                  {deleting ? 'Deleting…' : 'Yes, delete everything'}
+                  {deleting ? 'Deleting…' : 'Delete my account'}
                 </button>
                 <button
                   className="btn ghost"
                   type="button"
                   disabled={deleting}
-                  onClick={() => { setDeleteConfirm(false); setDeleteMsg(null); }}
+                  onClick={() => { setDeleteConfirm(false); setDeleteText(''); setDeleteMsg(null); }}
                 >
                   Cancel
                 </button>
@@ -394,6 +408,12 @@ export default function Settings() {
             </>
           )}
         </div>
+      </div>
+
+      <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--rule)', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <a href="/privacy" style={{ fontSize: 13, color: 'var(--ink-3)', textDecoration: 'none' }}>Privacy Policy</a>
+        <span style={{ color: 'var(--ink-3)', opacity: 0.5 }}>·</span>
+        <a href="/terms" style={{ fontSize: 13, color: 'var(--ink-3)', textDecoration: 'none' }}>Terms of Service</a>
       </div>
     </main>
   );

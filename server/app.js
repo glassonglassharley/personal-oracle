@@ -169,6 +169,7 @@ app.use('/api/xp',            require('./routes/xp'));
 app.use('/api/insights',      require('./routes/insights'));
 app.use('/api/assets',        require('./routes/assets'));
 app.use('/api/voice-tokens',  require('./routes/voice').tokenRouter);
+app.use('/api/account',       require('./routes/account'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
