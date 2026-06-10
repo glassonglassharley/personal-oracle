@@ -369,7 +369,7 @@ export default function Dashboard() {
           <p className="page-subtitle">
             Combined overview across every tracked vice.
             {memberSince && (
-              <span className="member-since">
+              <span className="db-tracking-since">
                 {' '}· Tracking since {memberSince.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </span>
             )}
