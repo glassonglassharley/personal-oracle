@@ -18,7 +18,7 @@ router.get('/:vice_id', async (req, res, next) => {
          FROM entries WHERE vice_id = $1 AND date >= $2 AND date <= $3`,
         [vice_id, from, to]
       );
-      return { quantity: r.rows[0].qty, spend: round2(r.rows[0].spend) };
+      return { quantity: r.rows[0].qty, spend: r.rows[0].spend };
     };
 
     const [todayS, weekS, monthS, yearS] = await Promise.all([

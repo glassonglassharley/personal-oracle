@@ -1156,6 +1156,20 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 /* ── History / Transaction Log ──────────────────── */
 .hist-page { background: var(--paper); }
 
+.hist-quick-filters {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.hist-quick-btn {
+  padding: 5px 13px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--rule-2); background: var(--paper-2);
+  color: var(--ink-3); cursor: pointer; transition: all 0.15s;
+}
+.hist-quick-btn:hover { border-color: var(--money); color: var(--ink); }
+.hist-quick-btn.active {
+  background: var(--money-soft); border-color: var(--money);
+  color: var(--money); font-weight: 600;
+}
+
 .hist-filters {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
   margin-bottom: 16px;

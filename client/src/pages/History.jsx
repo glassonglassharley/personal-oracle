@@ -12,6 +12,30 @@ const fmtDate = s => {
     .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+function buildDateWindows() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const fmt = { timeZone: tz };
+  const today = new Intl.DateTimeFormat('en-CA', fmt).format(new Date());
+  const [y, m] = today.split('-').map(Number);
+  const pad = n => String(n).padStart(2, '0');
+  const d7 = new Date();
+  d7.setDate(d7.getDate() - 6);
+  return {
+    today,
+    week:  new Intl.DateTimeFormat('en-CA', fmt).format(d7),
+    month: `${y}-${pad(m)}-01`,
+    year:  `${y}-01-01`,
+  };
+}
+const DW = buildDateWindows();
+
+const QUICK_FILTERS = [
+  { key: 'week',  label: 'This week',  from: DW.week,  to: DW.today },
+  { key: 'month', label: 'This month', from: DW.month, to: DW.today },
+  { key: 'year',  label: 'This year',  from: DW.year,  to: DW.today },
+  { key: 'all',   label: 'All time',   from: '',        to: '' },
+];
+
 export default function History() {
   const api = useApi();
   const { vices } = useViceContext();
@@ -24,10 +48,11 @@ export default function History() {
   const [error, setError]         = useState('');
 
   const [filterVice, setFilterVice]   = useState('');
-  const [filterFrom, setFilterFrom]   = useState('');
-  const [filterTo, setFilterTo]       = useState('');
+  const [filterFrom, setFilterFrom]   = useState(DW.year);
+  const [filterTo, setFilterTo]       = useState(DW.today);
   const [filterSearch, setFilterSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [quickFilter, setQuickFilter] = useState('year');
   const searchTimer = useRef(null);
 
   const [deleting, setDeleting] = useState(new Set());
@@ -87,12 +112,32 @@ export default function History() {
         <span className="here">Transaction Log</span>
       </div>
 
+      {/* Quick period chips */}
+      <div className="hist-quick-filters">
+        {QUICK_FILTERS.map(q => (
+          <button
+            key={q.key}
+            className={`hist-quick-btn${quickFilter === q.key ? ' active' : ''}`}
+            onClick={() => {
+              setQuickFilter(q.key);
+              setFilterFrom(q.from);
+              setFilterTo(q.to);
+              setFilterSearch('');
+              setSearchInput('');
+              setFilterVice('');
+            }}
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="hist-filters">
         <select
           className="hist-filter-select"
           value={filterVice}
-          onChange={e => { setFilterVice(e.target.value); }}
+          onChange={e => { setFilterVice(e.target.value); setQuickFilter('custom'); }}
         >
           <option value="">All vices</option>
           {vices.map(v => (
@@ -104,7 +149,7 @@ export default function History() {
           type="date"
           className="hist-filter-date"
           value={filterFrom}
-          onChange={e => setFilterFrom(e.target.value)}
+          onChange={e => { setFilterFrom(e.target.value); setQuickFilter('custom'); }}
           title="From date"
         />
         <span className="hist-date-sep">—</span>
@@ -112,7 +157,7 @@ export default function History() {
           type="date"
           className="hist-filter-date"
           value={filterTo}
-          onChange={e => setFilterTo(e.target.value)}
+          onChange={e => { setFilterTo(e.target.value); setQuickFilter('custom'); }}
           title="To date"
         />
 
@@ -124,12 +169,12 @@ export default function History() {
           onChange={handleSearchChange}
         />
 
-        {(filterVice || filterFrom || filterTo || filterSearch) && (
+        {(filterVice || filterSearch || quickFilter !== 'year') && (
           <button className="btn ghost hist-clear-btn" onClick={() => {
-            setFilterVice(''); setFilterFrom(''); setFilterTo('');
-            setFilterSearch(''); setSearchInput('');
+            setFilterVice(''); setFilterFrom(DW.year); setFilterTo(DW.today);
+            setFilterSearch(''); setSearchInput(''); setQuickFilter('year');
           }}>
-            Clear
+            Reset
           </button>
         )}
       </div>
@@ -141,7 +186,12 @@ export default function History() {
           <strong>{total.toLocaleString()} entries</strong>
         </span>
         <span className="hist-summary-item">
-          <span className="hist-summary-label">Total spent</span>
+          <span className="hist-summary-label">
+            {quickFilter === 'year'  ? 'This year' :
+             quickFilter === 'month' ? 'This month' :
+             quickFilter === 'week'  ? 'This week' :
+             quickFilter === 'all'   ? 'All-time' : 'Period'} total
+          </span>
           <strong style={{ color: 'var(--warn)' }}>{fmt$(spendTotal)}</strong>
         </span>
       </div>
