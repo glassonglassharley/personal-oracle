@@ -151,6 +151,9 @@ function Hair({ style, color, cx, headR, gender, artId }) {
     <rect x={cx.x - headR * 1.08} y={cx.y} width={headR * 0.6} height={headR * 2.25} rx={7} fill={raw} />
     <rect x={cx.x + headR * 0.5} y={cx.y} width={headR * 0.6} height={headR * 2.25} rx={7} fill={raw} />
     <ShineStreak x1={cx.x - headR * 0.5} y1={cx.y - headR * 0.85} x2={cx.x - headR * 0.2} y2={cx.y + headR * 0.2} />
+    <ShineStreak x1={cx.x - headR * 0.26} y1={cx.y - headR * 0.72} x2={cx.x + headR * 0.02} y2={cx.y + headR * 0.35} />
+    <path d={`M${cx.x - headR * 0.98} ${cx.y + headR * 0.4} Q${cx.x - headR * 1.04} ${cx.y + headR * 1.0} ${cx.x - headR * 0.96} ${cx.y + headR * 1.8}`}
+      fill="none" stroke={shine} strokeWidth="2" strokeLinecap="round" opacity="0.28" />
   </g>;
 
   if (style === 'braids') return <g>
@@ -231,6 +234,9 @@ function Hair({ style, color, cx, headR, gender, artId }) {
       <ellipse cx={cx.x + headR * 1.02} cy={cx.y - headR * 0.1} rx={headR * 0.21} ry={headR * 0.47} fill={raw} />
     </>}
     <ShineStreak x1={cx.x - headR * 0.4} y1={cx.y - headR * 0.75} x2={cx.x - headR * 0.1} y2={cx.y - headR * 0.05} />
+    <ShineStreak x1={cx.x - headR * 0.18} y1={cx.y - headR * 0.62} x2={cx.x + headR * 0.1} y2={cx.y - headR * 0.08} />
+    <ellipse cx={cx.x - headR * 0.24} cy={cx.y - headR * 0.80} rx={headR * 0.18} ry={headR * 0.10}
+      fill={shine} opacity="0.20" />
   </g>;
 }
 
@@ -293,11 +299,44 @@ function Eyes({ cx, headR, eyeColorId, artId }) {
     <path d={`M${exR - er * 1.28} ${ey + er * 0.18} Q${exR} ${ey + er * 1.08} ${exR + er * 1.28} ${ey + er * 0.18}`}
       fill="none" stroke="rgba(0,0,0,0.22)" strokeWidth="1" strokeLinecap="round" />
 
+    {/* Iris radial texture */}
+    {[exL, exR].map((ex, si) => {
+      const irisColor = si === 0 ? lColor : rColor;
+      return Array.from({ length: 14 }, (_, i) => {
+        const a = (i / 14) * Math.PI * 2;
+        return <line key={`${si}-${i}`}
+          x1={ex + Math.cos(a) * er * 0.22} y1={ey + Math.sin(a) * er * 0.22}
+          x2={ex + Math.cos(a) * er * 0.86} y2={ey + Math.sin(a) * er * 0.86}
+          stroke={adj(irisColor, -32)} strokeWidth="0.55" opacity="0.30" />;
+      });
+    })}
+    {/* Upper eyelashes */}
+    {[exL, exR].map((ex, si) => Array.from({ length: 9 }, (_, i) => {
+      const t = i / 8;
+      const lashX = ex - er * 1.32 + t * er * 2.64;
+      const lashBaseY = ey - er * 0.50;
+      const lashLen = (t > 0.18 && t < 0.82 ? 4.2 : 2.8) + (i % 2) * 0.6;
+      const outwardX = (t - 0.5) * 1.8;
+      return <line key={`lash-${si}-${i}`}
+        x1={lashX} y1={lashBaseY}
+        x2={lashX + outwardX} y2={lashBaseY - lashLen}
+        stroke="#0a0505" strokeWidth="1.1" strokeLinecap="round" opacity="0.88" />;
+    }))}
+    {/* Lower lashes (subtle) */}
+    {[exL, exR].map((ex, si) => Array.from({ length: 5 }, (_, i) => {
+      const t = i / 4;
+      const lashX = ex - er * 0.92 + t * er * 1.84;
+      const lashBaseY = ey + er * 0.52;
+      return <line key={`llash-${si}-${i}`}
+        x1={lashX} y1={lashBaseY}
+        x2={lashX} y2={lashBaseY + 1.8}
+        stroke="#0a0505" strokeWidth="0.9" strokeLinecap="round" opacity="0.40" />;
+    }))}
     {/* Catchlights */}
-    <circle cx={exL - er * 0.22} cy={ey - er * 0.32} r={er * 0.26} fill="white" opacity="0.92" />
-    <circle cx={exL + er * 0.38} cy={ey + er * 0.18} r={er * 0.12} fill="white" opacity="0.58" />
-    <circle cx={exR - er * 0.22} cy={ey - er * 0.32} r={er * 0.26} fill="white" opacity="0.92" />
-    <circle cx={exR + er * 0.38} cy={ey + er * 0.18} r={er * 0.12} fill="white" opacity="0.58" />
+    <circle cx={exL - er * 0.22} cy={ey - er * 0.32} r={er * 0.26} fill="white" opacity="0.95" />
+    <circle cx={exL + er * 0.38} cy={ey + er * 0.18} r={er * 0.12} fill="white" opacity="0.60" />
+    <circle cx={exR - er * 0.22} cy={ey - er * 0.32} r={er * 0.26} fill="white" opacity="0.95" />
+    <circle cx={exR + er * 0.38} cy={ey + er * 0.18} r={er * 0.12} fill="white" opacity="0.60" />
   </g>;
 }
 
@@ -750,9 +789,11 @@ export default function CharacterSVG({
   return (
     <svg viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision">
       <defs>
-        <radialGradient id={faceGradId} cx="40%" cy="28%" r="70%">
-          <stop offset="0%" stopColor={highlight} />
-          <stop offset="50%" stopColor={skinData.color} />
+        <radialGradient id={faceGradId} cx="42%" cy="24%" r="74%">
+          <stop offset="0%" stopColor={adj(highlight, 18)} />
+          <stop offset="18%" stopColor={highlight} />
+          <stop offset="48%" stopColor={skinData.color} />
+          <stop offset="78%" stopColor={adj(skinData.color, -14)} />
           <stop offset="100%" stopColor={skinData.shadow} />
         </radialGradient>
         <clipPath id={`head-clip-${artId}`}>
@@ -834,6 +875,14 @@ export default function CharacterSVG({
         {/* Jaw shadow */}
         <ellipse cx={charCX.x} cy={charCX.y + headR * 0.88} rx={headR * 0.55} ry={headR * 0.18}
           fill={skinData.shadow} opacity="0.22" />
+        {/* Cheek blush */}
+        <ellipse cx={charCX.x - headR * 0.54} cy={charCX.y + headR * 0.26} rx={headR * 0.26} ry={headR * 0.16}
+          fill={skinData.lip || '#e88080'} opacity="0.13" />
+        <ellipse cx={charCX.x + headR * 0.54} cy={charCX.y + headR * 0.26} rx={headR * 0.26} ry={headR * 0.16}
+          fill={skinData.lip || '#e88080'} opacity="0.13" />
+        {/* Philtrum */}
+        <path d={`M${charCX.x - headR * 0.08} ${charCX.y + headR * 0.30} Q${charCX.x} ${charCX.y + headR * 0.37} ${charCX.x + headR * 0.08} ${charCX.y + headR * 0.30}`}
+          fill="none" stroke={skinData.shadow} strokeWidth="0.9" strokeLinecap="round" opacity="0.22" />
 
         {/* Beard (behind hair) */}
         {beard && <Beard cx={charCX} headR={headR} skinData={skinData} color={hc} />}

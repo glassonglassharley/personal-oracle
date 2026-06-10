@@ -117,6 +117,11 @@ function Background({ bgId, artId }) {
         <circle cx="140" cy="80" r="4" fill="#ffd740" opacity="0.6" />
         <ellipse cx="110" cy="40" rx="22" ry="8" fill="rgba(138,43,226,0.22)" />
       </>}
+      {/* Atmospheric horizon depth */}
+      <rect x="0" y="200" width="200" height="20"
+        fill={bg.sky2} opacity="0.14" />
+      <rect x="0" y="212" width="200" height="6"
+        fill={adj(bg.ground, 15)} opacity="0.22" />
     </g>
   );
 }
@@ -274,15 +279,26 @@ function RoundTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
       <circle cx={x} cy={cY + cR * 0.52} r={cR * 0.58} fill={sp.leafDark} opacity="0.62" />
     </>}
     <circle cx={x} cy={cY} r={cR} fill={`url(#${ids.leafGrad})`} />
-    {s > 0.35 && Array.from({ length: 20 }, (_, i) => {
-      const ang = (i / 20) * Math.PI * 2;
-      const rr = cR * (0.2 + ((i * 17) % 10) / 18);
-      const lx = x + Math.cos(ang) * rr * 0.92;
-      const ly = cY + Math.sin(ang) * rr * 0.68;
-      return <ellipse key={i} cx={lx} cy={ly} rx={Math.max(3.5, cR * 0.10)} ry={Math.max(2, cR * 0.048)}
-        fill={i % 3 === 0 ? 'rgba(255,255,255,0.26)' : sp.leafDark} opacity={i % 3 === 0 ? 0.52 : 0.30}
-        transform={`rotate(${(i * 41) % 180},${lx},${ly})`} />;
+    {s > 0.35 && Array.from({ length: 36 }, (_, i) => {
+      const ang = (i / 36) * Math.PI * 2;
+      const rr = cR * (0.58 + ((i * 7) % 10) / 28);
+      const lx = x + Math.cos(ang) * rr;
+      const ly = cY + Math.sin(ang) * rr * 0.74;
+      const leafSz = Math.max(4.2, cR * 0.096 + (i % 4) * 0.6);
+      const leafAng = (ang * 180 / Math.PI) + 95 + ((i % 5) - 2) * 12;
+      const leafCol = i % 6 === 0 ? adj(sp.leafColor, 44)
+                    : i % 4 === 0 ? adj(sp.leafColor, 20)
+                    : i % 3 === 0 ? sp.leafColor
+                    : sp.leafDark;
+      return <LeafBezier key={i} cx={lx} cy={ly} size={leafSz}
+        angle={leafAng} color={leafCol} opacity={0.62 + (i % 4) * 0.06} />;
     })}
+    {/* Canopy light overlay top-left */}
+    {s > 0.4 && <ellipse cx={x - cR * 0.28} cy={cY - cR * 0.32} rx={cR * 0.52} ry={cR * 0.42} fill="white" opacity="0.09" />}
+    {/* Canopy shadow overlay bottom-right */}
+    {s > 0.4 && <ellipse cx={x + cR * 0.20} cy={cY + cR * 0.28} rx={cR * 0.46} ry={cR * 0.36} fill={sp.leafDark} opacity="0.20" />}
+    {/* Rim light on back edge */}
+    {s > 0.5 && <circle cx={x} cy={cY} r={cR} fill="none" stroke={adj(sp.leafColor, 55)} strokeWidth="2.5" opacity="0.18" />}
     {isMaple && s > 0.45 && Array.from({ length: 10 }, (_, i) => {
       const ang = (i / 10) * Math.PI * 2;
       const rr = cR * (0.3 + (i % 3) * 0.18);
@@ -358,19 +374,22 @@ function AvocadoTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
       <circle cx={x} cy={cY + cR * 0.38} r={cR * 0.74} fill={sp.leafDark} opacity="0.88" />
     </>}
     <circle cx={x} cy={cY} r={cR} fill={`url(#${ids.leafGrad})`} />
-    {s > 0.3 && Array.from({ length: 22 }, (_, i) => {
-      const ang = (i / 22) * Math.PI * 2;
-      const rr = cR * (0.16 + ((i * 13) % 11) / 20 * 0.76);
-      const lx = x + Math.cos(ang) * rr * 0.88;
-      const ly = cY + Math.sin(ang) * rr * 0.7;
-      const rx = Math.max(4.5, cR * 0.14);
-      const ry = Math.max(2.2, cR * 0.052);
-      return <ellipse key={i} cx={lx} cy={ly}
-        rx={rx} ry={ry}
-        fill={i % 4 === 0 ? 'rgba(255,255,255,0.26)' : sp.leafDark}
-        opacity={i % 4 === 0 ? 0.5 : 0.3}
-        transform={`rotate(${(i * 37) % 180},${lx},${ly})`} />;
+    {s > 0.3 && Array.from({ length: 38 }, (_, i) => {
+      const ang = (i / 38) * Math.PI * 2;
+      const rr = cR * (0.60 + ((i * 11) % 10) / 28);
+      const lx = x + Math.cos(ang) * rr;
+      const ly = cY + Math.sin(ang) * rr * 0.72;
+      const leafSz = Math.max(5, cR * 0.11 + (i % 3) * 0.7);
+      const leafAng = (ang * 180 / Math.PI) + 92 + ((i % 5) - 2) * 10;
+      const leafCol = i % 5 === 0 ? adj(sp.leafColor, 50)
+                    : i % 3 === 0 ? adj(sp.leafColor, 18)
+                    : sp.leafDark;
+      return <LeafBezier key={i} cx={lx} cy={ly} size={leafSz}
+        angle={leafAng} color={leafCol} opacity={0.64 + (i % 4) * 0.05} />;
     })}
+    {s > 0.4 && <ellipse cx={x - cR * 0.30} cy={cY - cR * 0.35} rx={cR * 0.54} ry={cR * 0.44} fill="white" opacity="0.09" />}
+    {s > 0.4 && <ellipse cx={x + cR * 0.22} cy={cY + cR * 0.30} rx={cR * 0.48} ry={cR * 0.36} fill={sp.leafDark} opacity="0.20" />}
+    {s > 0.5 && <circle cx={x} cy={cY} r={cR} fill="none" stroke={adj(sp.leafColor, 52)} strokeWidth="2.5" opacity="0.17" />}
     <circle cx={x - cR * 0.3} cy={cY - cR * 0.32} r={cR * 0.42} fill="white" opacity="0.13" />
     <circle cx={x - cR * 0.18} cy={cY - cR * 0.42} r={cR * 0.18} fill="white" opacity="0.12" />
     {s > 0.65 && [
@@ -557,7 +576,16 @@ function BonsaiTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
       <g key={i}>
         <circle cx={cx2 + r * 0.18} cy={cy2 + r * 0.22} r={r * 0.82} fill={sp.leafDark} opacity="0.58" />
         <circle cx={cx2} cy={cy2} r={r} fill={`url(#${ids.leafGrad})`} opacity="0.96" />
-        <circle cx={cx2 - r * 0.3} cy={cy2 - r * 0.32} r={r * 0.32} fill="white" opacity="0.13" />
+        {Array.from({ length: 10 }, (_, li) => {
+          const ang = (li / 10) * Math.PI * 2;
+          const lx = cx2 + Math.cos(ang) * r * 0.82;
+          const ly = cy2 + Math.sin(ang) * r * 0.80;
+          const leafSz = Math.max(3.2, r * 0.20);
+          return <LeafBezier key={li} cx={lx} cy={ly} size={leafSz}
+            angle={(ang * 180 / Math.PI) + 90}
+            color={li % 3 === 0 ? adj(sp.leafColor, 28) : sp.leafDark} opacity={0.62 + (li % 3) * 0.08} />;
+        })}
+        <circle cx={cx2 - r * 0.3} cy={cy2 - r * 0.32} r={r * 0.32} fill="white" opacity="0.14" />
       </g>
     ))}
     {hasFlowers && <circle cx={x - 5 * s} cy={tipY - 27 * s} r={5} fill="#FFB7C5" />}
@@ -717,15 +745,40 @@ function BaobabTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
 
 function CherryBlossomFlower({ x, y, r = 4.5 }) {
   return <g>
+    {/* Petal shadows */}
     {Array.from({ length: 5 }, (_, i) => {
       const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      return <ellipse key={i}
-        cx={x + Math.cos(a) * r * 0.7} cy={y + Math.sin(a) * r * 0.7}
-        rx={r * 0.54} ry={r * 0.40}
-        fill="#FFB7C5" opacity="0.95"
-        transform={`rotate(${i * 72},${x + Math.cos(a) * r * 0.7},${y + Math.sin(a) * r * 0.7})`} />;
+      return <ellipse key={`sh${i}`}
+        cx={x + Math.cos(a) * r * 0.72 + r * 0.08} cy={y + Math.sin(a) * r * 0.72 + r * 0.08}
+        rx={r * 0.52} ry={r * 0.38}
+        fill="#c97a8c" opacity="0.20"
+        transform={`rotate(${i * 72},${x + Math.cos(a) * r * 0.72 + r * 0.08},${y + Math.sin(a) * r * 0.72 + r * 0.08})`} />;
     })}
-    <circle cx={x} cy={y} r={r * 0.28} fill="#FFF9C4" opacity="0.95" />
+    {/* Petals */}
+    {Array.from({ length: 5 }, (_, i) => {
+      const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+      const px = x + Math.cos(a) * r * 0.72;
+      const py = y + Math.sin(a) * r * 0.72;
+      return <g key={i}>
+        <ellipse cx={px} cy={py} rx={r * 0.54} ry={r * 0.40}
+          fill="#FFB7C5" opacity="0.96"
+          transform={`rotate(${i * 72},${px},${py})`} />
+        <ellipse cx={px - Math.cos(a) * r * 0.12} cy={py - Math.sin(a) * r * 0.12}
+          rx={r * 0.22} ry={r * 0.16}
+          fill="white" opacity="0.32"
+          transform={`rotate(${i * 72},${px - Math.cos(a) * r * 0.12},${py - Math.sin(a) * r * 0.12})`} />
+      </g>;
+    })}
+    {/* Stamens */}
+    {Array.from({ length: 5 }, (_, i) => {
+      const a = (i / 5) * Math.PI * 2;
+      return <line key={`st${i}`}
+        x1={x} y1={y}
+        x2={x + Math.cos(a) * r * 0.44} y2={y + Math.sin(a) * r * 0.44}
+        stroke="#c97a8c" strokeWidth="0.7" strokeLinecap="round" opacity="0.70" />;
+    })}
+    <circle cx={x} cy={y} r={r * 0.30} fill="#FFF9C4" opacity="0.98" />
+    <circle cx={x - r * 0.08} cy={y - r * 0.08} r={r * 0.12} fill="white" opacity="0.55" />
   </g>;
 }
 
@@ -782,6 +835,44 @@ function FanTree({ sp, s, x, y, hasFlowers, isDecember, ids }) {
   </g>;
 }
 
+function LeafBezier({ cx, cy, size, angle, color, opacity = 0.76 }) {
+  const s = size;
+  return (
+    <g transform={`rotate(${angle}, ${cx}, ${cy})`} opacity={opacity}>
+      <path
+        d={`M${cx},${cy - s * 0.97}
+           C${cx + s * 0.50},${cy - s * 0.72}
+            ${cx + s * 0.88},${cy - s * 0.05}
+            ${cx + s * 0.26},${cy + s * 0.84}
+           C${cx + s * 0.10},${cy + s * 0.96}
+            ${cx - s * 0.10},${cy + s * 0.96}
+            ${cx - s * 0.26},${cy + s * 0.84}
+           C${cx - s * 0.88},${cy - s * 0.05}
+            ${cx - s * 0.50},${cy - s * 0.72}
+            ${cx},${cy - s * 0.97}Z`}
+        fill={color}
+      />
+      <line x1={cx} y1={cy - s * 0.88} x2={cx} y2={cy + s * 0.88}
+        stroke="rgba(255,255,255,0.26)" strokeWidth="0.75" strokeLinecap="round" />
+      <line x1={cx} y1={cy - s * 0.28} x2={cx - s * 0.50} y2={cy + s * 0.14}
+        stroke="rgba(255,255,255,0.16)" strokeWidth="0.5" strokeLinecap="round" />
+      <line x1={cx} y1={cy - s * 0.28} x2={cx + s * 0.50} y2={cy + s * 0.14}
+        stroke="rgba(255,255,255,0.16)" strokeWidth="0.5" strokeLinecap="round" />
+      <line x1={cx} y1={cy + s * 0.15} x2={cx - s * 0.46} y2={cy + s * 0.52}
+        stroke="rgba(255,255,255,0.13)" strokeWidth="0.5" strokeLinecap="round" />
+      <line x1={cx} y1={cy + s * 0.15} x2={cx + s * 0.46} y2={cy + s * 0.52}
+        stroke="rgba(255,255,255,0.13)" strokeWidth="0.5" strokeLinecap="round" />
+      <path
+        d={`M${cx},${cy - s * 0.88}
+           C${cx - s * 0.14},${cy - s * 0.60}
+            ${cx - s * 0.24},${cy - s * 0.08}
+            ${cx - s * 0.06},${cy + s * 0.32}Z`}
+        fill="rgba(255,255,255,0.12)"
+      />
+    </g>
+  );
+}
+
 const SHAPE_MAP = {
   round: RoundTree, upright: UprightTree, drooping: DroopingTree,
   palm: PalmTree, bonsai: BonsaiTree, cactus: CactusTree,
@@ -812,23 +903,29 @@ export default function TreeSVG({
   return (
     <svg className="companion-art companion-tree-art" viewBox="0 0 200 280" width={width} height={height} xmlns="http://www.w3.org/2000/svg" shapeRendering="geometricPrecision">
       <defs>
-        <filter id={ids.softShadow} x="-35%" y="-35%" width="170%" height="170%">
-          <feDropShadow dx="0" dy="5" stdDeviation="4.5" floodColor="#000000" floodOpacity="0.30" />
+        <filter id={ids.softShadow} x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="7" stdDeviation="6" floodColor="#000000" floodOpacity="0.26" />
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000000" floodOpacity="0.14" />
         </filter>
-        <radialGradient id={ids.leafGrad} cx="38%" cy="28%" r="72%">
-          <stop offset="0%" stopColor={adj(sp.leafColor, 42)} />
+        <radialGradient id={ids.leafGrad} cx="30%" cy="22%" r="78%">
+          <stop offset="0%" stopColor={adj(sp.leafColor, 70)} />
+          <stop offset="16%" stopColor={adj(sp.leafColor, 42)} />
           <stop offset="44%" stopColor={sp.leafColor} />
-          <stop offset="100%" stopColor={sp.leafDark || adj(sp.leafColor, -38)} />
+          <stop offset="76%" stopColor={adj(sp.leafColor, -24)} />
+          <stop offset="100%" stopColor={sp.leafDark || adj(sp.leafColor, -52)} />
         </radialGradient>
         <linearGradient id={ids.trunkGrad} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={adj(sp.trunkColor, -30)} />
-          <stop offset="32%" stopColor={adj(sp.trunkColor, 24)} />
-          <stop offset="68%" stopColor={sp.trunkColor} />
-          <stop offset="100%" stopColor={adj(sp.trunkColor, -25)} />
+          <stop offset="0%" stopColor={adj(sp.trunkColor, -45)} />
+          <stop offset="16%" stopColor={adj(sp.trunkColor, -14)} />
+          <stop offset="36%" stopColor={adj(sp.trunkColor, 36)} />
+          <stop offset="62%" stopColor={adj(sp.trunkColor, 12)} />
+          <stop offset="84%" stopColor={sp.trunkColor} />
+          <stop offset="100%" stopColor={adj(sp.trunkColor, -40)} />
         </linearGradient>
       </defs>
       <Background bgId={background} artId={artId} />
-      <ellipse cx="100" cy="232" rx="68" ry="17" fill="rgba(0,0,0,0.18)" />
+      <ellipse cx="100" cy="234" rx="72" ry="18" fill="rgba(0,0,0,0.22)" />
+      <ellipse cx="100" cy="234" rx="52" ry="11" fill="rgba(0,0,0,0.16)" />
       <Pot style={potStyle} x={x} y={potY} artId={artId} />
       <ShapeRenderer sp={sp} s={s} x={x} y={potY} hasFlowers={hasFlowers} isDecember={isDecember} ids={ids} />
       {decoration !== 'none' && s > 0.45 && (
