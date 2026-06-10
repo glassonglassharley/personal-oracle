@@ -33,7 +33,7 @@ router.get('/all', async (req, res, next) => {
       where += ` AND (e.note ILIKE $${params.length} OR v.name ILIKE $${params.length})`;
     }
 
-    const countQ = `SELECT COUNT(*)::int AS total FROM entries e JOIN vices v ON v.id = e.vice_id ${where}`;
+    const countQ = `SELECT COUNT(*)::int AS total, COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS spend_total FROM entries e JOIN vices v ON v.id = e.vice_id ${where}`;
     const [countR] = await Promise.all([pool.query(countQ, params)]);
 
     params.push(lim, off);
@@ -46,7 +46,7 @@ router.get('/all', async (req, res, next) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
-    res.json({ entries: rows.rows, total: countR.rows[0].total });
+    res.json({ entries: rows.rows, total: countR.rows[0].total, spend_total: countR.rows[0].spend_total });
   } catch (err) { next(err); }
 });
 

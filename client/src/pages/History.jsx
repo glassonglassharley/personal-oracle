@@ -18,6 +18,7 @@ export default function History() {
 
   const [entries, setEntries]     = useState([]);
   const [total, setTotal]         = useState(0);
+  const [spendTotal, setSpendTotal] = useState(0);
   const [page, setPage]           = useState(0);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
@@ -44,6 +45,7 @@ export default function History() {
       const data = await api(`/api/entries/all?${params}`);
       setEntries(data.entries || []);
       setTotal(data.total || 0);
+      setSpendTotal(data.spend_total || 0);
       setPage(pg);
     } catch (err) {
       setError(err.message || 'Could not load entries.');
@@ -76,8 +78,6 @@ export default function History() {
 
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const visibleEntries = entries.filter(e => !deleted.has(e.id));
-
-  const spendTotal = visibleEntries.reduce((s, e) => s + e.quantity * e.price_per_unit, 0);
 
   return (
     <main className="main hist-page">
