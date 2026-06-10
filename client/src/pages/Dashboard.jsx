@@ -78,6 +78,7 @@ import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 import CompanionCard from '../companions/CompanionCard';
 import InsightsPanel from '../components/InsightsPanel';
 import { getProgressionName, getProgressionIcon } from '../companions/companionData';
+import OnboardingWizard from '../components/OnboardingWizard';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -340,15 +341,7 @@ export default function Dashboard() {
   }
 
   if (vices.length === 0) {
-    return (
-      <main className="main">
-        <div className="empty-state">
-          <div className="empty-icon">📊</div>
-          <h2>No vices tracked yet</h2>
-          <p>Go to <a href="/vices">Vices</a> to add your first one.</p>
-        </div>
-      </main>
-    );
+    return <OnboardingWizard />;
   }
 
   return (

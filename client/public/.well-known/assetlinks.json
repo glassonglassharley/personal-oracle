@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vicetracker.app",
+      "sha256_cert_fingerprints": [
+        "TODO: paste SHA-256 fingerprint here — run: keytool -list -v -keystore android.keystore -alias android"
+      ]
+    }
+  }
+]

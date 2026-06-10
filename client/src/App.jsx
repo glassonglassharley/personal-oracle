@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
 import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
 const Savings           = lazy(() => import('./pages/Savings'));
@@ -13,6 +13,8 @@ const Badges              = lazy(() => import('./pages/Badges'));
 const Settings            = lazy(() => import('./pages/Settings'));
 const AdminUsers          = lazy(() => import('./pages/AdminUsers'));
 const History             = lazy(() => import('./pages/History'));
+const Privacy             = lazy(() => import('./pages/Privacy'));
+const Terms               = lazy(() => import('./pages/Terms'));
 import { ViceContext, getViceColor } from './ViceContext';
 import { DemoAuthProvider, useApi, useDemoAuth } from './useApi';
 
@@ -1502,6 +1504,12 @@ function SignedOutContent() {
       {drawer && (
         <AuthDrawer mode={drawer} onClose={() => setDrawer(null)} />
       )}
+
+      <footer className="landing-legal-footer">
+        <a href="/privacy">Privacy Policy</a>
+        <span>·</span>
+        <a href="/terms">Terms of Service</a>
+      </footer>
     </div>
   );
 }
@@ -1509,9 +1517,15 @@ function SignedOutContent() {
 // Routes based on our own auth state — no Clerk routing primitives
 function AppRouter() {
   const { isDemo, isWallet } = useDemoAuth();
+  const location = useLocation();
+
+  // Legal pages are public — render without any auth requirement
+  if (location.pathname === '/privacy') return <Suspense fallback={null}><Privacy /></Suspense>;
+  if (location.pathname === '/terms')   return <Suspense fallback={null}><Terms /></Suspense>;
+
   // If a magic link is in the URL, always let SignedOutContent process it first —
   // even when already authenticated. Reset links must work from an active session.
-  const hasMagic = new URLSearchParams(window.location.search).has('magic');
+  const hasMagic = new URLSearchParams(location.search).has('magic');
   if ((isDemo || isWallet) && !hasMagic) return <AuthenticatedApp />;
   return <SignedOutContent />;
 }

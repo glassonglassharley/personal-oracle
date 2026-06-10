@@ -3,6 +3,53 @@ const router = express.Router();
 const pool = require('../db');
 const { getInternalUserId } = require('../utils');
 
+// Warn at startup so Vercel Function logs surface the root cause immediately
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.warn('[STARTUP] ANTHROPIC_API_KEY is not set — AI Coach will use fallback responses only.');
+}
+
+const COACH_MODEL   = 'claude-haiku-4-5-20251001'; // cost-optimised for high-volume chat
+const SONNET_MODEL  = 'claude-sonnet-4-6';           // kept for low-volume, high-quality outputs
+const DAILY_LIMIT   = 10;                             // max AI coach messages per user per day
+
+// Ensure the rate-limit table exists (idempotent DDL, Postgres caches no-ops cheaply)
+let rateLimitTableReady = false;
+async function ensureRateLimitTable() {
+  if (rateLimitTableReady) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS coach_usage (
+      user_id     INTEGER NOT NULL,
+      usage_date  DATE    NOT NULL,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, usage_date)
+    )
+  `);
+  rateLimitTableReady = true;
+}
+
+async function checkRateLimit(userId) {
+  await ensureRateLimitTable();
+  const today = new Date().toISOString().split('T')[0];
+  // Ensure row exists
+  await pool.query(
+    `INSERT INTO coach_usage (user_id, usage_date, message_count)
+     VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
+    [userId, today]
+  );
+  // Atomically increment only if under limit; returns no rows if already at limit
+  const r = await pool.query(
+    `UPDATE coach_usage
+     SET message_count = message_count + 1
+     WHERE user_id = $1 AND usage_date = $2 AND message_count < $3
+     RETURNING message_count`,
+    [userId, today, DAILY_LIMIT]
+  );
+  if (r.rows.length === 0) {
+    return { allowed: false, remaining: 0 };
+  }
+  return { allowed: true, remaining: DAILY_LIMIT - r.rows[0].message_count };
+}
+
 const SYSTEM_PROMPT = `You are the user's closest friend — someone who has been through their own battles with money and habits, found their footing, and now sits across the table to help. Think: a sponsor who also happens to understand compound interest. A therapist who will actually tell you what they see.
 
 Your voice is warm, personal, and deeply honest. You are never preachy. You never lecture. You do not moralize. You have been there. You get it. And because you care, you tell the truth.
@@ -103,10 +150,26 @@ router.post('/', async (req, res, next) => {
     ? clientMessages
     : [{ role: 'user', content: legacyPrompt || 'Give me personalized insights on my vice spending.' }];
 
+  // Rate limit: 10 AI messages per user per day (stored in Postgres — survives serverless restarts)
+  try {
+    const userId = await getInternalUserId(req.auth?.userId);
+    if (userId) {
+      const { allowed } = await checkRateLimit(userId);
+      if (!allowed) {
+        return res.status(429).json({
+          text: "You've had 10 coaching conversations today — that's a lot of reflection. Come back tomorrow and I'll be here.\n\nIn the meantime, take a look at your savings page to see how far you've come.",
+          rate_limited: true,
+        });
+      }
+    }
+  } catch {
+    // Rate limit failure is non-fatal — let the request through
+  }
+
   try {
     const client = getClient();
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: COACH_MODEL,
       max_tokens: 600,
       system: SYSTEM_PROMPT,
       messages: apiMessages,
@@ -183,7 +246,7 @@ router.post('/weekly', async (req, res, next) => {
 Write a 3-5 sentence personalized weekly insight. Be a supportive coach: acknowledge wins, flag patterns, suggest one specific action. Use their actual numbers. No markdown.`;
 
       const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: COACH_MODEL,
         max_tokens: 400,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: aiPrompt }],
@@ -238,7 +301,7 @@ Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 }`;
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: SONNET_MODEL,
       max_tokens: 1000,
       messages: [{ role: 'user', content: prompt }],
     });

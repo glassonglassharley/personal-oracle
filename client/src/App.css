@@ -3737,3 +3737,70 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .landing-actions { width: 100%; justify-content: center; }
   .landing-btn-gold, .landing-btn-ghost { flex: 1; min-width: 0; justify-content: center; }
 }
+
+/* ── Legal pages (/privacy, /terms) ─────────────────────────────────────── */
+.legal-page { min-height: 100dvh; background: var(--bg, #0a1f17); padding: 40px 20px 80px; }
+.legal-wrap { max-width: 720px; margin: 0 auto; }
+.legal-kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--money, #5ec48a); margin-bottom: 12px; }
+.legal-title { font-family: var(--serif, serif); font-size: clamp(28px, 5vw, 44px); font-weight: 400; color: var(--ink, #e8efe0); margin: 0 0 6px; }
+.legal-updated { font-size: 13px; color: var(--ink-3, #7a9a7a); margin: 0 0 32px; }
+.legal-intro { font-size: 15px; line-height: 1.75; color: var(--ink-2, #c4d9c4); margin-bottom: 40px; border-left: 3px solid var(--money, #5ec48a); padding-left: 16px; }
+.legal-section { margin-bottom: 36px; }
+.legal-section h2 { font-family: var(--serif, serif); font-size: 20px; font-weight: 400; color: var(--ink, #e8efe0); margin: 0 0 12px; }
+.legal-section h3 { font-size: 14px; font-weight: 700; color: var(--ink-2, #c4d9c4); text-transform: uppercase; letter-spacing: 0.07em; margin: 20px 0 8px; }
+.legal-section p { font-size: 14px; line-height: 1.8; color: var(--ink-2, #c4d9c4); margin: 0 0 12px; }
+.legal-section ul { padding-left: 20px; margin: 0 0 12px; }
+.legal-section li { font-size: 14px; line-height: 1.8; color: var(--ink-2, #c4d9c4); margin-bottom: 6px; }
+.legal-section a { color: var(--money, #5ec48a); text-decoration: none; }
+.legal-section a:hover { text-decoration: underline; }
+.legal-section code { font-family: var(--mono, monospace); font-size: 13px; background: var(--paper-2, rgba(255,255,255,0.06)); padding: 1px 5px; border-radius: 4px; color: var(--ink, #e8efe0); }
+.legal-footer-links { display: flex; gap: 12px; align-items: center; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule, rgba(255,255,255,0.08)); }
+.legal-footer-links a { font-size: 13px; color: var(--money, #5ec48a); text-decoration: none; }
+.legal-footer-links a:hover { text-decoration: underline; }
+.legal-footer-links span { color: var(--ink-3, #7a9a7a); }
+
+/* ── Landing page legal footer ───────────────────────────────────────────── */
+.landing-legal-footer { position: absolute; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; gap: 12px; align-items: center; z-index: 10; }
+.landing-legal-footer a { font-size: 12px; color: rgba(232,239,224,0.4); text-decoration: none; transition: color 0.2s; }
+.landing-legal-footer a:hover { color: rgba(232,239,224,0.8); }
+.landing-legal-footer span { color: rgba(232,239,224,0.2); font-size: 10px; }
+
+/* ── Onboarding wizard ───────────────────────────────────────────────────── */
+.onb-wizard { max-width: 520px; margin: 0 auto; padding: 32px 0 64px; }
+.onb-progress { display: flex; gap: 8px; justify-content: center; margin-bottom: 40px; }
+.onb-pip { width: 32px; height: 4px; border-radius: 2px; background: var(--rule, rgba(255,255,255,0.1)); transition: background 0.3s; }
+.onb-pip.active { background: var(--money, #5ec48a); }
+.onb-pip.done { background: var(--money, #5ec48a); opacity: 0.5; }
+.onb-step { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0; }
+.onb-icon { font-size: 48px; margin-bottom: 16px; }
+.onb-heading { font-family: var(--serif, serif); font-size: clamp(22px, 4vw, 28px); font-weight: 400; color: var(--ink, #e8efe0); margin: 0 0 8px; }
+.onb-sub { font-size: 14px; color: var(--ink-3, #7a9a7a); margin: 0 0 28px; }
+.onb-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; margin-bottom: 20px; }
+.onb-preset { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; border-radius: 10px; border: 1.5px solid var(--rule, rgba(255,255,255,0.1)); background: var(--paper-2, rgba(255,255,255,0.04)); cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+.onb-preset:hover { border-color: var(--money, #5ec48a); background: rgba(94,196,138,0.08); }
+.onb-preset.selected { border-color: var(--money, #5ec48a); background: rgba(94,196,138,0.12); }
+.onb-preset-emoji { font-size: 24px; }
+.onb-preset-name { font-size: 11px; color: var(--ink-2, #c4d9c4); font-weight: 600; }
+.onb-custom-fields { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.onb-field-row { display: flex; gap: 8px; }
+.onb-emoji-input { width: 56px; text-align: center; font-size: 20px; padding: 8px 4px; }
+.onb-next { width: 100%; margin-top: 8px; }
+.onb-price-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.onb-price-symbol { font-size: 22px; color: var(--money, #5ec48a); font-weight: 700; }
+.onb-price-input { width: 140px; font-size: 22px; text-align: center; font-family: var(--mono, monospace); }
+.onb-price-unit { font-size: 14px; color: var(--ink-3, #7a9a7a); white-space: nowrap; }
+.onb-footer { display: flex; gap: 10px; margin-top: 8px; width: 100%; justify-content: space-between; }
+.onb-footer .btn { flex: 1; }
+.onb-today-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-bottom: 20px; }
+.onb-today-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 12px; border-radius: 12px; border: 1.5px solid var(--rule, rgba(255,255,255,0.1)); background: var(--paper-2, rgba(255,255,255,0.04)); cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+.onb-today-btn:hover { border-color: var(--money, #5ec48a); background: rgba(94,196,138,0.08); }
+.onb-today-btn.selected { border-color: var(--money, #5ec48a); background: rgba(94,196,138,0.12); }
+.onb-today-icon { font-size: 28px; }
+.onb-today-label { font-size: 14px; font-weight: 700; color: var(--ink, #e8efe0); }
+.onb-today-sub { font-size: 12px; color: var(--ink-3, #7a9a7a); }
+.onb-qty-wrap { width: 100%; max-width: 200px; text-align: left; margin-bottom: 8px; }
+.onb-qty-input { font-size: 20px; text-align: center; font-family: var(--mono, monospace); width: 100%; }
+@media (max-width: 480px) {
+  .onb-presets { grid-template-columns: repeat(2, 1fr); }
+  .landing-legal-footer { position: static; padding: 16px 0; }
+}

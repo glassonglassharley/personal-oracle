@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { clerkClient } = require('@clerk/express');
 const router = express.Router();
 const pool = require('../db');
+const { getInternalUserId } = require('../utils');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -190,9 +191,72 @@ router.put('/me/password', async (req, res, next) => {
 
 router.delete('/me', async (req, res, next) => {
   try {
-    const { col, val } = userWhere(req);
-    await pool.query(`DELETE FROM users WHERE ${col} = $1`, [val]);
+    const uid = await getInternalUserId(req.auth.userId);
+    if (!uid) return res.status(404).json({ error: 'User not found' });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Entries depend on vices — delete entries first
+      await client.query(
+        'DELETE FROM entries WHERE vice_id IN (SELECT id FROM vices WHERE user_id = $1)', [uid]
+      );
+      await client.query('DELETE FROM vices WHERE user_id = $1', [uid]);
+      // Best-effort deletes for tables that may or may not exist / have FK constraints
+      for (const tbl of [
+        'goals', 'badges', 'user_xp', 'insights_cache', 'voice_tokens',
+        'notification_subscriptions', 'push_subscriptions', 'coach_usage',
+        'savings_entries',
+      ]) {
+        await client.query(`DELETE FROM ${tbl} WHERE user_id = $1`, [uid]).catch(() => {});
+      }
+      // Friendships use two FK columns
+      await client.query(
+        'DELETE FROM friendships WHERE requester_id = $1 OR addressee_id = $1', [uid]
+      ).catch(() => {});
+      // Finally delete the user row
+      await client.query('DELETE FROM users WHERE id = $1', [uid]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// GET /api/users/me/export — CSV of all the user's logged entries
+router.get('/me/export', async (req, res, next) => {
+  try {
+    const uid = await getInternalUserId(req.auth.userId);
+    if (!uid) return res.status(404).json({ error: 'User not found' });
+
+    const { rows } = await pool.query(`
+      SELECT
+        e.date::text                               AS date,
+        v.name                                     AS vice,
+        v.emoji,
+        e.quantity::float                          AS quantity,
+        v.unit_label,
+        e.price_per_unit::float                    AS price_per_unit,
+        (e.quantity * e.price_per_unit)::float     AS total_spent
+      FROM entries e
+      JOIN vices v ON v.id = e.vice_id
+      WHERE v.user_id = $1
+      ORDER BY e.date DESC, v.name
+    `, [uid]);
+
+    const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = 'date,vice,emoji,quantity,unit,price_per_unit,total_spent\n';
+    const body = rows.map(r =>
+      [r.date, escape(r.vice), r.emoji, r.quantity, escape(r.unit_label), r.price_per_unit, r.total_spent].join(',')
+    ).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="vice-tracker-export.csv"');
+    res.send(header + body);
   } catch (err) { next(err); }
 });
 

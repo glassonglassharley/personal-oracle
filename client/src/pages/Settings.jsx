@@ -34,6 +34,9 @@ export default function Settings() {
   const [deleting, setDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState(null);
 
+  // Data export
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => {
     api('/api/users/me')
       .then(u => {
@@ -105,6 +108,29 @@ export default function Settings() {
       setPwMsg({ type: 'err', text: err.message });
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      // Read JWT from the same localStorage key that useApi uses
+      let jwt = '';
+      try { jwt = JSON.parse(localStorage.getItem('vt-session') || '{}')?.jwt || ''; } catch {}
+      const headers = jwt ? { Authorization: `Bearer ${jwt}` } : {};
+      const res = await fetch('/api/users/me/export', { headers });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vice-tracker-export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -297,6 +323,26 @@ export default function Settings() {
           </p>
           <button className="btn btn-danger" type="button" onClick={stopDemo}>
             Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Export data */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Export my data</span>
+        </div>
+        <div style={{ padding: '4px 0 16px' }}>
+          <p style={{ color: 'var(--ink-3)', fontSize: 13, marginBottom: 12 }}>
+            Download all your logged entries as a CSV file — dates, vices, quantities, and spending.
+          </p>
+          <button
+            className="btn ghost"
+            type="button"
+            disabled={exporting}
+            onClick={exportData}
+          >
+            {exporting ? 'Preparing…' : 'Download CSV'}
           </button>
         </div>
       </div>
