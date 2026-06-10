@@ -27,6 +27,7 @@ const NAV = [
   { to: '/partners', label: 'Partners' },
   { to: '/history', label: 'History' },
   { to: '/support', label: 'FAQ' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 function AccountControl({ collapsed = false }) {
@@ -297,10 +298,6 @@ function MobileBottomNav() {
       <NavLink to="/history" className={({ isActive }) => `mbn-tab${isActive ? ' mbn-active' : ''}`}>
         <span className="mbn-icon">📋</span>
         <span className="mbn-label">Log</span>
-      </NavLink>
-      <NavLink to="/settings" className={({ isActive }) => `mbn-tab${isActive ? ' mbn-active' : ''}`}>
-        <span className="mbn-icon">⚙</span>
-        <span className="mbn-label">Settings</span>
       </NavLink>
     </nav>
   );
