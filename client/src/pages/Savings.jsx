@@ -795,67 +795,6 @@ export default function Savings() {
         </div>
       )}
 
-      {/* ── Milestone cards (time horizon) ── */}
-      <div className="sv-section">
-        <div className="sv-section-head">
-          <span className="sv-section-title">Milestones</span>
-          <span className="sv-section-sub">Click a card to update the projection</span>
-        </div>
-        <div className="sv-ms-grid">
-          {msCards.map(m => (
-            <div
-              key={m.days}
-              className={`sv-ms-card${horizon === m.days ? ' active' : ''}`}
-              onClick={() => setHorizon(m.days)}
-            >
-              <div className="sv-ms-label">{m.label}</div>
-              <div className="sv-ms-amount">{fmtBig(m.amount)}</div>
-              <div className="sv-ms-date">by {m.date}</div>
-              <div className="sv-ms-sub">{m.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Savings target milestones ── */}
-      {!loading && perDay > 0 && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">Savings targets</span>
-            <span className="sv-section-sub">How long until you reach each level</span>
-          </div>
-          <div className="sv-ms-grid">
-            {[1000, 5000, 10000, 25000, 50000].map(target => {
-              const reached = balance.balance >= target;
-              const remaining = Math.max(0, target - balance.balance);
-              const daysNeeded = !reached && perDay > 0 ? Math.ceil(remaining / perDay) : Infinity;
-              const reachDate = daysNeeded < Infinity
-                ? new Date(Date.now() + daysNeeded * 86400000)
-                    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                : null;
-              const daysLabel = daysNeeded < 365
-                ? `~${Math.round(daysNeeded)} days`
-                : `~${(daysNeeded / 365).toFixed(1)} yrs`;
-              return (
-                <div key={target} className={`sv-ms-card${reached ? ' active' : ''}`}>
-                  <div className="sv-ms-label">
-                    {reached ? '✓ Reached' : daysNeeded < Infinity ? daysLabel : '—'}
-                  </div>
-                  <div className="sv-ms-amount">{fmt$0(target)}</div>
-                  {!reached && reachDate && <div className="sv-ms-date">by {reachDate}</div>}
-                  {!reached && balance.balance > 0 && (
-                    <div className="sv-ms-sub" style={{ color: 'var(--money)' }}>
-                      {fmt$0(balance.balance)} saved · {fmt$0(remaining)} to go
-                    </div>
-                  )}
-                  <div className="sv-ms-sub">{target >= 10000 ? 'Significant milestone' : target >= 5000 ? 'Major savings' : 'First milestone'}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* ── Actual Savings Balance ── */}
       <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
         <div className="panel-head" style={{ marginBottom: 10 }}>
@@ -960,6 +899,67 @@ export default function Savings() {
         onUpdateGoal={updateGoal}
         onDeleteGoal={deleteGoal}
       />
+
+      {/* ── Milestone cards (time horizon) ── */}
+      <div className="sv-section">
+        <div className="sv-section-head">
+          <span className="sv-section-title">Milestones</span>
+          <span className="sv-section-sub">Click a card to update the projection</span>
+        </div>
+        <div className="sv-ms-grid">
+          {msCards.map(m => (
+            <div
+              key={m.days}
+              className={`sv-ms-card${horizon === m.days ? ' active' : ''}`}
+              onClick={() => setHorizon(m.days)}
+            >
+              <div className="sv-ms-label">{m.label}</div>
+              <div className="sv-ms-amount">{fmtBig(m.amount)}</div>
+              <div className="sv-ms-date">by {m.date}</div>
+              <div className="sv-ms-sub">{m.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Savings target milestones ── */}
+      {!loading && perDay > 0 && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">Savings targets</span>
+            <span className="sv-section-sub">How long until you reach each level</span>
+          </div>
+          <div className="sv-ms-grid">
+            {[1000, 5000, 10000, 25000, 50000].map(target => {
+              const reached = balance.balance >= target;
+              const remaining = Math.max(0, target - balance.balance);
+              const daysNeeded = !reached && perDay > 0 ? Math.ceil(remaining / perDay) : Infinity;
+              const reachDate = daysNeeded < Infinity
+                ? new Date(Date.now() + daysNeeded * 86400000)
+                    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                : null;
+              const daysLabel = daysNeeded < 365
+                ? `~${Math.round(daysNeeded)} days`
+                : `~${(daysNeeded / 365).toFixed(1)} yrs`;
+              return (
+                <div key={target} className={`sv-ms-card${reached ? ' active' : ''}`}>
+                  <div className="sv-ms-label">
+                    {reached ? '✓ Reached' : daysNeeded < Infinity ? daysLabel : '—'}
+                  </div>
+                  <div className="sv-ms-amount">{fmt$0(target)}</div>
+                  {!reached && reachDate && <div className="sv-ms-date">by {reachDate}</div>}
+                  {!reached && balance.balance > 0 && (
+                    <div className="sv-ms-sub" style={{ color: 'var(--money)' }}>
+                      {fmt$0(balance.balance)} saved · {fmt$0(remaining)} to go
+                    </div>
+                  )}
+                  <div className="sv-ms-sub">{target >= 10000 ? 'Significant milestone' : target >= 5000 ? 'Major savings' : 'First milestone'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {celebGoal && (
         <CelebOverlay
