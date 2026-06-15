@@ -3,6 +3,19 @@ const router = express.Router();
 const pool = require('../db');
 const { verifyViceOwnership, verifyEntryOwnership, getInternalUserId, awardXP } = require('../utils');
 
+async function rememberPlaidTransaction(userId, transactionId, action) {
+  const cleanId = typeof transactionId === 'string' ? transactionId.trim() : '';
+  if (!userId || !cleanId || !['imported', 'skipped', 'deleted'].includes(action)) return;
+  await pool.query(
+    `INSERT INTO plaid_transaction_actions (user_id, transaction_id, action, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (user_id, transaction_id) DO UPDATE
+       SET action = EXCLUDED.action,
+           updated_at = NOW()`,
+    [userId, cleanId, action]
+  );
+}
+
 // GET /api/entries/all — all entries across all vices for the current user
 router.get('/all', async (req, res, next) => {
   try {
@@ -92,6 +105,9 @@ router.post('/', async (req, res, next) => {
     if (!await verifyViceOwnership(viceId, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
 
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+
     if (externalTransactionId && !importSource)
       return res.status(400).json({ error: 'import_source required for imported transactions' });
 
@@ -102,7 +118,7 @@ router.post('/', async (req, res, next) => {
         `SELECT e.*
          FROM entries e
          JOIN vices v ON v.id = e.vice_id
-         WHERE v.user_id = (SELECT user_id FROM vices WHERE id = $1)
+         WHERE v.user_id = $1
            AND (
              e.external_transaction_id = $2
              OR (
@@ -114,9 +130,10 @@ router.post('/', async (req, res, next) => {
              )
            )
          LIMIT 1`,
-        [viceId, externalTransactionId, date, entryPrice, entryNote]
+        [userId, externalTransactionId, date, entryPrice, entryNote]
       );
       if (existing.rows.length) {
+        await rememberPlaidTransaction(userId, externalTransactionId, 'imported');
         return res.status(200).json({ ...existing.rows[0], duplicate: true });
       }
     }
@@ -133,7 +150,11 @@ router.post('/', async (req, res, next) => {
     );
     if (externalTransactionId && r.rows.length === 0) {
       const existing = await pool.query('SELECT * FROM entries WHERE external_transaction_id = $1 LIMIT 1', [externalTransactionId]);
+      await rememberPlaidTransaction(userId, externalTransactionId, 'imported');
       return res.status(200).json({ ...existing.rows[0], duplicate: true });
+    }
+    if (externalTransactionId) {
+      await rememberPlaidTransaction(userId, externalTransactionId, 'imported');
     }
     res.status(201).json(r.rows[0]);
     // Fire-and-forget XP award: +20 for clean day, +5 for any log
@@ -168,6 +189,21 @@ router.delete('/:id', async (req, res, next) => {
   try {
     if (!await verifyEntryOwnership(req.params.id, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
+
+    const userId = await getInternalUserId(req.auth.userId);
+    const existing = await pool.query(
+      `SELECT e.external_transaction_id, e.import_source, e.note
+       FROM entries e
+       JOIN vices v ON v.id = e.vice_id
+       WHERE e.id = $1 AND v.user_id = $2
+       LIMIT 1`,
+      [req.params.id, userId]
+    );
+    const entry = existing.rows[0];
+    if (entry?.external_transaction_id && (entry.import_source === 'plaid' || (entry.note || '').includes('imported from bank'))) {
+      await rememberPlaidTransaction(userId, entry.external_transaction_id, 'deleted');
+    }
+
     await pool.query('DELETE FROM entries WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }

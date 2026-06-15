@@ -72,6 +72,7 @@ export default function PlaidConnect({ vices }) {
   const [confirmed, setConfirmed] = useState(new Set());
   const [skipped, setSkipped] = useState(new Set());
   const [logged, setLogged] = useState(new Set());
+  const [dismissing, setDismissing] = useState(new Set());
   const [selectedVices, setSelectedVices] = useState({}); // { [transactionId]: viceId }
   // Pending exchange: set after Plaid Link succeeds, cleared after user confirms or cancels
   const [pendingExchange, setPendingExchange] = useState(null); // { public_token, institution_name } | null
@@ -205,6 +206,7 @@ export default function PlaidConnect({ vices }) {
     setConfirmed(new Set());
     setSkipped(new Set());
     setLogged(new Set());
+    setDismissing(new Set());
     setSelectedVices({});
     try {
       const data = await api('/api/plaid/sync', { method: 'POST' });
@@ -229,17 +231,33 @@ export default function PlaidConnect({ vices }) {
     });
   };
 
-  const toggleSkip = (id) => {
-    setSkipped(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-    setConfirmed(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const toggleSkip = async (id) => {
+    if (dismissing.has(id)) return;
+
+    setDismissing(prev => new Set([...prev, id]));
+    setError('');
+
+    try {
+      await api('/api/plaid/transactions/ignore', {
+        method: 'POST',
+        body: JSON.stringify({ transaction_id: id, action: 'skipped' }),
+      });
+      setSkipped(prev => new Set([...prev, id]));
+      setConfirmed(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      setTransactions(prev => prev ? prev.filter(tx => tx.transaction_id !== id) : prev);
+    } catch (err) {
+      setError(err.message || 'Could not skip transaction');
+    } finally {
+      setDismissing(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const logSelected = async () => {
@@ -362,6 +380,7 @@ export default function PlaidConnect({ vices }) {
                   const isLogged = logged.has(tx.transaction_id);
                   const isConfirmed = confirmed.has(tx.transaction_id);
                   const isSkipped = skipped.has(tx.transaction_id);
+                  const isDismissing = dismissing.has(tx.transaction_id);
                   return (
                     <div
                       key={tx.transaction_id}
@@ -389,8 +408,9 @@ export default function PlaidConnect({ vices }) {
                               <button
                                 className={`plaid-tx-btn skip${isSkipped ? ' on' : ''}`}
                                 onClick={() => toggleSkip(tx.transaction_id)}
+                                disabled={isDismissing}
                               >
-                                Skip
+                                {isDismissing ? 'Skipping…' : 'Skip'}
                               </button>
                             </>
                           )}

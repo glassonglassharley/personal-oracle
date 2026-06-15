@@ -32,6 +32,19 @@ function isViceTransaction(tx) {
   return VICE_KEYWORDS.some(k => name.includes(k));
 }
 
+async function rememberPlaidTransaction(userId, transactionId, action) {
+  const cleanId = typeof transactionId === 'string' ? transactionId.trim() : '';
+  if (!userId || !cleanId || !['imported', 'skipped', 'deleted'].includes(action)) return;
+  await pool.query(
+    `INSERT INTO plaid_transaction_actions (user_id, transaction_id, action, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (user_id, transaction_id) DO UPDATE
+       SET action = EXCLUDED.action,
+           updated_at = NOW()`,
+    [userId, cleanId, action]
+  );
+}
+
 // Lazy-load the plaid module and cache the client so a missing bundle only
 // affects /api/plaid/* routes, not the whole server startup.
 let _plaidClient = null;
@@ -199,13 +212,43 @@ router.post('/sync', async (req, res, next) => {
       return true;
     });
 
-    viceTxs.sort((a, b) => b.date.localeCompare(a.date));
+    const handledRows = await pool.query(
+      `SELECT external_transaction_id AS transaction_id
+       FROM entries
+       WHERE external_transaction_id IS NOT NULL
+         AND vice_id IN (SELECT id FROM vices WHERE user_id = $1)
+       UNION
+       SELECT transaction_id
+       FROM plaid_transaction_actions
+       WHERE user_id = $1`,
+      [userId]
+    );
+    const handledIds = new Set(handledRows.rows.map(row => row.transaction_id));
+    const visibleTxs = viceTxs.filter(tx => !handledIds.has(tx.transaction_id));
 
-    res.json({ transactions: viceTxs });
+    visibleTxs.sort((a, b) => b.date.localeCompare(a.date));
+
+    res.json({ transactions: visibleTxs });
   } catch (err) {
     console.error('Plaid sync error:', err.response?.data || err.message);
     next(err);
   }
+});
+
+// POST /api/plaid/transactions/ignore — permanently hide a Plaid transaction from future import scans
+router.post('/transactions/ignore', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+
+    const transactionId = typeof req.body?.transaction_id === 'string' ? req.body.transaction_id.trim() : '';
+    const action = req.body?.action === 'deleted' ? 'deleted' : 'skipped';
+    if (!transactionId) return res.status(400).json({ error: 'transaction_id required' });
+    if (transactionId.length > 255) return res.status(400).json({ error: 'transaction_id too long' });
+
+    await rememberPlaidTransaction(userId, transactionId, action);
+    res.json({ ok: true, action });
+  } catch (err) { next(err); }
 });
 
 // DELETE /api/plaid/imports — remove all imported bank entries for this user
@@ -213,6 +256,19 @@ router.delete('/imports', async (req, res, next) => {
   try {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
+
+    await pool.query(
+      `INSERT INTO plaid_transaction_actions (user_id, transaction_id, action, updated_at)
+       SELECT $1, external_transaction_id, 'deleted', NOW()
+       FROM entries
+       WHERE external_transaction_id IS NOT NULL
+         AND (import_source = 'plaid' OR note LIKE '%imported from bank%')
+         AND vice_id IN (SELECT id FROM vices WHERE user_id = $1)
+       ON CONFLICT (user_id, transaction_id) DO UPDATE
+         SET action = EXCLUDED.action,
+             updated_at = NOW()`,
+      [userId]
+    );
 
     const result = await pool.query(
       `DELETE FROM entries

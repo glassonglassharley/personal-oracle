@@ -128,6 +128,17 @@ const MIGRATIONS = `
     UNIQUE (user_id, item_id)
   );
 
+  CREATE TABLE IF NOT EXISTS plaid_transaction_actions (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    transaction_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('imported', 'skipped', 'deleted')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, transaction_id)
+  );
+  CREATE INDEX IF NOT EXISTS plaid_transaction_actions_user_action_idx
+    ON plaid_transaction_actions (user_id, action);
+
   CREATE TABLE IF NOT EXISTS notification_subscriptions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
