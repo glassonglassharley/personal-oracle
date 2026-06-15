@@ -164,6 +164,17 @@ const MIGRATIONS = `
   );
   CREATE INDEX IF NOT EXISTS magic_links_user_id_idx ON magic_links (user_id);
 
+  CREATE TABLE IF NOT EXISTS email_auth_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    purpose TEXT NOT NULL CHECK (purpose IN ('signup', 'login')),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS email_auth_codes_user_purpose_idx ON email_auth_codes (user_id, purpose, created_at DESC);
+
   CREATE TABLE IF NOT EXISTS user_assets (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

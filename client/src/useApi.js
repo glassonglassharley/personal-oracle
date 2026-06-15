@@ -120,6 +120,54 @@ export function DemoAuthProvider({ children }) {
       return body;
     },
 
+    async startSignupCode({ username, email }) {
+      const res = await fetch('/api/auth/signup-code/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      return body;
+    },
+
+    async verifySignupCode({ username, code }) {
+      const res = await fetch('/api/auth/signup-code/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
+    },
+
+    async requestSignInCode({ identifier }) {
+      const res = await fetch('/api/auth/code/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      return body;
+    },
+
+    async verifySignInCode({ identifier, code }) {
+      const res = await fetch('/api/auth/code/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      storeSession(body.jwt, body.username);
+      setSession({ jwt: body.jwt, username: body.username, needsPasswordSetup: false });
+      return body;
+    },
+
     async migrate({ username, oldToken, newPassword, email }) {
       const res = await fetch('/api/auth/migrate', {
         method: 'POST',

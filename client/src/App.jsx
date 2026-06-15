@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
-import { ClerkProvider, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { ClerkProvider, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
@@ -739,7 +739,7 @@ function EmailAuth() {
 }
 
 // ── Password sign-in form ────────────────────────────
-function PasswordLogin({ onForgot, onMigrate, onSwitchToSignUp }) {
+function PasswordLogin({ onForgot, onMigrate, onSwitchToSignUp, onSwitchToCode }) {
   const { signIn } = useDemoAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -787,6 +787,80 @@ function PasswordLogin({ onForgot, onMigrate, onSwitchToSignUp }) {
       </form>
       <div className="auth-form-footer">
         <button className="clerk-link" type="button" onClick={onForgot}>Forgot password?</button>
+        <button className="clerk-link" type="button" onClick={onSwitchToCode}>Email me a code</button>
+        <button className="clerk-link" type="button" onClick={onSwitchToSignUp}>No account? Sign up →</button>
+      </div>
+    </div>
+  );
+}
+
+// ── One-time email code sign-in form ──────────────────
+function CodeLoginForm({ onBack, onSwitchToSignUp }) {
+  const { requestSignInCode, verifySignInCode } = useDemoAuth();
+  const [identifier, setIdentifier] = useState('');
+  const [code, setCode] = useState('');
+  const [pendingCode, setPendingCode] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    setLoading(true);
+    try {
+      if (pendingCode) {
+        await verifySignInCode({ identifier, code });
+        return;
+      }
+      const body = await requestSignInCode({ identifier: identifier.trim() });
+      setPendingCode(true);
+      setInfo(body.message || 'If that account exists, a one-time code has been sent.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="demo-login-card">
+      <div className="demo-card-top">
+        <div>
+          <div className="demo-login-title">Sign in with email code</div>
+          <p className="demo-login-copy">
+            {pendingCode ? 'Enter the 6-digit code from your email.' : 'Use your username or email and we’ll send a one-time code.'}
+          </p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="demo-login-form">
+        {!pendingCode ? (
+          <>
+            <label className="form-label" htmlFor="code-login-identifier">Username or email</label>
+            <input id="code-login-identifier" className="form-input" value={identifier} placeholder="username or you@example.com"
+              autoComplete="username email" required
+              onChange={e => { setIdentifier(e.target.value); setError(''); }} />
+          </>
+        ) : (
+          <>
+            <label className="form-label" htmlFor="code-login-code">One-time code</label>
+            <input id="code-login-code" className="form-input" value={code} placeholder="123456"
+              autoComplete="one-time-code" inputMode="numeric" required pattern="[0-9]{6}"
+              onChange={e => { setCode(e.target.value); setError(''); }} />
+            <button className="clerk-link" type="button" onClick={() => { setPendingCode(false); setCode(''); setError(''); }}>
+              ← Change username/email
+            </button>
+          </>
+        )}
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? 'Working…' : pendingCode ? 'Verify code & sign in' : 'Send sign-in code'}
+        </button>
+        {info && <div className="inline-success">✓ {info}</div>}
+        {error && <div className="form-error">{error}</div>}
+      </form>
+      <div className="auth-form-footer">
+        <button className="clerk-link" type="button" onClick={onBack}>Use password instead</button>
         <button className="clerk-link" type="button" onClick={onSwitchToSignUp}>No account? Sign up →</button>
       </div>
     </div>
@@ -795,18 +869,41 @@ function PasswordLogin({ onForgot, onMigrate, onSwitchToSignUp }) {
 
 // ── Sign-up form ──────────────────────────────────────
 function SignupForm({ onSwitchToSignIn }) {
-  const { signUp } = useDemoAuth();
+  const { signUp, startSignupCode, verifySignupCode } = useDemoAuth();
+  const [authMethod, setAuthMethod] = useState('password');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [pendingCode, setPendingCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+
+  const selectMethod = method => {
+    setAuthMethod(method);
+    setPendingCode(false);
+    setCode('');
+    setError('');
+    setInfo('');
+  };
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
     try {
+      if (authMethod === 'code') {
+        if (pendingCode) {
+          await verifySignupCode({ username, code });
+          return;
+        }
+        const body = await startSignupCode({ username, email: email.trim() });
+        setPendingCode(true);
+        setInfo(body.message || 'Check your email for a 6-digit code.');
+        return;
+      }
       await signUp({ username, password, email: email.trim() || undefined });
     } catch (err) {
       setError(err.message);
@@ -820,25 +917,60 @@ function SignupForm({ onSwitchToSignIn }) {
       <div className="demo-card-top">
         <div>
           <div className="demo-login-title">Create account</div>
-          <p className="demo-login-copy">Pick a username and password. Email is optional but needed for password recovery.</p>
+          <p className="demo-login-copy">
+            {pendingCode
+              ? `Enter the code sent to ${email}.`
+              : 'Choose a password, or skip passwords and verify with a one-time email code.'}
+          </p>
         </div>
       </div>
+      {!pendingCode && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          <button className={`btn ${authMethod === 'password' ? 'btn-primary' : 'ghost'}`} type="button" onClick={() => selectMethod('password')}>
+            Password
+          </button>
+          <button className={`btn ${authMethod === 'code' ? 'btn-primary' : 'ghost'}`} type="button" onClick={() => selectMethod('code')}>
+            Email code
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="demo-login-form">
-        <label className="form-label" htmlFor="su-username">Username</label>
-        <input id="su-username" className="form-input" value={username} placeholder="your-username"
-          autoComplete="username" required minLength={3}
-          onChange={e => { setUsername(e.target.value); setError(''); }} />
-        <label className="form-label" htmlFor="su-email">Email <span className="form-hint">— optional, for password recovery</span></label>
-        <input id="su-email" className="form-input" type="email" value={email} placeholder="you@example.com"
-          autoComplete="email"
-          onChange={e => { setEmail(e.target.value); setError(''); }} />
-        <label className="form-label" htmlFor="su-password">Password <span className="form-hint">— 8+ characters</span></label>
-        <input id="su-password" className="form-input" type="password" value={password}
-          placeholder="••••••••" autoComplete="new-password" required minLength={8}
-          onChange={e => { setPassword(e.target.value); setError(''); }} />
+        {!pendingCode ? (
+          <>
+            <label className="form-label" htmlFor="su-username">Username</label>
+            <input id="su-username" className="form-input" value={username} placeholder="your-username"
+              autoComplete="username" required minLength={3}
+              onChange={e => { setUsername(e.target.value); setError(''); }} />
+            <label className="form-label" htmlFor="su-email">
+              Email <span className="form-hint">— {authMethod === 'code' ? 'required for one-time code' : 'optional, for password recovery'}</span>
+            </label>
+            <input id="su-email" className="form-input" type="email" value={email} placeholder="you@example.com"
+              autoComplete="email" required={authMethod === 'code'}
+              onChange={e => { setEmail(e.target.value); setError(''); }} />
+            {authMethod === 'password' && (
+              <>
+                <label className="form-label" htmlFor="su-password">Password <span className="form-hint">— 8+ characters</span></label>
+                <input id="su-password" className="form-input" type="password" value={password}
+                  placeholder="••••••••" autoComplete="new-password" required minLength={8}
+                  onChange={e => { setPassword(e.target.value); setError(''); }} />
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <label className="form-label" htmlFor="su-code">One-time email code</label>
+            <input id="su-code" className="form-input" value={code} placeholder="123456"
+              autoComplete="one-time-code" inputMode="numeric" required pattern="[0-9]{6}"
+              onChange={e => { setCode(e.target.value); setError(''); }} />
+            <button className="clerk-link" type="button" onClick={() => { setPendingCode(false); setCode(''); setError(''); }}>
+              ← Change signup details
+            </button>
+          </>
+        )}
         <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? 'Creating…' : 'Create account'}
+          {loading ? 'Working…' : pendingCode ? 'Verify code & sign in' : authMethod === 'code' ? 'Send signup code' : 'Create account'}
         </button>
+        {info && <div className="inline-success">✓ {info}</div>}
         {error && <div className="form-error">{error}</div>}
       </form>
       <button className="clerk-link email-auth-switch" type="button" onClick={onSwitchToSignIn}>
@@ -1193,7 +1325,7 @@ function PhoneAuth() {
 }
 
 function AuthDrawer({ mode, onClose, initialView }) {
-  // view: 'signIn' | 'signUp' | 'forgot' | 'migrate' | 'sent' | 'more'
+  // view: 'signIn' | 'codeSignIn' | 'signUp' | 'forgot' | 'migrate' | 'sent' | 'more'
   const [view, setView]           = useState(initialView || (mode === 'signIn' ? 'signIn' : 'signUp'));
   const [migrateUsername, setMigrateUsername] = useState('');
   const [sentMessage, setSentMessage]         = useState('');
@@ -1212,6 +1344,7 @@ function AuthDrawer({ mode, onClose, initialView }) {
 
   const drawerTitles = {
     signIn: 'Welcome back',
+    codeSignIn: 'Email code sign-in',
     signUp: 'Create account',
     forgot: 'Reset password',
     migrate: 'Set a password',
@@ -1244,6 +1377,13 @@ function AuthDrawer({ mode, onClose, initialView }) {
             <PasswordLogin
               onForgot={() => setView('forgot')}
               onMigrate={handleMigrate}
+              onSwitchToSignUp={() => setView('signUp')}
+              onSwitchToCode={() => setView('codeSignIn')}
+            />
+          )}
+          {view === 'codeSignIn' && (
+            <CodeLoginForm
+              onBack={() => setView('signIn')}
               onSwitchToSignUp={() => setView('signUp')}
             />
           )}

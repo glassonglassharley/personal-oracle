@@ -5,13 +5,14 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 const { sanitizeUsername, hashToken, validToken, safeEqual } = require('./usernameAuth');
-const { sendMagicLinkEmail } = require('../email');
+const { sendMagicLinkEmail, sendOneTimeCodeEmail } = require('../email');
 
 const router = express.Router();
 
 const BCRYPT_ROUNDS = 12;
 const SESSION_EXPIRY = '90d';
 const MAGIC_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const EMAIL_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 
 // Rate limiters
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Try again in 15 minutes.' } });
@@ -42,8 +43,59 @@ function hashMagicToken(raw) {
   return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 }
 
+function hashEmailCode(raw) {
+  return crypto.createHash('sha256').update(String(raw || '').trim(), 'utf8').digest('hex');
+}
+
+function generateEmailCode() {
+  return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+}
+
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function createAndSendEmailCode(user, purpose) {
+  const code = generateEmailCode();
+  const expiresAt = new Date(Date.now() + EMAIL_CODE_EXPIRY_MS);
+  await pool.query(
+    `UPDATE email_auth_codes
+     SET used_at = NOW()
+     WHERE user_id = $1 AND purpose = $2 AND used_at IS NULL`,
+    [user.id, purpose]
+  );
+  await pool.query(
+    `INSERT INTO email_auth_codes (user_id, code_hash, purpose, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, hashEmailCode(code), purpose, expiresAt]
+  );
+  await sendOneTimeCodeEmail({
+    to: user.email,
+    username: user.auth_username,
+    code,
+    purpose,
+  });
+}
+
+async function verifyLatestEmailCode({ userId, code, purpose }) {
+  const result = await pool.query(
+    `SELECT id, code_hash, expires_at, used_at
+     FROM email_auth_codes
+     WHERE user_id = $1 AND purpose = $2
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1`,
+    [userId, purpose]
+  );
+  const row = result.rows[0];
+  if (!row || row.used_at) return { ok: false, status: 401, error: 'Invalid or expired code.' };
+  if (new Date() > new Date(row.expires_at)) {
+    return { ok: false, status: 401, error: 'This code has expired. Request a new one.' };
+  }
+  if (!safeEqual(hashEmailCode(code), row.code_hash)) {
+    return { ok: false, status: 401, error: 'Invalid code.' };
+  }
+  await pool.query('UPDATE email_auth_codes SET used_at = NOW() WHERE id = $1', [row.id]);
+  return { ok: true };
 }
 
 // POST /api/auth/signup
@@ -99,6 +151,126 @@ router.post('/signup', signupLimiter, async (req, res, next) => {
     }
     next(err);
   }
+});
+
+// POST /api/auth/signup-code/start — create account, then email a one-time verification code
+router.post('/signup-code/start', signupLimiter, async (req, res, next) => {
+  try {
+    const username = sanitizeUsername(req.body?.username);
+    const rawEmail = String(req.body?.email || '').trim().toLowerCase();
+    const email = rawEmail || null;
+
+    if (!username || username.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters.' });
+    }
+    if (username.length > 30) {
+      return res.status(400).json({ error: 'Username must be 30 characters or fewer.' });
+    }
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({ error: 'Enter a valid email address for the one-time code.' });
+    }
+
+    const taken = await pool.query(
+      'SELECT auth_username FROM users WHERE auth_username = $1 LIMIT 1',
+      [username]
+    );
+    if (taken.rows.length > 0) {
+      return res.status(409).json({ error: `"${username}" is already taken.` });
+    }
+
+    const emailTaken = await pool.query(
+      'SELECT id FROM users WHERE email = $1 LIMIT 1', [email]
+    );
+    if (emailTaken.rows.length > 0) {
+      return res.status(409).json({ error: 'That email is already associated with an account.' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO users (clerk_user_id, name, auth_username, email, email_verified)
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING id, auth_username, email`,
+      [`username:${username}`, username, username, email]
+    );
+
+    await createAndSendEmailCode(result.rows[0], 'signup');
+    res.status(201).json({ ok: true, username, message: 'Check your email for a 6-digit code.' });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'That username or email is already taken.' });
+    }
+    next(err);
+  }
+});
+
+// POST /api/auth/signup-code/verify — verify one-time code and sign in
+router.post('/signup-code/verify', signupLimiter, async (req, res, next) => {
+  try {
+    const username = sanitizeUsername(req.body?.username);
+    const code = String(req.body?.code || '').trim();
+
+    if (!username || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: 'Username and 6-digit code required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, auth_username, email FROM users
+       WHERE auth_username = $1 AND clerk_user_id = $2 LIMIT 1`,
+      [username, `username:${username}`]
+    );
+    const user = result.rows[0];
+    if (!user || !user.email) return res.status(401).json({ error: 'Invalid or expired code.' });
+
+    const verified = await verifyLatestEmailCode({ userId: user.id, code, purpose: 'signup' });
+    if (!verified.ok) return res.status(verified.status).json({ error: verified.error });
+
+    await pool.query('UPDATE users SET email_verified = TRUE WHERE id = $1', [user.id]);
+    res.json({ jwt: signSession(user.id, user.auth_username), username: user.auth_username });
+  } catch (err) { next(err); }
+});
+
+// POST /api/auth/code/start — email a one-time sign-in code for an existing account
+router.post('/code/start', magicLimiter, async (req, res, next) => {
+  try {
+    const identifier = String(req.body?.identifier || '').trim().toLowerCase();
+    if (!identifier) return res.status(400).json({ error: 'Enter your email or username.' });
+
+    const result = await pool.query(
+      `SELECT id, auth_username, email FROM users
+       WHERE email = $1 OR auth_username = $2 LIMIT 1`,
+      [identifier, sanitizeUsername(identifier)]
+    );
+    const user = result.rows[0];
+
+    // Prevent account enumeration; only send if a matching account has email.
+    if (user?.email) {
+      await createAndSendEmailCode(user, 'login');
+    }
+    res.json({ ok: true, message: 'If that account exists, a one-time code has been sent.' });
+  } catch (err) { next(err); }
+});
+
+// POST /api/auth/code/verify — verify one-time sign-in code
+router.post('/code/verify', loginLimiter, async (req, res, next) => {
+  try {
+    const identifier = String(req.body?.identifier || '').trim().toLowerCase();
+    const code = String(req.body?.code || '').trim();
+    if (!identifier || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: 'Identifier and 6-digit code required.' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, auth_username, email FROM users
+       WHERE email = $1 OR auth_username = $2 LIMIT 1`,
+      [identifier, sanitizeUsername(identifier)]
+    );
+    const user = result.rows[0];
+    if (!user?.email) return res.status(401).json({ error: 'Invalid or expired code.' });
+
+    const verified = await verifyLatestEmailCode({ userId: user.id, code, purpose: 'login' });
+    if (!verified.ok) return res.status(verified.status).json({ error: verified.error });
+
+    await pool.query('UPDATE users SET email_verified = TRUE WHERE id = $1', [user.id]);
+    res.json({ jwt: signSession(user.id, user.auth_username), username: user.auth_username });
+  } catch (err) { next(err); }
 });
 
 // POST /api/auth/login
