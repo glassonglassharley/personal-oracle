@@ -66,6 +66,7 @@ export default function PlaidConnect({ vices }) {
   const [linking, setLinking] = useState(false);
   const oauthResumed = useRef(false);
   const [syncing, setSyncing] = useState(false);
+  const [logging, setLogging] = useState(false);
   const [transactions, setTransactions] = useState(null);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(new Set());
@@ -242,34 +243,42 @@ export default function PlaidConnect({ vices }) {
   };
 
   const logSelected = async () => {
+    if (logging) return;
     const toLog = transactions.filter(tx => confirmed.has(tx.transaction_id));
     if (!toLog.length || !userVices.length) return;
 
-    let loggedCount = 0;
+    setLogging(true);
+    const completedIds = new Set();
 
-    for (const tx of toLog) {
-      const viceId = selectedVices[tx.transaction_id] ?? userVices[0].id;
-      try {
-        await api('/api/entries', {
-          method: 'POST',
-          body: JSON.stringify({
-            vice_id: viceId,
-            date: tx.date,
-            quantity: 1,
-            price_per_unit: tx.amount,
-            note: `${tx.merchant} (imported from bank)`,
-          }),
-        });
-        setLogged(prev => new Set([...prev, tx.transaction_id]));
-        loggedCount++;
-      } catch {
-        // skip duplicates silently
+    try {
+      for (const tx of toLog) {
+        const viceId = selectedVices[tx.transaction_id] ?? userVices[0].id;
+        try {
+          await api('/api/entries', {
+            method: 'POST',
+            body: JSON.stringify({
+              vice_id: viceId,
+              date: tx.date,
+              quantity: 1,
+              price_per_unit: tx.amount,
+              note: `${tx.merchant} (imported from bank)`,
+              import_source: 'plaid',
+              external_transaction_id: tx.transaction_id,
+            }),
+          });
+          completedIds.add(tx.transaction_id);
+        } catch {
+          // Keep failed entries selected so the user can retry.
+        }
       }
-    }
 
-    setConfirmed(new Set());
-    if (loggedCount > 0) {
-      setTransactions(prev => prev.filter(tx => !logged.has(tx.transaction_id)));
+      if (completedIds.size > 0) {
+        setLogged(prev => new Set([...prev, ...completedIds]));
+        setTransactions(prev => prev.filter(tx => !completedIds.has(tx.transaction_id)));
+        setConfirmed(prev => new Set([...prev].filter(id => !completedIds.has(id))));
+      }
+    } finally {
+      setLogging(false);
     }
   };
 
@@ -415,8 +424,9 @@ export default function PlaidConnect({ vices }) {
                   className="btn btn-primary"
                   style={{ marginTop: 16 }}
                   onClick={logSelected}
+                  disabled={logging}
                 >
-                  Log {confirmed.size} selected entr{confirmed.size === 1 ? 'y' : 'ies'}
+                  {logging ? 'Logging…' : `Log ${confirmed.size} selected entr${confirmed.size === 1 ? 'y' : 'ies'}`}
                 </button>
               )}
             </>

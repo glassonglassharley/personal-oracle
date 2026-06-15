@@ -80,6 +80,11 @@ const MIGRATIONS = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_session_token_hash TEXT;
 
   ALTER TABLE entries ADD COLUMN IF NOT EXISTS note TEXT;
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS import_source TEXT;
+  ALTER TABLE entries ADD COLUMN IF NOT EXISTS external_transaction_id TEXT;
+  CREATE UNIQUE INDEX IF NOT EXISTS entries_external_transaction_unique
+    ON entries (external_transaction_id)
+    WHERE external_transaction_id IS NOT NULL;
   ALTER TABLE vices ADD COLUMN IF NOT EXISTS plaid_categories TEXT DEFAULT '[]';
 
   CREATE TABLE IF NOT EXISTS user_xp (

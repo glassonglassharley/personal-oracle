@@ -70,10 +70,17 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { vice_id, date, quantity, price_per_unit, note } = req.body;
+    const { vice_id, date, quantity, price_per_unit, note, import_source, external_transaction_id } = req.body;
     const viceId = Number(vice_id);
     const entryQuantity = Number(quantity ?? 0);
     const entryPrice = Number(price_per_unit ?? 0);
+    const entryNote = note || null;
+    const importSource = typeof import_source === 'string' && import_source.trim()
+      ? import_source.trim().toLowerCase().slice(0, 40)
+      : null;
+    const externalTransactionId = typeof external_transaction_id === 'string' && external_transaction_id.trim()
+      ? external_transaction_id.trim().slice(0, 255)
+      : null;
 
     if (!viceId || !date) return res.status(400).json({ error: 'vice_id and date required' });
     if (!Number.isFinite(entryQuantity) || entryQuantity < 0)
@@ -85,15 +92,49 @@ router.post('/', async (req, res, next) => {
     if (!await verifyViceOwnership(viceId, req.auth.userId))
       return res.status(403).json({ error: 'Forbidden' });
 
+    if (externalTransactionId && !importSource)
+      return res.status(400).json({ error: 'import_source required for imported transactions' });
+
+    // Imported bank transactions must be idempotent. Manual entries remain append-only
+    // so a user can intentionally record multiple same-day vice events.
+    if (externalTransactionId) {
+      const existing = await pool.query(
+        `SELECT e.*
+         FROM entries e
+         JOIN vices v ON v.id = e.vice_id
+         WHERE v.user_id = (SELECT user_id FROM vices WHERE id = $1)
+           AND (
+             e.external_transaction_id = $2
+             OR (
+               e.external_transaction_id IS NULL
+               AND e.date = $3
+               AND e.price_per_unit = $4
+               AND COALESCE(e.note, '') = COALESCE($5, '')
+               AND COALESCE(e.note, '') LIKE '%imported from bank%'
+             )
+           )
+         LIMIT 1`,
+        [viceId, externalTransactionId, date, entryPrice, entryNote]
+      );
+      if (existing.rows.length) {
+        return res.status(200).json({ ...existing.rows[0], duplicate: true });
+      }
+    }
+
     // Manual saves are always new entry rows. Do not add an upsert clause here:
     // the entries table intentionally has no unique (vice_id, date) constraint
     // so users can log multiple same-day entries without overwriting history.
     const r = await pool.query(
-      `INSERT INTO entries (vice_id, date, quantity, price_per_unit, note)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO entries (vice_id, date, quantity, price_per_unit, note, import_source, external_transaction_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (external_transaction_id) WHERE external_transaction_id IS NOT NULL DO NOTHING
        RETURNING *`,
-      [viceId, date, entryQuantity, entryPrice, note || null]
+      [viceId, date, entryQuantity, entryPrice, entryNote, importSource, externalTransactionId]
     );
+    if (externalTransactionId && r.rows.length === 0) {
+      const existing = await pool.query('SELECT * FROM entries WHERE external_transaction_id = $1 LIMIT 1', [externalTransactionId]);
+      return res.status(200).json({ ...existing.rows[0], duplicate: true });
+    }
     res.status(201).json(r.rows[0]);
     // Fire-and-forget XP award: +20 for clean day, +5 for any log
     getInternalUserId(req.auth.userId)

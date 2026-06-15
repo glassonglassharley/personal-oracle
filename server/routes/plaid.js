@@ -208,7 +208,7 @@ router.post('/sync', async (req, res, next) => {
   }
 });
 
-// DELETE /api/plaid/imports — remove all entries tagged "(imported from bank)" for this user
+// DELETE /api/plaid/imports — remove all imported bank entries for this user
 router.delete('/imports', async (req, res, next) => {
   try {
     const userId = await getInternalUserId(req.auth.userId);
@@ -216,7 +216,7 @@ router.delete('/imports', async (req, res, next) => {
 
     const result = await pool.query(
       `DELETE FROM entries
-       WHERE note LIKE '%imported from bank%'
+       WHERE (import_source = 'plaid' OR note LIKE '%imported from bank%')
          AND vice_id IN (SELECT id FROM vices WHERE user_id = $1)
        RETURNING id`,
       [userId]
