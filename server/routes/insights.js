@@ -64,6 +64,8 @@ You ask one genuine follow-up question when it feels natural — something that 
 
 You always include the 10-year investment projection at 7% compound growth when discussing money saved or cut. Show the math as hope, not guilt.
 
+Clean-day rule: a clean day is clean across the user's whole life, not per vice. It only counts when there were no positive entries in any vice that day. If they logged chips, coffee, alcohol, or any other vice, that date is not a clean day even if every other vice was at zero.
+
 Format rules:
 - Under 180 words
 - Line breaks between thoughts, no bullet points, no headers
@@ -103,7 +105,7 @@ function tenYearProjection(annualSavings) {
   return Math.round(annualSavings * ((Math.pow(1.07, 10) - 1) / 0.07));
 }
 
-function generateFallbackInsight(prompt, vices, stats) {
+function generateFallbackInsight(prompt, vices, stats, combinedStats = null) {
   const withStats = vices.map(v => ({ ...v, s: stats[v.id] || null })).filter(v => v.s);
 
   if (withStats.length === 0) {
@@ -137,13 +139,13 @@ function generateFallbackInsight(prompt, vices, stats) {
     return `If I'm being a good friend here — and that's the only way I know how to be — I'd start with ${top.emoji} ${top.name}.\n\nIt's costing you $${daily.toFixed(2)} a day on average. I'm not saying quit. I'm saying: what if you just cut it in half? That's $${saving.toFixed(0)} a year back in your pocket — $${tenYearProjection(saving).toLocaleString()} over ten years at 7%.\n\nSmall shifts, done consistently, compound into something real. You already know that or you wouldn't be here.`;
   }
 
-  const cleanDays = withStats.reduce((sum, v) => sum + (v.s.clean_days || 0), 0);
+  const cleanDays = Number(combinedStats?.clean_days ?? Math.min(...withStats.map(v => Number(v.s.clean_days || 0))));
   return `I've been looking at your numbers and I want to share what I see.\n\nYou're spending $${totalMonthly.toFixed(2)}/month across your vices — $${totalAnnual.toFixed(0)} a year. Over ten years at 7%, that's $${totalTen.toLocaleString()} that could be building something else.\n\n${cleanDays > 0 ? `You've had ${cleanDays} clean day${cleanDays !== 1 ? 's' : ''}. That matters more than you might think — that's discipline showing up, and discipline compounds just like money does.` : `Your biggest opportunity is ${worst.emoji} ${worst.name}. That's where I'd focus first.`}\n\nWhat's been the hardest part of the week?`;
 }
 
 // ── POST /api/insights — multi-turn chat endpoint ──
 router.post('/', async (req, res, next) => {
-  const { vices = [], stats = {}, messages: clientMessages, prompt: legacyPrompt } = req.body;
+  const { vices = [], stats = {}, combined_stats: combinedStats = null, messages: clientMessages, prompt: legacyPrompt } = req.body;
 
   // Support both new multi-turn format (messages array) and legacy single-prompt
   const apiMessages = (clientMessages && clientMessages.length > 0)
@@ -179,7 +181,7 @@ router.post('/', async (req, res, next) => {
     // Always fall back to data-driven insight — never show "unavailable"
     try {
       const lastUserText = [...apiMessages].reverse().find(m => m.role === 'user')?.content || '';
-      const text = generateFallbackInsight(lastUserText, vices, stats);
+      const text = generateFallbackInsight(lastUserText, vices, stats, combinedStats);
       return res.json({ text, fallback: true });
     } catch {
       next(err);

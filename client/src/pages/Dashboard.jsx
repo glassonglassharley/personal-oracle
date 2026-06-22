@@ -113,7 +113,59 @@ function combinePeriod(vices, statsByVice, key) {
   };
 }
 
-function combineStats(vices, statsByVice) {
+function dateKey(raw) {
+  return String(raw || '').split('T')[0];
+}
+
+function combinedCleanStats(entries) {
+  const byDate = new Map();
+  entries.forEach(entry => {
+    const date = dateKey(entry.date);
+    if (!date) return;
+    const current = byDate.get(date) || { clean: true };
+    if (Number(entry.quantity || 0) > 0) current.clean = false;
+    byDate.set(date, current);
+  });
+
+  const cleanDates = [...byDate.entries()]
+    .filter(([, info]) => info.clean)
+    .map(([date]) => date)
+    .sort();
+
+  let bestStreak = 0;
+  let run = 0;
+  let prevDate = null;
+  cleanDates.forEach(date => {
+    const consecutive = !prevDate
+      || (new Date(date + 'T00:00:00') - new Date(prevDate + 'T00:00:00')) / 86400000 === 1;
+    run = consecutive ? run + 1 : 1;
+    bestStreak = Math.max(bestStreak, run);
+    prevDate = date;
+  });
+
+  const cleanSet = new Set(cleanDates);
+  let currentStreak = 0;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const cur = new Date(Date.UTC(y, m - 1, d));
+  let skippedToday = false;
+  for (let i = 0; i < 365; i++) {
+    const key = cur.toISOString().split('T')[0];
+    if (cleanSet.has(key)) {
+      currentStreak++;
+    } else if (i === 0 && !byDate.has(key) && !skippedToday) {
+      skippedToday = true;
+    } else {
+      break;
+    }
+    cur.setUTCDate(cur.getUTCDate() - 1);
+  }
+
+  return { cleanDays: cleanDates.length, currentStreak, bestStreak };
+}
+
+function combineStats(vices, statsByVice, entries = []) {
   if (vices.length === 0) return null;
 
   const totals = vices.reduce((acc, vice) => {
@@ -148,6 +200,7 @@ function combineStats(vices, statsByVice) {
     current: Number(statsByVice[v.id]?.current_streak || 0),
     best:    Number(statsByVice[v.id]?.best_streak    || 0),
   }));
+  const combinedClean = combinedCleanStats(entries);
 
   return {
     today: combinePeriod(vices, statsByVice, 'today'),
@@ -156,12 +209,13 @@ function combineStats(vices, statsByVice) {
     year: combinePeriod(vices, statsByVice, 'year'),
     avg_daily_spend: totals.totalDays > 0 ? totals.estimatedSpend / totals.totalDays : 0,
     total_logged_days: totals.totalLoggedDays,
-    clean_days: totals.cleanDays,
+    clean_days: combinedClean.cleanDays,
     savings_from_clean_days: totals.savingsFromCleanDays,
     quantityByVice: totals.quantityByVice,
-    // Combined streak = min across all vices (clean everywhere or it doesn't count)
-    current_streak: streakByVice.length ? Math.min(...streakByVice.map(s => s.current)) : 0,
-    best_streak:    streakByVice.length ? Math.max(...streakByVice.map(s => s.best))    : 0,
+    // Combined clean day = no positive entry in any vice that day.
+    // Logging chips/coffee/etc. means the whole day is not clean.
+    current_streak: combinedClean.currentStreak,
+    best_streak:    combinedClean.bestStreak,
     streakByVice,
   };
 }
@@ -278,7 +332,7 @@ export default function Dashboard() {
         entries.forEach(entry => allEntries.push({ ...entry, vice }));
       });
 
-      setStats(combineStats(vices, statsByVice));
+      setStats(combineStats(vices, statsByVice, allEntries));
       setLast7(dates.map(date => ({ date, spend: spendByDate[date] || 0 })));
       setRecentEntries(allEntries
         .sort((a, b) => new Date(b.date) - new Date(a.date))

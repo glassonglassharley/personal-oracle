@@ -57,6 +57,7 @@ export default function InsightsPanel({ stats, xpData }) {
       lines.push(`  Overall clean days: ${stats.clean_days ?? 0}`);
       lines.push(`  Current combined streak: ${stats.current_streak ?? 0} days`);
       lines.push(`  Best combined streak: ${stats.best_streak ?? 0} days`);
+      lines.push('  Clean-day definition: a day only counts clean if there were no positive entries in any vice. If chips, coffee, alcohol, or any other vice was logged, that date is not clean.');
       lines.push(`  Saved from clean days: $${(stats.savings_from_clean_days ?? 0).toFixed(2)}`);
       lines.push(`  Avg daily spend across all vices: $${(stats.avg_daily_spend ?? 0).toFixed(2)}`);
     }
@@ -88,6 +89,7 @@ export default function InsightsPanel({ stats, xpData }) {
         body: JSON.stringify({
           vices: vices.map(v => ({ id: v.id, name: v.name, emoji: v.emoji })),
           stats: viceStats,
+          combined_stats: stats,
           messages: next,
         }),
       });
@@ -98,7 +100,7 @@ export default function InsightsPanel({ stats, xpData }) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
-  }, [messages, loading, vices, viceStats, buildDataContext, api]);
+  }, [messages, loading, vices, viceStats, stats, buildDataContext, api]);
 
   const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
