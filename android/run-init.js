@@ -12,8 +12,8 @@ const fs    = require('fs');
 const JDK_PATH    = 'C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.19.10-hotspot';
 const KS_PASS     = 'nNoDLfmtJY8UyWRk06gMVt!8';
 const KEY_PASS    = 'dfMZCoRvia1qBDsuGKtQAt!9';
-const CWD         = 'C:\\Users\\jmeny\\vice-tracker\\android';
-const MANIFEST_SRC = 'C:\\Users\\jmeny\\vice-tracker\\client\\public\\manifest.json';
+const CWD         = 'C:\\Users\\jmeny\\personal-oracle\\android';
+const MANIFEST_SRC = 'C:\\Users\\jmeny\\personal-oracle\\client\\public\\manifest.json';
 
 // --- Start local HTTP server for manifest ---
 const server = http.createServer((req, res) => {

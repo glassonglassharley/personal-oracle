@@ -1,0 +1,17 @@
+{
+  "name": "Debt Assassination",
+  "short_name": "Debt Assassination",
+  "description": "Financial Liberation Protocol",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#040408",
+  "theme_color": "#040408",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -2,6 +2,21 @@
 
 Track your spending habits. Own your choices.
 
+This repository is a monorepo for the **Vice to Value** product family:
+
+| App | Folder | Description |
+|---|---|---|
+| **Vice Tracker** | `client/` + `server/` | Habit/vice spending tracker |
+| **Growth Mirror** | `apps/training-log/` | Fitness, nutrition, and wellness log |
+| **Income Growth Tracker** | `apps/pre-game/` | Income sources and daily action tracking |
+| **Debt Assassination** | `apps/debt-assassination/` | Debt snowball payoff tracker |
+
+See [`apps/README.md`](apps/README.md) for per-app dev commands and deployment notes.
+
+---
+
+## Vice Tracker (main app)
+
 A full-stack web app to log, analyze, and reduce habitual spending — alcohol, coffee, cigarettes, anything you want to track. Built with Node/Express, PostgreSQL, React/Vite, and Clerk for authentication.
 
 ---
@@ -195,9 +210,14 @@ vercel.json
 ## Project Structure
 
 ```
-vice-tracker/
+personal-oracle/
+├── apps/
+│   ├── training-log/     # Growth Mirror (fitness/wellness PWA)
+│   ├── pre-game/         # Income Growth Tracker (Next.js)
+│   ├── debt-assassination/
+│   └── README.md
 ├── .env.example
-├── vercel.json           # Vercel routing + build config
+├── vercel.json           # Vice Tracker Vercel routing + build config
 ├── package.json          # root: server deps hoisted here for Vercel bundling
 ├── api/
 │   └── index.js          # Vercel serverless entry — exports Express app

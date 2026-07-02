@@ -4,6 +4,12 @@ node_modules/
 server/node_modules/
 client/node_modules/
 client/dist/
+apps/*/node_modules/
+apps/*/dist/
+apps/*/.next/
+apps/*/.vercel/
+apps/*/.env
+apps/*/.env.*
 .DS_Store
 
 .vercel

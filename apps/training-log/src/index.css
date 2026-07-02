@@ -1,0 +1,106 @@
+:root {
+  --bg: #000000;
+  --surface: #1a1a24;
+  --surface2: #22223a;
+  --border: #2e2e42;
+  --text: #e8e8f0;
+  --muted: #7a7a95;
+  --accent: #3B260F;
+  --accent-dim: #3d3875;
+  --success: #4ade80;
+  --error: #f87171;
+  --warn: #fbbf24;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --mobile-header-base: 58px;
+}
+
+:root[data-theme="light"] {
+  --bg: #000000;
+  --surface: #ffffff;
+  --surface2: #e8e8ef;
+  --border: #c7c7cc;
+  --text: #1c1c1e;
+  --muted: #6d6d72;
+  --accent: #5856d6;
+  --accent-dim: #eeeeff;
+  --success: #30d158;
+  --error: #ff3b30;
+  --warn: #ff9f0a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  min-height: 100%;
+  background: #000000;
+}
+
+body {
+  background: #000000;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+}
+
+#root {
+  min-height: 100dvh;
+  background: #000000;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+button:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 16px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 12px 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7a95' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+}

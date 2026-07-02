@@ -10,8 +10,8 @@ const path  = require('path');
 
 const KS_PASS   = 'nNoDLfmtJY8UyWRk06gMVt!8';
 const KEY_PASS  = 'dfMZCoRvia1qBDsuGKtQAt!9';
-const CWD       = 'C:\\Users\\jmeny\\vice-tracker\\android';
-const WEB_ROOT  = 'C:\\Users\\jmeny\\vice-tracker\\client\\public';
+const CWD       = 'C:\\Users\\jmeny\\personal-oracle\\android';
+const WEB_ROOT  = 'C:\\Users\\jmeny\\personal-oracle\\client\\public';
 const TWA_JSON  = path.join(CWD, 'twa-manifest.json');
 
 // --- Start local asset server ---
