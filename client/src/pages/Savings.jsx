@@ -288,11 +288,11 @@ export default function Savings() {
     setShowAccountPicker(false);
     try {
       const d = await api('/api/plaid/accounts');
-      const depository = (d.accounts || []).filter(a => a.type === 'depository' && a.balance != null);
+      const depository = (d.accounts || []).filter(a => a.type === 'depository');
       if (depository.length === 0) {
-        setPlaidSyncError('No checking or savings accounts found in your connected banks.');
+        setPlaidSyncError('No depository accounts found in your connected banks.');
       } else if (depository.length === 1) {
-        setBalanceInput(String(depository[0].balance));
+        setBalanceInput(depository[0].balance != null ? String(depository[0].balance) : '');
       } else {
         setPlaidAccounts(depository);
         setShowAccountPicker(true);
@@ -458,13 +458,6 @@ export default function Savings() {
     },
   };
 
-  const msCards = MILESTONES.map(m => ({
-    ...m,
-    amount: perDay * m.days,
-    date: new Date(Date.now() + m.days * 86400000)
-      .toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-  }));
-
   const builtInInvestmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
@@ -518,6 +511,94 @@ export default function Savings() {
         </span>
       </div>
 
+
+      {/* ── Actual Savings Balance ── */}
+      <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
+        <div className="panel-head" style={{ marginBottom: 10 }}>
+          <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
+          {plaidConnected && (
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ fontSize: 12, padding: '4px 10px' }}
+              onClick={syncFromBank}
+              disabled={syncingPlaid}
+            >
+              {syncingPlaid ? 'Syncing…' : '↻ Sync from bank'}
+            </button>
+          )}
+        </div>
+        <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
+          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="sv-balance-input"
+              value={balanceInput}
+              onChange={e => setBalanceInput(e.target.value)}
+              placeholder="0.00"
+            />
+            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '5px 12px' }}>
+              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
+            </button>
+          </form>
+          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
+          {plaidSyncError && <p className="form-error" style={{ marginTop: 8 }}>{plaidSyncError}</p>}
+          {showAccountPicker && plaidAccounts.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Choose which account balance to use:</p>
+              {plaidAccounts.map(acct => (
+                <button
+                  key={acct.account_id}
+                  type="button"
+                  className="btn ghost"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onClick={() => {
+                    setBalanceInput(acct.balance != null ? String(acct.balance) : '');
+                    setShowAccountPicker(false);
+                    setPlaidAccounts([]);
+                  }}
+                >
+                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({acct.subtype})</span></span>
+                  <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12 }}>{fmt$2(acct.balance)}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn ghost"
+                style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}
+                onClick={() => { setShowAccountPicker(false); setPlaidAccounts([]); }}
+              >Cancel</button>
+            </div>
+          )}
+        </div>
+        {goals.filter(g => !g.completed_at).length > 0 ? (
+          <div className="sv-balance-badges">
+            {goals.filter(g => !g.completed_at).map(g => {
+              const target = Number(g.target_amount);
+              const pct = target > 0 ? Math.min(100, (balance.balance / target) * 100) : 0;
+              const earned = balance.balance >= target;
+              return (
+                <div key={g.id} className={`sv-bb-item${earned ? ' earned' : ''}`}>
+                  <div className="sv-bb-label">
+                    <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} {g.title}</span>
+                    <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{fmt$0(target)}</span>
+                  </div>
+                  <div className="sv-bb-bar">
+                    <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: 0 }}>
+            Set a savings goal below to track progress here.
+          </p>
+        )}
+      </div>
 
       {/* ── Hero ── */}
       <div className="sv-hero">
@@ -795,95 +876,6 @@ export default function Savings() {
         </div>
       )}
 
-      {/* ── Actual Savings Balance ── */}
-      <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
-        <div className="panel-head" style={{ marginBottom: 10 }}>
-          <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
-          {plaidConnected && (
-            <button
-              type="button"
-              className="btn ghost"
-              style={{ fontSize: 12, padding: '4px 10px' }}
-              onClick={syncFromBank}
-              disabled={syncingPlaid}
-            >
-              {syncingPlaid ? 'Syncing…' : '↻ Sync from bank'}
-            </button>
-          )}
-        </div>
-        <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
-          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
-          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="sv-balance-input"
-              value={balanceInput}
-              onChange={e => setBalanceInput(e.target.value)}
-              placeholder="0.00"
-            />
-            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '5px 12px' }}>
-              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
-            </button>
-          </form>
-          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
-          {plaidSyncError && <p className="form-error" style={{ marginTop: 8 }}>{plaidSyncError}</p>}
-          {showAccountPicker && plaidAccounts.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Choose which account balance to use:</p>
-              {plaidAccounts.map(acct => (
-                <button
-                  key={acct.account_id}
-                  type="button"
-                  className="btn ghost"
-                  style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  onClick={() => {
-                    setBalanceInput(String(acct.balance));
-                    setShowAccountPicker(false);
-                    setPlaidAccounts([]);
-                  }}
-                >
-                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({acct.subtype})</span></span>
-                  <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12 }}>{fmt$2(acct.balance)}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className="btn ghost"
-                style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}
-                onClick={() => { setShowAccountPicker(false); setPlaidAccounts([]); }}
-              >Cancel</button>
-            </div>
-          )}
-        </div>
-        {goals.filter(g => !g.completed_at).length > 0 ? (
-          <div className="sv-balance-badges">
-            {goals.filter(g => !g.completed_at).map(g => {
-              const target = Number(g.target_amount);
-              const pct = target > 0 ? Math.min(100, (balance.balance / target) * 100) : 0;
-              const earned = balance.balance >= target;
-              return (
-                <div key={g.id} className={`sv-bb-item${earned ? ' earned' : ''}`}>
-                  <div className="sv-bb-label">
-                    <span className="sv-bb-name">{earned ? '✓' : `${pct.toFixed(0)}%`} {g.title}</span>
-                    <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{fmt$0(target)}</span>
-                  </div>
-                  <div className="sv-bb-bar">
-                    <div className="sv-bb-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: 0 }}>
-            Set a savings goal below to track progress here.
-          </p>
-        )}
-      </div>
-
-
       <GoalsSection
         goals={goals}
         savings={balance.balance}
@@ -899,67 +891,6 @@ export default function Savings() {
         onUpdateGoal={updateGoal}
         onDeleteGoal={deleteGoal}
       />
-
-      {/* ── Milestone cards (time horizon) ── */}
-      <div className="sv-section">
-        <div className="sv-section-head">
-          <span className="sv-section-title">Milestones</span>
-          <span className="sv-section-sub">Click a card to update the projection</span>
-        </div>
-        <div className="sv-ms-grid">
-          {msCards.map(m => (
-            <div
-              key={m.days}
-              className={`sv-ms-card${horizon === m.days ? ' active' : ''}`}
-              onClick={() => setHorizon(m.days)}
-            >
-              <div className="sv-ms-label">{m.label}</div>
-              <div className="sv-ms-amount">{fmtBig(m.amount)}</div>
-              <div className="sv-ms-date">by {m.date}</div>
-              <div className="sv-ms-sub">{m.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Savings target milestones ── */}
-      {!loading && perDay > 0 && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">Savings targets</span>
-            <span className="sv-section-sub">How long until you reach each level</span>
-          </div>
-          <div className="sv-ms-grid">
-            {[1000, 5000, 10000, 25000, 50000].map(target => {
-              const reached = balance.balance >= target;
-              const remaining = Math.max(0, target - balance.balance);
-              const daysNeeded = !reached && perDay > 0 ? Math.ceil(remaining / perDay) : Infinity;
-              const reachDate = daysNeeded < Infinity
-                ? new Date(Date.now() + daysNeeded * 86400000)
-                    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                : null;
-              const daysLabel = daysNeeded < 365
-                ? `~${Math.round(daysNeeded)} days`
-                : `~${(daysNeeded / 365).toFixed(1)} yrs`;
-              return (
-                <div key={target} className={`sv-ms-card${reached ? ' active' : ''}`}>
-                  <div className="sv-ms-label">
-                    {reached ? '✓ Reached' : daysNeeded < Infinity ? daysLabel : '—'}
-                  </div>
-                  <div className="sv-ms-amount">{fmt$0(target)}</div>
-                  {!reached && reachDate && <div className="sv-ms-date">by {reachDate}</div>}
-                  {!reached && balance.balance > 0 && (
-                    <div className="sv-ms-sub" style={{ color: 'var(--money)' }}>
-                      {fmt$0(balance.balance)} saved · {fmt$0(remaining)} to go
-                    </div>
-                  )}
-                  <div className="sv-ms-sub">{target >= 10000 ? 'Significant milestone' : target >= 5000 ? 'Major savings' : 'First milestone'}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {celebGoal && (
         <CelebOverlay

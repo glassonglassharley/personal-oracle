@@ -449,12 +449,12 @@ function CategoryBars({ activeViceId, setViceId, currentQty, currentPrice }) {
 // ============ Invested-instead ============
 // Static fallback CAGRs used when live fetch fails or is loading.
 const ASSETS = [
-  { id: "spy",   ticker: "SPY",   name: "S&P 500 ETF",        sub: "large-cap blend · 10y",  cagr: 0.130, kind: "etf" },
+  { id: "spy",   ticker: "SPY",   name: "S&P 500 ETF",        sub: "large-cap blend · 10y",  cagr: 0.130, kind: "etf",    featured: true },
   { id: "voo",   ticker: "VOO",   name: "Vanguard 500",       sub: "S&P 500 · low-cost",     cagr: 0.131, kind: "etf" },
   { id: "qqq",   ticker: "QQQ",   name: "Nasdaq 100 ETF",     sub: "tech-heavy · 10y",       cagr: 0.180, kind: "etf" },
-  { id: "btc",   ticker: "BTC",   name: "Bitcoin",            sub: "volatile · 10y",         cagr: 0.550, kind: "crypto" },
-  { id: "gold",  ticker: "GOLD",  name: "Gold",               sub: "spot price · 10y",       cagr: 0.085, kind: "metal" },
-  { id: "hysa",  ticker: "HYSA",  name: "High-yield savings", sub: "Marcus / Ally · APY",    cagr: 0.043, kind: "cash" },
+  { id: "btc",   ticker: "BTC",   name: "Bitcoin",            sub: "volatile · 10y",         cagr: 0.550, kind: "crypto", featured: true },
+  { id: "gold",  ticker: "GOLD",  name: "Gold",               sub: "spot price · 10y",       cagr: 0.085, kind: "metal",  featured: true },
+  { id: "hysa",  ticker: "HYSA",  name: "High-yield savings", sub: "Marcus / Ally · APY",    cagr: 0.043, kind: "cash",   featured: true },
 ];
 
 // Yahoo Finance tickers for live CAGR fetch (HYSA has no ticker — stays static)
@@ -563,7 +563,7 @@ function InvestedInstead({ dailySaving, days, total, accent }) {
           const win = r.id === winId;
           const bar = Math.max(2, (r.value / max) * 100);
           return (
-            <div key={r.id} className={"inv-row" + (win ? " win" : "")}>
+            <div key={r.id} className={"inv-row" + (win ? " win" : "") + (r.featured ? " inv-row--featured" : "")}>
               <div className="inv-asset">
                 <div className="inv-ticker">{r.ticker}</div>
                 <div>
@@ -1995,8 +1995,22 @@ function ViceSpendingStyles() {
     .cat-bar-col { min-width: 84px; }
     .panel-head, .invested-head { flex-direction: column; align-items: flex-start; gap: 8px; }
     .inv-thead { display: none; }
-    .inv-row { grid-template-columns: 1fr auto; gap: 10px; }
-    .inv-cagr, .inv-spark { display: none; }
+    .inv-table { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inv-row:not(.inv-row--featured) { display: none; }
+    .inv-row { display: flex; flex-direction: column; gap: 10px; background: var(--paper-3); border-radius: 10px; padding: 14px 12px; border: 1px solid var(--rule); border-top: 1px solid var(--rule); }
+    .inv-row.win { border-color: var(--rule-2); }
+    .inv-asset { grid-template-columns: 32px 1fr; gap: 8px; align-items: center; }
+    .inv-ticker { font-size: 9.5px; padding: 3px 5px; }
+    .inv-name { font-size: 12.5px; }
+    .inv-sub { display: none; }
+    .inv-spark { display: none; }
+    .inv-cagr { font-size: 11.5px; }
+    .inv-val { text-align: left; }
+    .inv-val-big { font-size: 20px; }
+    .inv-bar { display: block; }
+    .inv-gain { text-align: left; display: flex; align-items: baseline; gap: 6px; }
+    .inv-gain-num { font-size: 12px; }
+    .inv-gain-pct { font-size: 11px; }
     .ms { grid-template-columns: 58px 1fr; }
     .ms-amt { grid-column: 2; font-size: 24px; }
     .cta-row { flex-direction: column; }

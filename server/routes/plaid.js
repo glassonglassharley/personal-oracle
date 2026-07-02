@@ -323,14 +323,21 @@ router.get('/accounts', async (req, res, next) => {
     for (const { access_token, institution_name } of connRows.rows) {
       try {
         const balRes = await plaid.accountsBalanceGet({ access_token });
+        console.log(`[plaid/accounts] ${institution_name} raw accounts:`,
+          balRes.data.accounts.map(a =>
+            `${a.name}(${a.subtype}) current=${a.balances.current} available=${a.balances.available}`
+          )
+        );
         balRes.data.accounts.forEach(acct => {
+          // CDs often return null for current balance in real-time API; fall back to available
+          const balance = acct.balances.current ?? acct.balances.available ?? null;
           allAccounts.push({
             account_id: acct.account_id,
             name: acct.name,
             official_name: acct.official_name || null,
-            type: acct.type,       // 'depository', 'credit', 'investment', etc.
-            subtype: acct.subtype, // 'checking', 'savings', 'cd', etc.
-            balance: acct.balances.current,
+            type: acct.type,
+            subtype: acct.subtype,
+            balance,
             institution: institution_name || 'Bank',
           });
         });
@@ -340,6 +347,89 @@ router.get('/accounts', async (req, res, next) => {
     }
 
     res.json({ accounts: allAccounts });
+  } catch (err) { next(err); }
+});
+
+// GET /api/plaid/connections — all connected institutions with their accounts
+router.get('/connections', async (req, res, next) => {
+  try {
+    const plaid = getPlaidClient();
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+
+    const connRows = await pool.query(
+      'SELECT item_id, access_token, institution_name, created_at FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+
+    const connections = [];
+    for (const conn of connRows.rows) {
+      const item = {
+        item_id: conn.item_id,
+        institution_name: conn.institution_name || 'Bank',
+        connected_at: conn.created_at,
+        accounts: [],
+      };
+      try {
+        const acctRes = await plaid.accountsGet({ access_token: conn.access_token });
+        item.accounts = acctRes.data.accounts.map(a => ({
+          account_id: a.account_id,
+          name: a.name,
+          official_name: a.official_name || null,
+          type: a.type,
+          subtype: a.subtype,
+          mask: a.mask,
+        }));
+      } catch (e) {
+        console.error(`[connections] accounts fetch for ${conn.institution_name}:`, e.response?.data?.error_message || e.message);
+      }
+      connections.push(item);
+    }
+
+    res.json({ connections });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/plaid/connections/:item_id — revoke Plaid access and remove all synced data
+router.delete('/connections/:item_id', async (req, res, next) => {
+  try {
+    const plaid = getPlaidClient();
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+
+    const { item_id } = req.params;
+
+    const connRow = await pool.query(
+      'SELECT access_token FROM plaid_connections WHERE user_id = $1 AND item_id = $2',
+      [userId, item_id]
+    );
+    if (!connRow.rows.length) return res.status(404).json({ error: 'Connection not found' });
+
+    // Revoke on Plaid's end (best-effort — local cleanup proceeds regardless)
+    try {
+      await plaid.itemRemove({ access_token: connRow.rows[0].access_token });
+    } catch (e) {
+      console.warn('[disconnect] Plaid itemRemove failed, continuing cleanup:', e.response?.data?.error_message || e.message);
+    }
+
+    // Delete all plaid-imported entries for this user
+    await pool.query(
+      `DELETE FROM entries
+       WHERE (import_source = 'plaid' OR note LIKE '%imported from bank%')
+         AND vice_id IN (SELECT id FROM vices WHERE user_id = $1)`,
+      [userId]
+    );
+
+    // Clear transaction action history so a reconnect can re-import transactions fresh
+    await pool.query('DELETE FROM plaid_transaction_actions WHERE user_id = $1', [userId]);
+
+    // Remove the connection row
+    await pool.query(
+      'DELETE FROM plaid_connections WHERE user_id = $1 AND item_id = $2',
+      [userId, item_id]
+    );
+
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

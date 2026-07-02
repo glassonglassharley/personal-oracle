@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useApi, useDemoAuth } from '../useApi';
 
+function loadPlaidScript() {
+  return new Promise((resolve, reject) => {
+    if (window.Plaid) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Failed to load Plaid Link script'));
+    document.head.appendChild(script);
+  });
+}
+
 export default function Settings() {
   const api = useApi();
   const { demoUsername, stopDemo } = useDemoAuth();
@@ -38,6 +49,27 @@ export default function Settings() {
   // Data export
   const [exporting, setExporting] = useState(false);
 
+  // Connected banks
+  const [banks, setBanks] = useState([]);
+  const [banksLoading, setBanksLoading] = useState(true);
+  const [disconnectTarget, setDisconnectTarget] = useState(null); // { item_id, institution_name }
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [bankLinking, setBankLinking] = useState(false);
+  const [bankLinkError, setBankLinkError] = useState(null);
+  const [pendingBankExchange, setPendingBankExchange] = useState(null); // { public_token, institution_name }
+
+  const loadConnections = async () => {
+    setBanksLoading(true);
+    try {
+      const data = await api('/api/plaid/connections');
+      setBanks(data.connections || []);
+    } catch {
+      setBanks([]);
+    } finally {
+      setBanksLoading(false);
+    }
+  };
+
   useEffect(() => {
     api('/api/users/me')
       .then(u => {
@@ -47,7 +79,69 @@ export default function Settings() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+    loadConnections();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openBankLink = async () => {
+    setBankLinking(true);
+    setBankLinkError(null);
+    setPendingBankExchange(null);
+    try {
+      await loadPlaidScript();
+      const { link_token } = await api('/api/plaid/create-link-token', { method: 'POST' });
+      sessionStorage.setItem('plaid_link_token', link_token);
+      const handler = window.Plaid.create({
+        token: link_token,
+        onSuccess: (public_token, metadata) => {
+          sessionStorage.removeItem('plaid_link_token');
+          setBankLinking(false);
+          setPendingBankExchange({ public_token, institution_name: metadata.institution?.name || '' });
+        },
+        onExit: (err) => {
+          if (err) setBankLinkError(err.error_message || 'Plaid Link closed with an error.');
+          sessionStorage.removeItem('plaid_link_token');
+          setBankLinking(false);
+        },
+      });
+      handler.open();
+    } catch (err) {
+      setBankLinkError(err.message || 'Could not open bank connection');
+      setBankLinking(false);
+    }
+  };
+
+  const confirmBankExchange = async () => {
+    if (!pendingBankExchange) return;
+    setBankLinking(true);
+    setBankLinkError(null);
+    try {
+      await api('/api/plaid/exchange-token', {
+        method: 'POST',
+        body: JSON.stringify(pendingBankExchange),
+      });
+      setPendingBankExchange(null);
+      await loadConnections();
+    } catch (err) {
+      setBankLinkError(err.message || 'Could not connect bank');
+    } finally {
+      setBankLinking(false);
+    }
+  };
+
+  const doDisconnect = async () => {
+    if (!disconnectTarget) return;
+    setDisconnecting(true);
+    try {
+      await api(`/api/plaid/connections/${encodeURIComponent(disconnectTarget.item_id)}`, { method: 'DELETE' });
+      setDisconnectTarget(null);
+      await loadConnections();
+    } catch (err) {
+      setBankLinkError(err.message || 'Disconnect failed');
+      setDisconnectTarget(null);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   const saveName = async e => {
     e.preventDefault();
@@ -236,6 +330,105 @@ export default function Settings() {
           </form>
         </div>
       </div>
+
+      {/* Connected Banks */}
+      <div className="panel">
+        <div className="panel-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="panel-title">Connected Banks</span>
+          {!pendingBankExchange && (
+            <button className="btn" style={{ fontSize: 12 }} onClick={openBankLink} disabled={bankLinking}>
+              {bankLinking ? 'Opening…' : '+ Add Bank'}
+            </button>
+          )}
+        </div>
+
+        {bankLinkError && (
+          <div style={{ color: 'var(--warn)', fontSize: 13, marginBottom: 12 }}>! {bankLinkError}</div>
+        )}
+
+        {pendingBankExchange && (
+          <div style={{ marginBottom: 16, padding: '12px 14px', border: '1px solid var(--rule)', borderRadius: 8, background: 'var(--paper-2)' }}>
+            <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 14 }}>Confirm bank connection</p>
+            <p style={{ margin: '0 0 12px', color: 'var(--ink-3)', fontSize: 13 }}>
+              You selected: <strong style={{ color: 'var(--ink)' }}>{pendingBankExchange.institution_name || 'Unknown institution'}</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary" onClick={confirmBankExchange} disabled={bankLinking} style={{ fontSize: 13 }}>
+                {bankLinking ? 'Connecting…' : 'Yes, connect'}
+              </button>
+              <button className="btn ghost" onClick={() => setPendingBankExchange(null)} disabled={bankLinking} style={{ fontSize: 13 }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {banksLoading ? (
+          <div className="skeleton skeleton-card" style={{ height: 60, marginTop: 8 }} />
+        ) : banks.length === 0 ? (
+          <p style={{ color: 'var(--ink-3)', fontSize: 13, padding: '8px 0' }}>No banks connected.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 4 }}>
+            {banks.map((bank, idx) => (
+              <div key={bank.item_id} style={idx < banks.length - 1 ? { borderBottom: '1px solid var(--rule)', paddingBottom: 16 } : {}}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>{bank.institution_name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                      Connected {new Date(bank.connected_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <button
+                    className="btn ghost"
+                    style={{ fontSize: 12, borderColor: 'var(--warn)', color: 'var(--warn)', flexShrink: 0 }}
+                    onClick={() => setDisconnectTarget({ item_id: bank.item_id, institution_name: bank.institution_name })}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+                {bank.accounts.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {bank.accounts.map(acct => (
+                      <div key={acct.account_id} style={{ fontSize: 13, color: 'var(--ink-3)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ color: 'var(--ink-2)' }}>{acct.name}</span>
+                        <span>{acct.type} · {acct.subtype}{acct.mask ? ` ····${acct.mask}` : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Disconnect confirmation modal */}
+      {disconnectTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--paper, #111)', border: '1px solid var(--rule)', borderRadius: 12,
+            padding: 24, maxWidth: 400, width: '100%',
+          }}>
+            <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 8, color: 'var(--ink)' }}>
+              Disconnect {disconnectTarget.institution_name}?
+            </p>
+            <p style={{ color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.6, marginBottom: 20 }}>
+              This will remove all synced transactions from this bank. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-danger" onClick={doDisconnect} disabled={disconnecting}>
+                {disconnecting ? 'Disconnecting…' : 'Yes, disconnect'}
+              </button>
+              <button className="btn ghost" onClick={() => setDisconnectTarget(null)} disabled={disconnecting}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Password */}
       <div className="panel">
