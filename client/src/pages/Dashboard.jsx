@@ -83,6 +83,7 @@ import OnboardingWizard from '../components/OnboardingWizard';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
+const fmt$0 = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
 function last7Dates() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -257,6 +258,9 @@ export default function Dashboard() {
   // Member since
   const [memberSince, setMemberSince] = useState(null);
 
+  // Actual savings balance (also shown/edited on the Savings page)
+  const [balance, setBalance] = useState({ balance: 0, updated_at: null });
+
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -295,6 +299,9 @@ export default function Dashboard() {
       .catch(() => {});
     apiRef.current('/api/users/me')
       .then(u => { if (u?.created_at) setMemberSince(new Date(u.created_at)); })
+      .catch(() => {});
+    apiRef.current('/api/savings/balance')
+      .then(setBalance)
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -494,6 +501,16 @@ export default function Dashboard() {
                 <div className="stat-delta"><QuantityBreakdown period={p} /></div>
               </div>
             ))}
+          </div>
+
+          <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
+            <div className="panel-head" style={{ marginBottom: 6 }}>
+              <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
+              <Link to="/savings" className="text-muted" style={{ fontSize: 12, textDecoration: 'none' }}>
+                Update on Savings →
+              </Link>
+            </div>
+            <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
           </div>
 
       {companion?.companion_type && (
