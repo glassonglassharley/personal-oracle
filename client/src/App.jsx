@@ -1465,6 +1465,7 @@ function SignedOutContent() {
   const { isDemo, isWallet, startDemo, verifyMagicToken } = useDemoAuth();
   const [drawer, setDrawer]               = useState(null); // null | 'signIn' | 'signUp'
   const [demoLoading, setDemoLoading]     = useState(false);
+  const [demoError, setDemoError]         = useState('');
   // Initialise synchronously from the URL so we don't flash <AuthenticatedApp />
   // on the first render when a ?magic= param is present.
   // null | 'verifying' | { status:'reset', resetToken, username } | { status:'error', msg }
@@ -1547,11 +1548,16 @@ function SignedOutContent() {
   }
 
   const handleDemo = async () => {
+    setDemoError('');
     setDemoLoading(true);
     try {
-      await startDemo('demo-' + Math.random().toString(36).slice(2, 7), '');
-    } catch {}
-    setDemoLoading(false);
+      const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      await startDemo(`demo-${suffix}`);
+    } catch (err) {
+      setDemoError(err.message || 'Could not start demo. Try again.');
+    } finally {
+      setDemoLoading(false);
+    }
   };
 
   return (
@@ -1612,6 +1618,7 @@ function SignedOutContent() {
         <button type="button" className="landing-demo-link" onClick={handleDemo} disabled={demoLoading}>
           {demoLoading ? 'Starting demo…' : 'Continue as Demo'}
         </button>
+        {demoError && <div className="landing-demo-error" role="alert">{demoError}</div>}
       </section>
 
       {/* Desktop-only app mockup (right column) */}
