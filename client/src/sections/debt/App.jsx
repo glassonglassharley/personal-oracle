@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import GridBg from './components/GridBg'
+import './styles.css'
+import './battle.css'
 import StatsRow from './components/StatsRow'
 import ProgressBar from './components/ProgressBar'
 import PhaseHeader from './components/PhaseHeader'
@@ -50,15 +52,19 @@ export default function App() {
     try { return !localStorage.getItem('hasSeenOnboarding') } catch { return false }
   })
 
+  const sectionRef = useRef(null)
+
   useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
     const safeTheme = themeMode === 'light' ? 'light' : 'dark'
-    document.body.classList.toggle('theme-light', safeTheme === 'light')
-    document.body.classList.toggle('theme-dark', safeTheme === 'dark')
-    document.body.style.colorScheme = safeTheme
+    el.classList.toggle('theme-light', safeTheme === 'light')
+    el.classList.toggle('theme-dark', safeTheme === 'dark')
+    el.style.colorScheme = safeTheme
     try { localStorage.setItem(THEME_STORAGE_KEY, safeTheme) } catch {}
     return () => {
-      document.body.classList.remove('theme-light', 'theme-dark')
-      document.body.style.colorScheme = ''
+      el.classList.remove('theme-light', 'theme-dark')
+      el.style.colorScheme = ''
     }
   }, [themeMode])
 
@@ -116,7 +122,7 @@ export default function App() {
   const isDashboard = store.viewMode !== 'battle'
 
   return (
-    <>
+    <div className="debt-app" ref={sectionRef}>
       <GridBg />
       <div className="crt-overlay" />
       <HamburgerMenu
@@ -394,6 +400,6 @@ export default function App() {
           <div key={t.id} className={`toast toast-${t.type}`}>{t.msg}</div>
         ))}
       </div>
-    </>
+    </div>
   )
 }

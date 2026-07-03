@@ -14,6 +14,7 @@ const Settings            = lazy(() => import('./pages/Settings'));
 const AdminUsers          = lazy(() => import('./pages/AdminUsers'));
 const History             = lazy(() => import('./pages/History'));
 const OracleSectionStub   = lazy(() => import('./sections/OracleSectionStub'));
+const DebtSection         = lazy(() => import('./sections/debt/App'));
 const Privacy             = lazy(() => import('./pages/Privacy'));
 const Terms               = lazy(() => import('./pages/Terms'));
 import { ViceContext, getViceColor } from './ViceContext';
@@ -441,7 +442,7 @@ function AuthenticatedApp() {
             <Route path="/wrapped/:year" element={<Wrapped />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/training-log" element={<OracleSectionStub icon="🏋️" title="Training Log" description="Workouts, meals, sleep, and your progress avatar — moving in from the standalone Training Log app." liveUrl="https://training-log-flax.vercel.app" />} />
-            <Route path="/debt" element={<OracleSectionStub icon="⚔️" title="Debt Assassination" description="The cyberpunk debt tracker — Battle Mode and all — moving in from the standalone Debt Assassination app." liveUrl="https://debt-assassination.vercel.app" />} />
+            <Route path="/debt" element={<DebtSection />} />
             <Route path="/pre-game" element={<OracleSectionStub icon="📈" title="Income Growth" description="Income tracking, debt ritual, and tip logging — moving in from the standalone Pre-Game app." liveUrl="https://pre-game-umber.vercel.app" />} />
             <Route path="/admin/users" element={<AdminRoute element={<AdminUsers />} />} />
           </Routes>
