@@ -13,6 +13,7 @@ const Badges              = lazy(() => import('./pages/Badges'));
 const Settings            = lazy(() => import('./pages/Settings'));
 const AdminUsers          = lazy(() => import('./pages/AdminUsers'));
 const History             = lazy(() => import('./pages/History'));
+const OracleSectionStub   = lazy(() => import('./sections/OracleSectionStub'));
 const Privacy             = lazy(() => import('./pages/Privacy'));
 const Terms               = lazy(() => import('./pages/Terms'));
 import { ViceContext, getViceColor } from './ViceContext';
@@ -30,6 +31,10 @@ const NAV = [
   { to: '/history', label: 'History' },
   { to: '/support', label: 'FAQ' },
   { to: '/settings', label: 'Settings' },
+  { heading: 'Oracle Apps' },
+  { to: '/training-log', label: 'Training Log' },
+  { to: '/debt', label: 'Debt Assassination' },
+  { to: '/pre-game', label: 'Income Growth' },
 ];
 
 function AccountControl({ collapsed = false }) {
@@ -76,11 +81,11 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
     <aside className={`side${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="side-top">
         <div className="brand">
-          <span className={collapsed ? 'brand-letter' : 'brand-letter brand-letter-full'}>V</span>
+          <span className={collapsed ? 'brand-letter' : 'brand-letter brand-letter-full'}>O</span>
           {!collapsed && (
             <span className="side-brand-wordmark">
-              <span>Vice to Value</span>
-              <small>Cut today · grow tomorrow</small>
+              <span>Personal Oracle</span>
+              <small>One dashboard · every habit</small>
             </span>
           )}
         </div>
@@ -91,7 +96,16 @@ function Sidebar({ theme, setTheme, collapsed, setCollapsed, mobileOpen, onMobil
       </div>
 
       <nav className="nav">
-        {NAV.map(({ to, label, end }) => (
+        {NAV.map(({ to, label, end, heading }) => heading ? (
+          !collapsed && (
+            <span
+              key={heading}
+              style={{ padding: '14px 12px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(90,138,106,0.7)' }}
+            >
+              {heading}
+            </span>
+          )
+        ) : (
           <NavLink
             key={to}
             to={to}
@@ -426,6 +440,9 @@ function AuthenticatedApp() {
             <Route path="/badges" element={<Badges />} />
             <Route path="/wrapped/:year" element={<Wrapped />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/training-log" element={<OracleSectionStub icon="🏋️" title="Training Log" description="Workouts, meals, sleep, and your progress avatar — moving in from the standalone Training Log app." liveUrl="https://training-log-flax.vercel.app" />} />
+            <Route path="/debt" element={<OracleSectionStub icon="⚔️" title="Debt Assassination" description="The cyberpunk debt tracker — Battle Mode and all — moving in from the standalone Debt Assassination app." liveUrl="https://debt-assassination.vercel.app" />} />
+            <Route path="/pre-game" element={<OracleSectionStub icon="📈" title="Income Growth" description="Income tracking, debt ritual, and tip logging — moving in from the standalone Pre-Game app." liveUrl="https://pre-game-umber.vercel.app" />} />
             <Route path="/admin/users" element={<AdminRoute element={<AdminUsers />} />} />
           </Routes>
           {companionLoaded && showOnboarding && (
