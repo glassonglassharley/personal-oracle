@@ -1,6 +1,37 @@
 import { useState, useRef, useEffect } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 
+const DEBT_STORAGE_KEYS = new Set([
+  'debt-assassination-v1',
+  'debt-assassination-theme',
+  'hasSeenOnboarding',
+  'plaid_access_token',
+  'plaid_last_sync',
+  'plaid_account_map',
+])
+
+function isDebtStorageKey(key) {
+  return DEBT_STORAGE_KEYS.has(key) || key.startsWith('debt-assassination-') || key.startsWith('plaid_')
+}
+
+function collectDebtLocalStorage() {
+  const storage = {}
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i)
+    if (!key || !isDebtStorageKey(key)) continue
+    storage[key] = localStorage.getItem(key)
+  }
+
+  const primary = storage['debt-assassination-v1']
+  return {
+    app: 'debt-assassination',
+    exportVersion: 2,
+    exportedAt: new Date().toISOString(),
+    storage,
+    data: primary ? JSON.parse(primary) : null,
+  }
+}
+
 const FAQ = [
   {
     category: 'STRATEGY',
@@ -83,20 +114,29 @@ export default function HamburgerMenu({ addToast, onImport, onShowIntro, plaid, 
 
   function handleExport() {
     try {
-      const raw = localStorage.getItem('debt-assassination-v1')
-      if (!raw) { addToast?.('NO DATA TO EXPORT', 'red'); return }
+      const backup = collectDebtLocalStorage()
+      if (!backup.storage['debt-assassination-v1'] && Object.keys(backup.storage).length === 0) { addToast?.('NO DATA TO EXPORT', 'red'); return }
       const date = new Date().toISOString().slice(0, 10)
-      const blob = new Blob([raw], { type: 'application/json' })
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `debt-assassination-backup-${date}.json`
+      a.download = `debt-assassination-full-localstorage-backup-${date}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      addToast?.('BACKUP SAVED — KEEP THIS FILE SAFE', 'gold')
+      addToast?.('FULL LOCAL BACKUP SAVED — KEEP THIS FILE SAFE', 'gold')
     } catch { addToast?.('EXPORT FAILED', 'red') }
+  }
+
+  function extractImportStore(raw) {
+    const json = JSON.parse(raw)
+    if (Array.isArray(json.debts)) return raw
+    const nestedRaw = json?.storage?.['debt-assassination-v1']
+    if (typeof nestedRaw === 'string' && Array.isArray(JSON.parse(nestedRaw).debts)) return nestedRaw
+    if (Array.isArray(json?.data?.debts)) return JSON.stringify(json.data)
+    return null
   }
 
   function handleImportFile(e) {
@@ -106,10 +146,10 @@ export default function HamburgerMenu({ addToast, onImport, onShowIntro, plaid, 
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        const json = JSON.parse(ev.target.result)
-        if (!Array.isArray(json.debts)) { addToast?.('INVALID FILE — BACKUP NOT RESTORED', 'red'); return }
+        const storeRaw = extractImportStore(ev.target.result)
+        if (!storeRaw) { addToast?.('INVALID FILE — BACKUP NOT RESTORED', 'red'); return }
         if (!window.confirm('This will overwrite all current progress. Continue?')) return
-        const ok = onImport?.(ev.target.result)
+        const ok = onImport?.(storeRaw)
         if (ok) addToast?.('DATA RESTORED SUCCESSFULLY', 'gold')
         else addToast?.('INVALID FILE — BACKUP NOT RESTORED', 'red')
       } catch { addToast?.('INVALID FILE — BACKUP NOT RESTORED', 'red') }
@@ -251,9 +291,9 @@ export default function HamburgerMenu({ addToast, onImport, onShowIntro, plaid, 
 
             <div className="drawer-data-section">
               <button className="drawer-data-btn gold-btn" onClick={handleExport}>
-                ↓ EXPORT DATA
+                ↓ DOWNLOAD MY DATA AS JSON
               </button>
-              <p className="drawer-data-hint">Downloads a .json backup file of all your progress.</p>
+              <p className="drawer-data-hint">Downloads every Debt localStorage key: cards, payment/history logs, preferences, and Plaid mapping/session data. Keep it safe.</p>
 
               <input
                 ref={fileInputRef}

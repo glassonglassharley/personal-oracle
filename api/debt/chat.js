@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk')
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY_DEBT || process.env.ANTHROPIC_API_KEY
+const client = new Anthropic({ apiKey: anthropicApiKey })
 
 function money(value) {
   const num = Number(value) || 0
@@ -95,8 +96,8 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'Missing question or store data' })
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+  if (!anthropicApiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY_DEBT not configured' })
   }
 
   try {
