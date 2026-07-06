@@ -209,6 +209,19 @@ const MIGRATIONS = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_balance NUMERIC NOT NULL DEFAULT 0;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_updated_at TIMESTAMPTZ;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_privacy JSONB NOT NULL DEFAULT '{"show_vices":true,"show_spend":true,"show_streak":true,"show_xp":true}'::jsonb;
+
+  -- First sync slice: one row per (user, date, exercise), reps is an absolute
+  -- daily total (matches Training Log's own semantics) so re-syncing upserts.
+  CREATE TABLE IF NOT EXISTS training_entries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    exercise TEXT NOT NULL,
+    reps INTEGER NOT NULL DEFAULT 0,
+    source TEXT NOT NULL DEFAULT 'training-log',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, date, exercise)
+  );
 `;
 
 const { backupEntries } = require('./backup');
@@ -228,6 +241,9 @@ async function initDb() {
   console.log('DB schema ready');
 }
 
-initDb().catch(err => console.error('[DB INIT ERROR]', err.stack || err.message));
+// initDb is exported, not invoked here — importing this module must be side-effect
+// free (no connection, no migration). The server entrypoint calls pool.initDb()
+// explicitly during boot.
+pool.initDb = initDb;
 
 module.exports = pool;
