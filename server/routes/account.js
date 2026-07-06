@@ -158,7 +158,7 @@ router.get('/export', async (req, res, next) => {
 
     const dateStr = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="vice-tracker-export-${dateStr}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="personal-oracle-export-${dateStr}.json"`);
     res.send(JSON.stringify(data, null, 2));
   } catch (err) { next(err); }
 });

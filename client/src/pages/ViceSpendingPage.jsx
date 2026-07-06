@@ -658,7 +658,7 @@ function ConnectionsPage({ vice }) {
   return (
     <main className="main" data-screen-label="Connections" style={{ "--vice-c": vice.color }}>
       <div className="crumbs">
-        <span>Vice tracker</span>
+        <span>Personal Oracle</span>
         <span className="sep">/</span>
         <span style={{ color: vice.color, fontWeight: 500 }}>{vice.name}</span>
         <span className="sep">/</span>
@@ -974,7 +974,7 @@ function StubPage({ title, lede, bullets, vice }) {
   return (
     <main className="main" data-screen-label={title} style={{ "--vice-c": vice.color }}>
       <div className="crumbs">
-        <span>Vice tracker</span>
+        <span>Personal Oracle</span>
         <span className="sep">/</span>
         <span style={{ color: vice.color, fontWeight: 500 }}>{vice.name}</span>
         <span className="sep">/</span>
@@ -1102,7 +1102,7 @@ export default function ViceSpendingPage() {
       {page === "savings" && (
       <main className="main" data-screen-label="Savings" style={{ "--vice-c": vice.color }}>
         <div className="crumbs">
-          <span>Vice tracker</span>
+          <span>Personal Oracle</span>
           <span className="sep">/</span>
           <span style={{ color: vice.color, fontWeight: 500 }}>{vice.name}</span>
           <span className="sep">/</span>

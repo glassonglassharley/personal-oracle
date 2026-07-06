@@ -107,7 +107,7 @@ export default function History() {
   return (
     <main className="main hist-page">
       <div className="crumbs">
-        <span>Vice Tracker</span>
+        <span>Personal Oracle</span>
         <span className="sep">›</span>
         <span className="here">Transaction Log</span>
       </div>
