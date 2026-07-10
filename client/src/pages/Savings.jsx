@@ -117,6 +117,27 @@ const CATEGORY_PRESETS = [
   { label: 'Custom',                emoji: '📦', rate: 0,   description: '' },
 ];
 
+const SAVINGS_BALANCE_ACCOUNT_TYPES = new Set(['depository', 'investment']);
+
+function plaidAccountKind(account) {
+  const type = String(account?.type || '').toLowerCase();
+  const subtype = String(account?.subtype || '').toLowerCase();
+
+  if (type === 'investment') {
+    if (subtype.includes('ira')) return 'Investment · IRA';
+    if (subtype === '401k') return 'Investment · 401(k)';
+    if (subtype) return `Investment · ${subtype.toUpperCase()}`;
+    return 'Investment';
+  }
+
+  if (type === 'depository') {
+    if (subtype) return subtype.charAt(0).toUpperCase() + subtype.slice(1);
+    return 'Depository';
+  }
+
+  return [account?.type, account?.subtype].filter(Boolean).join(' · ') || 'Account';
+}
+
 export default function Savings() {
   const api = useApi();
   const { vices, theme } = useViceContext();
@@ -288,13 +309,16 @@ export default function Savings() {
     setShowAccountPicker(false);
     try {
       const d = await api('/api/plaid/accounts');
-      const depository = (d.accounts || []).filter(a => a.type === 'depository');
-      if (depository.length === 0) {
-        setPlaidSyncError('No depository accounts found in your connected banks.');
-      } else if (depository.length === 1) {
-        setBalanceInput(depository[0].balance != null ? String(depository[0].balance) : '');
+      const balanceAccounts = (d.accounts || []).filter(a =>
+        SAVINGS_BALANCE_ACCOUNT_TYPES.has(String(a.type || '').toLowerCase()) &&
+        a.balance != null
+      );
+      if (balanceAccounts.length === 0) {
+        setPlaidSyncError('No checking, savings, or investment accounts with balances were found in your connected accounts.');
+      } else if (balanceAccounts.length === 1) {
+        setBalanceInput(String(balanceAccounts[0].balance));
       } else {
-        setPlaidAccounts(depository);
+        setPlaidAccounts(balanceAccounts);
         setShowAccountPicker(true);
       }
     } catch (err) {
@@ -561,7 +585,7 @@ export default function Savings() {
                     setPlaidAccounts([]);
                   }}
                 >
-                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({acct.subtype})</span></span>
+                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({plaidAccountKind(acct)})</span></span>
                   <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12 }}>{fmt$2(acct.balance)}</span>
                 </button>
               ))}
