@@ -255,7 +255,7 @@ router.get('/me/export', async (req, res, next) => {
     ).join('\n');
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="vice-tracker-export.csv"');
+    res.setHeader('Content-Disposition', 'attachment; filename="personal-oracle-export.csv"');
     res.send(header + body);
   } catch (err) { next(err); }
 });

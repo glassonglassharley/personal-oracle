@@ -246,7 +246,7 @@ export default function CreditDirectorChatbot({ store }) {
     ].slice(-10))
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/debt/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: cleaned, store }),

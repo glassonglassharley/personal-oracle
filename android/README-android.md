@@ -1,6 +1,6 @@
-# Vice Tracker — Android (TWA via Bubblewrap)
+# Personal Oracle — Android (TWA via Bubblewrap)
 
-This folder contains the configuration needed to wrap the Vice Tracker PWA as a
+This folder contains the configuration needed to wrap the Personal Oracle PWA as a
 Trusted Web Activity (TWA) and submit it to Google Play.
 
 ---

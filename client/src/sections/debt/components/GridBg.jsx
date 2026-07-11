@@ -16,7 +16,7 @@ export default function GridBg() {
       const vpX = W / 2
       const vpY = H * 0.28
 
-      const styles = getComputedStyle(document.body)
+      const styles = getComputedStyle(canvas)
       ctx.strokeStyle = styles.getPropertyValue('--grid-line').trim() || 'rgba(255, 0, 60, 0.07)'
       ctx.lineWidth = 1
 
@@ -56,7 +56,7 @@ export default function GridBg() {
     resize()
     window.addEventListener('resize', resize)
     const observer = new MutationObserver(draw)
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+    observer.observe(canvas.closest('.debt-app') || document.body, { attributes: true, attributeFilter: ['class'] })
     return () => {
       window.removeEventListener('resize', resize)
       observer.disconnect()
