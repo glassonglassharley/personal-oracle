@@ -121,16 +121,28 @@ const ALLOWED_ORIGINS = (() => {
   return origins;
 })();
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Allow same-origin / non-browser requests (Siri Shortcuts, server-to-server)
-    if (!origin) return cb(null, true);
-    const allowed = ALLOWED_ORIGINS.some(o =>
-      o instanceof RegExp ? o.test(origin) : o === origin
-    );
-    cb(allowed ? null : new Error('Not allowed by CORS'), allowed);
-  },
-  credentials: true,
+// personal-oracle-draft calls GET /api/oracle/summary cross-origin with a
+// Clerk session JWT (no shared secret). Scoped to that one path only —
+// every other path keeps the ALLOWED_ORIGINS behavior below, unchanged.
+const ORACLE_ORIGIN = process.env.ORACLE_ORIGIN || 'https://personal-oracle-draft.vercel.app';
+
+app.use(cors((req, callback) => {
+  if (req.path.startsWith('/api/oracle')) {
+    const allowed = req.headers.origin === ORACLE_ORIGIN;
+    return callback(allowed ? null : new Error('Not allowed by CORS'), {
+      origin: allowed ? ORACLE_ORIGIN : false,
+      credentials: true,
+      allowedHeaders: ['Authorization', 'Content-Type'],
+      methods: ['GET', 'OPTIONS'],
+    });
+  }
+
+  // Allow same-origin / non-browser requests (Siri Shortcuts, server-to-server)
+  if (!req.headers.origin) return callback(null, { origin: true, credentials: true });
+  const allowed = ALLOWED_ORIGINS.some(o =>
+    o instanceof RegExp ? o.test(req.headers.origin) : o === req.headers.origin
+  );
+  callback(allowed ? null : new Error('Not allowed by CORS'), { origin: allowed, credentials: true });
 }));
 app.use(express.json());
 app.use(clerkMiddleware());
@@ -170,6 +182,7 @@ app.use('/api/insights',      require('./routes/insights'));
 app.use('/api/assets',        require('./routes/assets'));
 app.use('/api/voice-tokens',  require('./routes/voice').tokenRouter);
 app.use('/api/account',       require('./routes/account'));
+app.use('/api/oracle',        require('./routes/oracle'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
