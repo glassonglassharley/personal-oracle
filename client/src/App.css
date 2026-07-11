@@ -3563,12 +3563,6 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .landing-demo-link:hover:not(:disabled) { color: rgba(232,239,224,0.60); }
 .landing-demo-link:disabled { opacity: 0.5; cursor: wait; }
-.landing-demo-error {
-  color: #ffb8a8;
-  font-size: 12.5px;
-  line-height: 1.45;
-  max-width: 360px;
-}
 
 /* ── Desktop right: stylized app mockup ── */
 .landing-visual {

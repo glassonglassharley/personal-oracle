@@ -1,9 +1,8 @@
 function requireSameOrigin(req, res) {
   const origin = req.headers.origin || ''
   const isLocal = /^https?:\/\/localhost(:\d+)?$/.test(origin)
-  const isDebtApp = /^https:\/\/debt-assassination[\w-]*\.vercel\.app$/.test(origin)
-  const isOracleApp = /^https:\/\/(personal-oracle|vice-tracker)[\w-]*\.vercel\.app$/.test(origin)
-  if (origin && !isLocal && !isDebtApp && !isOracleApp) {
+  const isOurApp = /^https:\/\/debt-assassination[\w-]*\.vercel\.app$/.test(origin)
+  if (origin && !isLocal && !isOurApp) {
     res.status(403).json({ error: 'Forbidden' })
     return false
   }

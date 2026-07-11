@@ -17,7 +17,7 @@ const EMAIL_CODE_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 // Rate limiters
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts. Try again in 15 minutes.' } });
 const signupLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many accounts created from this IP. Try again later.' } });
-const demoLimiter  = rateLimit({ windowMs: 60 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many demo accounts from this IP. Try again later.' } });
+const demoLimiter  = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many demo accounts from this IP. Try again later.' } });
 const magicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many magic link requests. Try again in 15 minutes.' } });
 
 function getSecret() {

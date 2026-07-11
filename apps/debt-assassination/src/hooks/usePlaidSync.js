@@ -44,7 +44,7 @@ export function usePlaidSync({ store, addToast }) {
 
   async function fetchLinkToken() {
     try {
-      const res = await fetch('/api/debt/create-link-token', { method: 'POST' })
+      const res = await fetch('/api/create-link-token', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setLinkToken(data.link_token)
@@ -58,7 +58,7 @@ export function usePlaidSync({ store, addToast }) {
 
   const onLinkSuccess = useCallback(async (publicToken) => {
     try {
-      const res = await fetch('/api/debt/exchange-token', {
+      const res = await fetch('/api/exchange-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ public_token: publicToken }),
@@ -83,12 +83,12 @@ export function usePlaidSync({ store, addToast }) {
     setIsSyncing(true)
     try {
       const [balRes, liabRes] = await Promise.all([
-        fetch('/api/debt/get-balances', {
+        fetch('/api/get-balances', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ access_token: accessToken }),
         }),
-        fetch('/api/debt/get-liabilities', {
+        fetch('/api/get-liabilities', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ access_token: accessToken }),

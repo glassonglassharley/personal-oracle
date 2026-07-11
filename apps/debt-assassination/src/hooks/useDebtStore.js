@@ -361,10 +361,7 @@ export function useDebtStore() {
 
   function importState(rawJson) {
     try {
-      const incoming = JSON.parse(rawJson)
-      const parsed = Array.isArray(incoming?.debts)
-        ? incoming
-        : (Array.isArray(incoming?.data?.debts) ? incoming.data : null)
+      const parsed = JSON.parse(rawJson)
       if (!Array.isArray(parsed.debts)) return false
       const normalized = {
         ...parsed,

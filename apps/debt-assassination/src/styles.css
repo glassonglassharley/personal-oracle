@@ -1,7 +1,7 @@
 /* ===================== DESIGN TOKENS ===================== */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600&display=swap');
 
-.debt-app {
+:root {
   --bg:       #0a0a12;
   --surface:  #12121e;
   --surface2: #1a1a2c;
@@ -28,7 +28,7 @@
   --radius-sm: 4px;
 }
 
-.debt-app.theme-light {
+body.theme-light {
   --bg:       #f0ede8;
   --surface:  #ffffff;
   --surface2: #f7f4ef;
@@ -42,15 +42,12 @@
   --text:       #1a1828;
   --text-2:     rgba(26,24,40,0.6);
   --text-muted: rgba(26,24,40,0.35);
-}/* ===================== RESET ===================== */
+}
 
+/* ===================== RESET ===================== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-.debt-app, .debt-app *, .debt-app *::before, .debt-app *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-.debt-app {
-  position: relative;
-  flex: 1;
-  min-width: 0;
+html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
@@ -61,36 +58,36 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.debt-app button { font-family: inherit; cursor: pointer; border: none; background: none; }
-.debt-app input { font-family: inherit; color: inherit; }
-.debt-app a { color: inherit; }/* ===================== LAYOUT ===================== */
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+input  { font-family: inherit; color: inherit; }
+a      { color: inherit; }
 
-
-.debt-app .app-main {
+/* ===================== LAYOUT ===================== */
+.app-main {
   position: relative;
   z-index: 10;
   max-width: 680px;
   margin: 0 auto;
   padding: 20px 16px 80px;
-}/* ===================== GRID CANVAS (subtle) ===================== */
+}
 
-
-.debt-app .grid-canvas {
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 100vh;
+/* ===================== GRID CANVAS (subtle) ===================== */
+.grid-canvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 0; pointer-events: none;
   opacity: 0.35;
-}/* ===================== CRT OVERLAY (very subtle) ===================== */
+}
 
-
-.debt-app .crt-overlay {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+/* ===================== CRT OVERLAY (very subtle) ===================== */
+.crt-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.02) 3px, rgba(0,0,0,0.02) 4px);
   pointer-events: none; z-index: 99;
-}/* ===================== VIEW TOGGLE ===================== */
+}
 
-
-.debt-app .view-toggle {
+/* ===================== VIEW TOGGLE ===================== */
+.view-toggle {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -98,7 +95,7 @@
   margin-bottom: 24px;
 }
 
-.debt-app .view-toggle-btn {
+.view-toggle-btn {
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 700;
@@ -110,30 +107,30 @@
   transition: all 0.18s;
   min-height: 34px;
 }
-.debt-app .view-toggle-btn:hover { color: var(--text); border-color: var(--red); }
-.debt-app .view-toggle-btn.active {
+.view-toggle-btn:hover { color: var(--text); border-color: var(--red); }
+.view-toggle-btn.active {
   background: var(--red);
   border-color: var(--red);
   color: #fff;
 }
 
-.debt-app .theme-mode-toggle {
+.theme-mode-toggle {
   border-color: rgba(255,200,48,0.35);
   color: var(--gold);
   background: var(--gold-dim);
 }
-.debt-app.theme-light .theme-mode-toggle {
+body.theme-light .theme-mode-toggle {
   background: rgba(168,112,0,0.08);
   border-color: rgba(168,112,0,0.35);
-}/* ===================== HEADER ===================== */
+}
 
-
-.debt-app .app-header {
+/* ===================== HEADER ===================== */
+.app-header {
   text-align: center;
   margin-bottom: 24px;
 }
 
-.debt-app .app-title {
+.app-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.5rem, 6vw, 2.2rem);
@@ -143,16 +140,16 @@
   position: relative;
   display: inline-block;
 }
-.debt-app .app-title .title-accent { color: var(--red); }/* keep glitch layers but very subtle - only flash occasionally */
+.app-title .title-accent { color: var(--red); }
 
-
-.debt-app .glitch-layer { position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; font-family: var(--font-display); font-weight: 900; font-size: inherit; user-select: none; }
-.debt-app .glitch-red { color: var(--red); animation: glitch-r 8s infinite; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%); }
-.debt-app .glitch-cyan { color: var(--cyan); animation: glitch-c 8s infinite; clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%); opacity: 0.5; }
+/* keep glitch layers but very subtle - only flash occasionally */
+.glitch-layer { position: absolute; top: 0; left: 0; width: 100%; pointer-events: none; font-family: var(--font-display); font-weight: 900; font-size: inherit; user-select: none; }
+.glitch-red  { color: var(--red); animation: glitch-r 8s infinite; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%); }
+.glitch-cyan { color: var(--cyan); animation: glitch-c 8s infinite; clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%); opacity: 0.5; }
 @keyframes glitch-r { 0%,93%,100% { transform: translateX(0); opacity: 0; } 94% { transform: translateX(-4px); opacity: 0.7; } 96% { transform: translateX(4px); opacity: 0.7; } 98% { opacity: 0; } }
 @keyframes glitch-c { 0%,88%,100% { transform: translateX(0); opacity: 0; } 89% { transform: translateX(4px); opacity: 0.5; } 91% { transform: translateX(-4px); opacity: 0.5; } 93% { opacity: 0; } }
 
-.debt-app .app-subtitle {
+.app-subtitle {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -160,7 +157,7 @@
   margin-top: 8px;
 }
 
-.debt-app .snowball-line {
+.snowball-line {
   font-size: 12px;
   color: var(--gold);
   letter-spacing: 0.12em;
@@ -168,35 +165,35 @@
   font-family: var(--font-mono);
 }
 
-.debt-app .autopay-total-line {
+.autopay-total-line {
   font-size: 11px;
   color: var(--text-2);
   letter-spacing: 0.1em;
   margin-top: 3px;
   font-family: var(--font-mono);
-}/* ===================== STATS ROW ===================== */
+}
 
-
-.debt-app .stats-row {
+/* ===================== STATS ROW ===================== */
+.stats-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 16px;
 }
-.debt-app .stats-row-four { grid-template-columns: repeat(4, 1fr); }
+.stats-row-four { grid-template-columns: repeat(4, 1fr); }
 
 @media (max-width: 480px) {
-  .debt-app .stats-row-four { grid-template-columns: repeat(2, 1fr); }
+  .stats-row-four { grid-template-columns: repeat(2, 1fr); }
 }
 
-.debt-app .stat-card {
+.stat-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 12px;
 }
 
-.debt-app .stat-label {
+.stat-label {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
@@ -206,21 +203,21 @@
   margin-bottom: 5px;
 }
 
-.debt-app .stat-value {
+.stat-value {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1rem, 3.5vw, 1.3rem);
   color: var(--text);
   line-height: 1.1;
 }
-.debt-app .stat-value.gold { color: var(--gold); }
+.stat-value.gold { color: var(--gold); }
 
-.debt-app .bleeding-card { border-color: rgba(255,32,64,0.25); background: rgba(255,32,64,0.04); }
-.debt-app .bleeding-val { color: var(--red); }
-.debt-app .bleeding-empty { color: var(--text-muted); }/* ===================== CLEARANCE LEVEL PANEL ===================== */
+.bleeding-card { border-color: rgba(255,32,64,0.25); background: rgba(255,32,64,0.04); }
+.bleeding-val { color: var(--red); }
+.bleeding-empty { color: var(--text-muted); }
 
-
-.debt-app .clearance-panel {
+/* ===================== CLEARANCE LEVEL PANEL ===================== */
+.clearance-panel {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 16px;
@@ -231,9 +228,9 @@
   border-radius: var(--radius);
 }
 
-.debt-app .clearance-main, .debt-app .clearance-detail { position: relative; z-index: 1; }
+.clearance-main, .clearance-detail { position: relative; z-index: 1; }
 
-.debt-app .clearance-eyebrow {
+.clearance-eyebrow {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
@@ -241,7 +238,7 @@
   margin-bottom: 6px;
 }
 
-.debt-app .clearance-score {
+.clearance-score {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(2rem, 8vw, 2.8rem);
@@ -251,7 +248,7 @@
   margin-bottom: 6px;
 }
 
-.debt-app .clearance-tier {
+.clearance-tier {
   font-family: var(--font-display);
   font-weight: 900;
   color: var(--text);
@@ -259,14 +256,14 @@
   letter-spacing: 0.14em;
 }
 
-.debt-app .clearance-detail {
+.clearance-detail {
   display: flex;
   flex-direction: column;
   gap: 8px;
   justify-content: center;
 }
 
-.debt-app .clearance-row, .debt-app .clearance-sync-row, .debt-app .clearance-progress-meta {
+.clearance-row, .clearance-sync-row, .clearance-progress-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,13 +274,13 @@
   letter-spacing: 0.1em;
 }
 
-.debt-app .clearance-row strong {
+.clearance-row strong {
   font-family: var(--font-display);
   color: var(--gold);
   font-size: 13px;
 }
 
-.debt-app .clearance-progress-outer {
+.clearance-progress-outer {
   height: 8px;
   background: rgba(0,229,255,0.08);
   border: 1px solid rgba(0,229,255,0.15);
@@ -292,7 +289,7 @@
   margin-top: 3px;
 }
 
-.debt-app .clearance-progress-fill {
+.clearance-progress-fill {
   height: 100%;
   background: var(--cyan);
   box-shadow: 0 0 8px rgba(0,229,255,0.6);
@@ -300,7 +297,7 @@
   border-radius: 4px;
 }
 
-.debt-app .btn-sync-score {
+.btn-sync-score {
   border: 1px solid rgba(0,229,255,0.4);
   background: rgba(0,229,255,0.06);
   color: var(--cyan);
@@ -312,27 +309,27 @@
   min-height: 32px;
   transition: all 0.18s;
 }
-.debt-app .btn-sync-score:hover { background: rgba(0,229,255,0.12); border-color: var(--cyan); }
+.btn-sync-score:hover { background: rgba(0,229,255,0.12); border-color: var(--cyan); }
 
-.debt-app .sync-score-copy {
+.sync-score-copy {
   color: var(--text-2);
   font-size: 13px;
   line-height: 1.6;
   margin: 12px 0 16px;
 }
 
-.debt-app .sync-score-input {
+.sync-score-input {
   color: var(--cyan) !important;
   font-family: var(--font-display) !important;
   font-weight: 900 !important;
   font-size: 1.5rem !important;
   text-shadow: 0 0 10px rgba(0,229,255,0.35);
-}/* ===================== PROGRESS BAR ===================== */
+}
 
+/* ===================== PROGRESS BAR ===================== */
+.progress-section { margin-bottom: 20px; }
 
-.debt-app .progress-section { margin-bottom: 20px; }
-
-.debt-app .progress-meta {
+.progress-meta {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -341,32 +338,32 @@
   gap: 4px;
 }
 
-.debt-app .progress-meta-start, .debt-app .progress-meta-target {
+.progress-meta-start, .progress-meta-target {
   display: flex; flex-direction: column; gap: 2px;
 }
 
-.debt-app .progress-meta-label {
+.progress-meta-label {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   letter-spacing: 0.2em;
 }
 
-.debt-app .progress-meta-val {
+.progress-meta-val {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
   color: var(--text);
 }
 
-.debt-app .progress-meta-paid {
+.progress-meta-paid {
   font-family: var(--font-display);
   font-size: 13px;
   color: var(--gold);
   text-align: center;
 }
 
-.debt-app .progress-bar-outer {
+.progress-bar-outer {
   background: rgba(255,32,64,0.1);
   border: 1px solid rgba(255,32,64,0.2);
   height: 20px;
@@ -375,14 +372,14 @@
   overflow: hidden;
 }
 
-.debt-app .progress-bar-fill {
+.progress-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--red), #ff5070);
   transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
   border-radius: var(--radius-sm);
 }
 
-.debt-app .progress-bar-pct {
+.progress-bar-pct {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
@@ -393,10 +390,10 @@
   z-index: 2;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   pointer-events: none;
-}/* ===================== ACTIVE TARGET ===================== */
+}
 
-
-.debt-app .active-target {
+/* ===================== ACTIVE TARGET ===================== */
+.active-target {
   background: var(--surface);
   border: 1px solid var(--red);
   border-radius: var(--radius);
@@ -406,7 +403,7 @@
   text-align: center;
 }
 
-.debt-app .active-target-label {
+.active-target-label {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--red);
@@ -415,7 +412,7 @@
   text-transform: uppercase;
 }
 
-.debt-app .active-target-lender {
+.active-target-lender {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.2rem, 5vw, 1.5rem);
@@ -424,7 +421,7 @@
   margin-bottom: 8px;
 }
 
-.debt-app .active-target-balance {
+.active-target-balance {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(2.2rem, 9vw, 3rem);
@@ -439,7 +436,7 @@
   to   { text-shadow: 0 0 20px rgba(255,32,64,0.8), 0 0 40px rgba(255,32,64,0.4); }
 }
 
-.debt-app .active-target-instruction {
+.active-target-instruction {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -447,7 +444,7 @@
   margin-bottom: 18px;
 }
 
-.debt-app .btn-execute {
+.btn-execute {
   width: 100%;
   background: var(--red);
   color: #fff;
@@ -461,15 +458,15 @@
   transition: all 0.18s;
   box-shadow: 0 4px 16px rgba(255,32,64,0.25);
 }
-.debt-app .btn-execute:hover {
+.btn-execute:hover {
   background: #ff3350;
   box-shadow: 0 4px 24px rgba(255,32,64,0.45);
   transform: translateY(-1px);
 }
-.debt-app .btn-execute:active { transform: translateY(0); }/* ===================== ADD TARGET PANEL ===================== */
+.btn-execute:active { transform: translateY(0); }
 
-
-.debt-app .add-target-panel {
+/* ===================== ADD TARGET PANEL ===================== */
+.add-target-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -482,7 +479,7 @@
   flex-wrap: wrap;
 }
 
-.debt-app .add-target-label {
+.add-target-label {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -490,13 +487,13 @@
   margin-bottom: 4px;
 }
 
-.debt-app .add-target-copy {
+.add-target-copy {
   font-size: 12px;
   color: var(--text-2);
   line-height: 1.4;
 }
 
-.debt-app .btn-add-target {
+.btn-add-target {
   background: var(--surface2);
   border: 1px solid var(--border-hi);
   color: var(--text);
@@ -510,12 +507,12 @@
   white-space: nowrap;
   transition: all 0.18s;
 }
-.debt-app .btn-add-target:hover { border-color: var(--gold); color: var(--gold); }/* ===================== PHASE HEADER ===================== */
+.btn-add-target:hover { border-color: var(--gold); color: var(--gold); }
 
+/* ===================== PHASE HEADER ===================== */
+.phase-section { margin-bottom: 20px; }
 
-.debt-app .phase-section { margin-bottom: 20px; }
-
-.debt-app .phase-header {
+.phase-header {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -526,21 +523,21 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-.debt-app .phase-header.complete {
+.phase-header.complete {
   border-left-color: var(--gold);
   background: var(--gold-dim);
 }
 
-.debt-app .phase-code {
+.phase-code {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 18px;
   color: var(--red);
   min-width: 52px;
 }
-.debt-app .phase-header.complete .phase-code { color: var(--gold); }
+.phase-header.complete .phase-code { color: var(--gold); }
 
-.debt-app .phase-name {
+.phase-name {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 12px;
@@ -548,23 +545,23 @@
   letter-spacing: 0.08em;
 }
 
-.debt-app .phase-desc {
+.phase-desc {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
 }
 
-.debt-app .phase-kill-count {
+.phase-kill-count {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
-}/* ===================== DEBT LIST & CARDS ===================== */
+}
 
+/* ===================== DEBT LIST & CARDS ===================== */
+.debt-list { display: flex; flex-direction: column; gap: 8px; }
 
-.debt-app .debt-list { display: flex; flex-direction: column; gap: 8px; }
-
-.debt-app .debt-row {
+.debt-row {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -572,18 +569,18 @@
   transition: border-color 0.2s;
 }
 
-.debt-app .debt-row.is-active {
+.debt-row.is-active {
   border-color: rgba(255,32,64,0.55);
   box-shadow: 0 0 16px rgba(255,32,64,0.07);
 }
 
-.debt-app .debt-row.is-paid {
+.debt-row.is-paid {
   border-color: rgba(255,200,48,0.2);
   background: rgba(255,200,48,0.025);
   opacity: 0.75;
 }
 
-.debt-app .overlimit-badge {
+.overlimit-badge {
   display: inline-block;
   background: var(--orange);
   color: #fff;
@@ -593,20 +590,20 @@
   padding: 2px 8px;
   border-radius: 3px;
   margin-bottom: 8px;
-}/* Paid card */
+}
 
-
-.debt-app .debt-row-paid-inner {
+/* Paid card */
+.debt-row-paid-inner {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.debt-app .debt-paid-check {
+.debt-paid-check {
   font-size: 16px;
   color: var(--gold);
   flex-shrink: 0;
 }
-.debt-app .debt-paid-name {
+.debt-paid-name {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 14px;
@@ -614,37 +611,37 @@
   text-decoration: line-through;
   flex: 1;
 }
-.debt-app .debt-paid-badge {
+.debt-paid-badge {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--gold);
   letter-spacing: 0.1em;
   white-space: nowrap;
 }
-.debt-app .debt-paid-bar {
+.debt-paid-bar {
   height: 4px;
   background: var(--gold-dim);
   border-radius: 2px;
   margin-top: 8px;
   overflow: hidden;
 }
-.debt-app .debt-paid-bar-fill {
+.debt-paid-bar-fill {
   height: 100%;
   width: 100%;
   background: var(--gold);
   opacity: 0.5;
   border-radius: 2px;
-}/* Active card */
+}
 
-
-.debt-app .debt-row-top {
+/* Active card */
+.debt-row-top {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   margin-bottom: 10px;
 }
 
-.debt-app .debt-rank {
+.debt-rank {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 12px;
@@ -653,11 +650,11 @@
   padding-top: 3px;
   flex-shrink: 0;
 }
-.debt-app .debt-row.is-active .debt-rank { color: var(--red); }
+.debt-row.is-active .debt-rank { color: var(--red); }
 
-.debt-app .debt-lender-block { flex: 1; min-width: 0; }
+.debt-lender-block { flex: 1; min-width: 0; }
 
-.debt-app .debt-lender {
+.debt-lender {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 15px;
@@ -668,7 +665,7 @@
   text-overflow: ellipsis;
 }
 
-.debt-app .debt-balance-col {
+.debt-balance-col {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -676,16 +673,16 @@
   flex-shrink: 0;
 }
 
-.debt-app .debt-balance {
+.debt-balance {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 17px;
   color: var(--text);
   white-space: nowrap;
 }
-.debt-app .debt-balance.is-active-bal { color: var(--red); }
+.debt-balance.is-active-bal { color: var(--red); }
 
-.debt-app .debt-apr-badge {
+.debt-apr-badge {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -695,15 +692,15 @@
   border-radius: 3px;
 }
 
-.debt-app .debt-daily-badge {
+.debt-daily-badge {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--red);
   opacity: 0.75;
-}/* Progress bar on card */
+}
 
-
-.debt-app .debt-bar-outer {
+/* Progress bar on card */
+.debt-bar-outer {
   background: var(--red-dim);
   height: 6px;
   border-radius: 3px;
@@ -711,16 +708,16 @@
   overflow: hidden;
 }
 
-.debt-app .debt-bar-fill {
+.debt-bar-fill {
   height: 100%;
   background: var(--red);
   border-radius: 3px;
   transition: width 0.5s ease;
 }
-.debt-app .debt-bar-fill.gold-fill { background: var(--gold); }/* Stats row on card */
+.debt-bar-fill.gold-fill { background: var(--gold); }
 
-
-.debt-app .debt-stats-row {
+/* Stats row on card */
+.debt-stats-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -728,30 +725,30 @@
   margin-bottom: 10px;
 }
 
-.debt-app .debt-stat { display: flex; align-items: baseline; gap: 4px; }
+.debt-stat { display: flex; align-items: baseline; gap: 4px; }
 
-.debt-app .debt-stat-val {
+.debt-stat-val {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-2);
 }
 
-.debt-app .debt-stat-lbl {
+.debt-stat-lbl {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   letter-spacing: 0.1em;
 }
 
-.debt-app .debt-daily { font-size: 11px; color: var(--red); font-family: var(--font-mono); }
-.debt-app .debt-min-chip {
+.debt-daily { font-size: 11px; color: var(--red); font-family: var(--font-mono); }
+.debt-min-chip {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   margin-left: auto;
 }
 
-.debt-app .debt-neutralized {
+.debt-neutralized {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--gold);
@@ -762,17 +759,17 @@
   gap: 5px;
 }
 
-.debt-app .debt-lender.is-paid-text { text-decoration: line-through; color: var(--text-muted); }/* Card actions */
+.debt-lender.is-paid-text { text-decoration: line-through; color: var(--text-muted); }
 
-
-.debt-app .debt-actions {
+/* Card actions */
+.debt-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.debt-app .btn-pay {
+.btn-pay {
   min-height: 38px;
   padding: 0 16px;
   font-family: var(--font-display);
@@ -784,9 +781,9 @@
   border-radius: var(--radius-sm);
   transition: opacity 0.18s, box-shadow 0.18s;
 }
-.debt-app .btn-pay:hover { opacity: 0.85; box-shadow: 0 2px 12px var(--red-glow); }
+.btn-pay:hover { opacity: 0.85; box-shadow: 0 2px 12px var(--red-glow); }
 
-.debt-app .btn-pay-secondary {
+.btn-pay-secondary {
   min-height: 38px;
   padding: 0 14px;
   font-family: var(--font-display);
@@ -799,9 +796,9 @@
   transition: opacity 0.18s;
   background: var(--gold-dim);
 }
-.debt-app .btn-pay-secondary:hover { opacity: 0.8; }
+.btn-pay-secondary:hover { opacity: 0.8; }
 
-.debt-app .btn-icon {
+.btn-icon {
   background: none;
   border: none;
   color: var(--text-muted);
@@ -815,11 +812,11 @@
   border-radius: var(--radius-sm);
   transition: color 0.18s, background 0.18s;
 }
-.debt-app .btn-icon:hover { color: var(--text); background: var(--surface2); }
+.btn-icon:hover { color: var(--text); background: var(--surface2); }
 
-.debt-app .inline-edit-wrap { display: flex; align-items: center; gap: 4px; }
+.inline-edit-wrap { display: flex; align-items: center; gap: 4px; }
 
-.debt-app .inline-input {
+.inline-input {
   background: var(--surface2);
   border: 1px solid rgba(255,32,64,0.4);
   color: var(--gold);
@@ -831,9 +828,9 @@
   min-height: 38px;
   transition: border-color 0.18s;
 }
-.debt-app .inline-input:focus { border-color: var(--red); }
+.inline-input:focus { border-color: var(--red); }
 
-.debt-app .btn-inline-save {
+.btn-inline-save {
   background: var(--red);
   color: #fff;
   font-size: 12px;
@@ -842,7 +839,7 @@
   border-radius: var(--radius-sm);
 }
 
-.debt-app .btn-chip {
+.btn-chip {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -857,9 +854,9 @@
   transition: color 0.18s, border-color 0.18s;
   white-space: nowrap;
 }
-.debt-app .btn-chip:hover { color: var(--gold); border-color: rgba(255,200,48,0.3); }
+.btn-chip:hover { color: var(--gold); border-color: rgba(255,200,48,0.3); }
 
-.debt-app .debt-autopay-badge {
+.debt-autopay-badge {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--cyan);
@@ -874,10 +871,10 @@
   letter-spacing: 0.08em;
   transition: background 0.18s;
 }
-.debt-app .debt-autopay-badge:hover { background: rgba(0,229,255,0.14); }/* ===================== MODALS ===================== */
+.debt-autopay-badge:hover { background: rgba(0,229,255,0.14); }
 
-
-.debt-app .modal-overlay {
+/* ===================== MODALS ===================== */
+.modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(6,6,14,0.92);
   z-index: 200;
@@ -886,7 +883,7 @@
   backdrop-filter: blur(4px);
 }
 
-.debt-app .modal-card {
+.modal-card {
   background: var(--surface);
   border: 1px solid rgba(255,32,64,0.3);
   border-radius: var(--radius);
@@ -895,7 +892,7 @@
   box-shadow: 0 8px 48px rgba(0,0,0,0.5), 0 0 32px rgba(255,32,64,0.08);
 }
 
-.debt-app .modal-eyebrow {
+.modal-eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -903,7 +900,7 @@
   margin-bottom: 6px;
 }
 
-.debt-app .modal-lender {
+.modal-lender {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 18px;
@@ -912,7 +909,7 @@
   margin-bottom: 4px;
 }
 
-.debt-app .modal-balance {
+.modal-balance {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 2rem;
@@ -921,14 +918,14 @@
   line-height: 1;
 }
 
-.debt-app .quick-grid {
+.quick-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-bottom: 14px;
 }
 
-.debt-app .quick-btn {
+.quick-btn {
   background: var(--red-dim);
   border: 1px solid rgba(255,32,64,0.2);
   color: var(--red);
@@ -940,12 +937,12 @@
   border-radius: var(--radius-sm);
   transition: all 0.15s;
 }
-.debt-app .quick-btn:hover { background: rgba(255,32,64,0.18); border-color: var(--red); }
-.debt-app .quick-btn.selected { background: var(--red); color: #fff; border-color: var(--red); }
+.quick-btn:hover { background: rgba(255,32,64,0.18); border-color: var(--red); }
+.quick-btn.selected { background: var(--red); color: #fff; border-color: var(--red); }
 
-.debt-app .modal-field { margin-bottom: 16px; }
+.modal-field { margin-bottom: 16px; }
 
-.debt-app .modal-field-label {
+.modal-field-label {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -954,7 +951,7 @@
   margin-bottom: 7px;
 }
 
-.debt-app .modal-input {
+.modal-input {
   width: 100%;
   background: var(--surface2);
   border: 1px solid rgba(255,32,64,0.3);
@@ -966,17 +963,17 @@
   outline: none;
   transition: border-color 0.18s, box-shadow 0.18s;
 }
-.debt-app .modal-input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,32,64,0.12); }
+.modal-input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255,32,64,0.12); }
 
-.debt-app .modal-confirm {
+.modal-confirm {
   font-size: 13px;
   color: var(--text-2);
   margin-bottom: 18px;
   min-height: 1.4em;
 }
-.debt-app .modal-confirm .hl { color: var(--red); font-weight: 600; }
+.modal-confirm .hl { color: var(--red); font-weight: 600; }
 
-.debt-app .balance-delta-preview {
+.balance-delta-preview {
   border: 1px solid var(--border);
   background: var(--surface2);
   border-radius: var(--radius-sm);
@@ -984,23 +981,23 @@
   margin-bottom: 10px;
   font-size: 13px;
 }
-.debt-app .balance-delta-preview.is-increase { color: var(--orange); border-color: rgba(255,140,0,0.3); background: rgba(255,140,0,0.06); }
-.debt-app .balance-delta-preview.is-decrease { color: var(--gold); border-color: rgba(255,200,48,0.3); background: var(--gold-dim); }
+.balance-delta-preview.is-increase { color: var(--orange); border-color: rgba(255,140,0,0.3); background: rgba(255,140,0,0.06); }
+.balance-delta-preview.is-decrease { color: var(--gold); border-color: rgba(255,200,48,0.3); background: var(--gold-dim); }
 
-.debt-app .modal-help-text {
+.modal-help-text {
   color: var(--text-2);
   font-size: 13px;
   line-height: 1.5;
   margin-bottom: 4px;
 }
 
-.debt-app .modal-actions {
+.modal-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.debt-app .btn-abort {
+.btn-abort {
   padding: 14px;
   background: var(--surface2);
   border: 1px solid var(--border-hi);
@@ -1012,9 +1009,9 @@
   min-height: 48px;
   transition: all 0.18s;
 }
-.debt-app .btn-abort:hover { border-color: var(--text); color: var(--text); }
+.btn-abort:hover { border-color: var(--text); color: var(--text); }
 
-.debt-app .btn-modal-execute {
+.btn-modal-execute {
   padding: 14px;
   background: var(--red);
   color: #fff;
@@ -1027,11 +1024,11 @@
   transition: all 0.18s;
   box-shadow: 0 4px 14px rgba(255,32,64,0.25);
 }
-.debt-app .btn-modal-execute:hover { background: #ff3350; box-shadow: 0 4px 20px rgba(255,32,64,0.4); }
-.debt-app .btn-modal-execute:disabled { opacity: 0.35; cursor: not-allowed; }/* APR modal */
+.btn-modal-execute:hover { background: #ff3350; box-shadow: 0 4px 20px rgba(255,32,64,0.4); }
+.btn-modal-execute:disabled { opacity: 0.35; cursor: not-allowed; }
 
-
-.debt-app .apr-modal-title {
+/* APR modal */
+.apr-modal-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
@@ -1039,25 +1036,25 @@
   letter-spacing: 0.12em;
   margin-bottom: 4px;
 }
-.debt-app .apr-modal-subtitle {
+.apr-modal-subtitle {
   font-size: 14px;
   color: var(--text-2);
   margin-bottom: 18px;
 }
-.debt-app .apr-input {
+.apr-input {
   color: var(--gold) !important;
   font-family: var(--font-display) !important;
   font-weight: 700 !important;
 }
-.debt-app .apr-input::placeholder {
+.apr-input::placeholder {
   color: rgba(255,200,48,0.3) !important;
   font-family: var(--font-body) !important;
   font-weight: 400 !important;
   font-size: 13px !important;
-}/* Onboarding modal overrides */
+}
 
-
-.debt-app .onboarding-title {
+/* Onboarding modal overrides */
+.onboarding-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.2rem, 4vw, 1.6rem);
@@ -1065,9 +1062,9 @@
   letter-spacing: 0.08em;
   margin-bottom: 6px;
 }
-.debt-app .onboarding-lead { font-size: 14px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
-.debt-app .onboarding-step { display: flex; gap: 12px; margin-bottom: 14px; }
-.debt-app .onboarding-num {
+.onboarding-lead { font-size: 14px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
+.onboarding-step { display: flex; gap: 12px; margin-bottom: 14px; }
+.onboarding-num {
   font-family: var(--font-display);
   font-weight: 900;
   color: var(--red);
@@ -1075,21 +1072,21 @@
   flex-shrink: 0;
   min-width: 24px;
 }
-.debt-app .onboarding-step-body {}
-.debt-app .onboarding-step-title { font-weight: 600; color: var(--text); margin-bottom: 2px; font-size: 14px; }
-.debt-app .onboarding-step-desc { font-size: 13px; color: var(--text-2); line-height: 1.4; }/* SyncScore modal */
+.onboarding-step-body {}
+.onboarding-step-title { font-weight: 600; color: var(--text); margin-bottom: 2px; font-size: 14px; }
+.onboarding-step-desc { font-size: 13px; color: var(--text-2); line-height: 1.4; }
 
-
-.debt-app .sync-score-modal-title {
+/* SyncScore modal */
+.sync-score-modal-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.4rem;
   color: var(--cyan);
   margin-bottom: 4px;
-}/* ===================== PAYMENT HISTORY ===================== */
+}
 
-
-.debt-app .history-section {
+/* ===================== PAYMENT HISTORY ===================== */
+.history-section {
   margin-bottom: 20px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1097,7 +1094,7 @@
   overflow: hidden;
 }
 
-.debt-app .history-toggle {
+.history-toggle {
   width: 100%;
   background: none;
   color: var(--text-muted);
@@ -1111,15 +1108,15 @@
   align-items: center;
   transition: color 0.18s;
 }
-.debt-app .history-toggle:hover { color: var(--text); }
-.debt-app .history-toggle span:last-child { color: var(--red); font-size: 1rem; }
+.history-toggle:hover { color: var(--text); }
+.history-toggle span:last-child { color: var(--red); font-size: 1rem; }
 
-.debt-app .history-body {
+.history-body {
   padding: 12px 16px;
   border-top: 1px solid var(--border);
 }
 
-.debt-app .history-entry {
+.history-entry {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   gap: 10px;
@@ -1128,16 +1125,16 @@
   border-bottom: 1px solid var(--border);
   font-size: 12px;
 }
-.debt-app .history-entry:last-child { border-bottom: none; }
+.history-entry:last-child { border-bottom: none; }
 
-.debt-app .h-date { color: var(--text-muted); font-size: 11px; white-space: nowrap; font-family: var(--font-mono); }
-.debt-app .h-lender { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.debt-app .h-amount { font-family: var(--font-display); font-size: 13px; color: var(--red); font-weight: 700; white-space: nowrap; }
-.debt-app .h-after { color: var(--text-muted); white-space: nowrap; font-size: 11px; font-family: var(--font-mono); }
-.debt-app .history-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 16px 0; }/* ===================== MILESTONE OVERLAY ===================== */
+.h-date { color: var(--text-muted); font-size: 11px; white-space: nowrap; font-family: var(--font-mono); }
+.h-lender { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h-amount { font-family: var(--font-display); font-size: 13px; color: var(--red); font-weight: 700; white-space: nowrap; }
+.h-after { color: var(--text-muted); white-space: nowrap; font-size: 11px; font-family: var(--font-mono); }
+.history-empty { font-size: 13px; color: var(--text-muted); text-align: center; padding: 16px 0; }
 
-
-.debt-app .milestone-overlay {
+/* ===================== MILESTONE OVERLAY ===================== */
+.milestone-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(6,6,14,0.97);
   z-index: 300;
@@ -1148,7 +1145,7 @@
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
-.debt-app .milestone-pct {
+.milestone-pct {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(4.5rem, 20vw, 9rem);
@@ -1157,7 +1154,7 @@
   line-height: 1;
   margin-bottom: 16px;
 }
-.debt-app .milestone-title {
+.milestone-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(1.1rem, 5vw, 1.8rem);
@@ -1165,27 +1162,27 @@
   letter-spacing: 0.1em;
   margin-bottom: 16px;
 }
-.debt-app .milestone-copy {
+.milestone-copy {
   font-size: 15px;
   color: var(--text-2);
   max-width: 400px;
   line-height: 1.6;
   margin-bottom: 32px;
 }
-.debt-app .milestone-dismiss {
+.milestone-dismiss {
   font-family: var(--font-mono);
   font-size: 11px;
   color: rgba(255,255,255,0.15);
   letter-spacing: 0.25em;
   animation: blink 1.4s step-end infinite;
 }
-@keyframes blink { 50% { opacity: 0; } }/* ===================== CONFETTI ===================== */
+@keyframes blink { 50% { opacity: 0; } }
 
+/* ===================== CONFETTI ===================== */
+.confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 250; }
 
-.debt-app .confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 250; }/* ===================== PROTECTION FOOTER ===================== */
-
-
-.debt-app .protection-footer {
+/* ===================== PROTECTION FOOTER ===================== */
+.protection-footer {
   margin: 20px 0 16px;
   display: flex; gap: 14px; align-items: flex-start;
   padding: 16px;
@@ -1193,13 +1190,13 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.debt-app .protection-bar {
+.protection-bar {
   width: 3px; min-height: 60px;
   background: var(--gold); flex-shrink: 0;
   border-radius: 2px;
   box-shadow: 0 0 8px rgba(255,200,48,0.4);
 }
-.debt-app .protection-label {
+.protection-label {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 11px;
@@ -1207,11 +1204,11 @@
   letter-spacing: 0.18em;
   margin-bottom: 6px;
 }
-.debt-app .protection-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; }/* ===================== RESET BUTTON ===================== */
+.protection-text { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
 
-
-.debt-app .reset-section { text-align: center; margin-bottom: 32px; }
-.debt-app .btn-reset {
+/* ===================== RESET BUTTON ===================== */
+.reset-section { text-align: center; margin-bottom: 32px; }
+.btn-reset {
   color: rgba(237,240,247,0.1);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1219,15 +1216,15 @@
   padding: 10px 20px;
   transition: color 0.3s;
 }
-.debt-app .btn-reset:hover { color: rgba(255,32,64,0.4); }
-.debt-app .btn-reset.confirm { color: var(--orange); }/* ===================== TOASTS ===================== */
+.btn-reset:hover { color: rgba(255,32,64,0.4); }
+.btn-reset.confirm { color: var(--orange); }
 
-
-.debt-app .toast-container {
+/* ===================== TOASTS ===================== */
+.toast-container {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
   z-index: 400; display: flex; flex-direction: column-reverse; gap: 8px; align-items: center; pointer-events: none;
 }
-.debt-app .toast {
+.toast {
   font-family: var(--font-display);
   font-size: 11px; font-weight: 700;
   letter-spacing: 0.18em;
@@ -1237,20 +1234,20 @@
   white-space: nowrap;
 }
 @keyframes toast-rise { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.debt-app .toast-red { background: rgba(255,32,64,0.95); color: #fff; }
-.debt-app .toast-gold { background: rgba(255,200,48,0.95); color: #0a0a12; }/* ===================== CHATBOT ===================== */
+.toast-red  { background: rgba(255,32,64,0.95); color: #fff; }
+.toast-gold { background: rgba(255,200,48,0.95); color: #0a0a12; }
 
-
-.debt-app .director-chatbot {
+/* ===================== CHATBOT ===================== */
+.director-chatbot {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 20px;
   overflow: hidden;
 }
-.debt-app .director-chatbot.is-collapsed .director-header { border-bottom: none; }
+.director-chatbot.is-collapsed .director-header { border-bottom: none; }
 
-.debt-app .director-header {
+.director-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1259,7 +1256,7 @@
   gap: 12px;
 }
 
-.debt-app .director-eyebrow {
+.director-eyebrow {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--red);
@@ -1267,7 +1264,7 @@
   margin-bottom: 4px;
 }
 
-.debt-app .director-title {
+.director-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 16px;
@@ -1276,13 +1273,13 @@
   margin-bottom: 3px;
 }
 
-.debt-app .director-summary {
+.director-summary {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.debt-app .director-toggle {
+.director-toggle {
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 700;
@@ -1296,15 +1293,15 @@
   transition: all 0.18s;
   flex-shrink: 0;
 }
-.debt-app .director-toggle:hover { color: var(--text); border-color: var(--red); }
+.director-toggle:hover { color: var(--text); border-color: var(--red); }
 
-.debt-app .director-kpis {
+.director-kpis {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
 }
-.debt-app .director-kpis span {
+.director-kpis span {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
@@ -1312,16 +1309,16 @@
   border-right: 1px solid var(--border);
   white-space: nowrap;
 }
-.debt-app .director-kpis span:last-child { border-right: none; }
+.director-kpis span:last-child { border-right: none; }
 
-.debt-app .director-quick-prompts {
+.director-quick-prompts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
 }
-.debt-app .director-quick-prompts button {
+.director-quick-prompts button {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -1332,10 +1329,10 @@
   transition: all 0.15s;
   min-height: 34px;
 }
-.debt-app .director-quick-prompts button:hover:not(:disabled) { border-color: var(--red); color: var(--text); }
-.debt-app .director-quick-prompts button:disabled { opacity: 0.4; cursor: not-allowed; }
+.director-quick-prompts button:hover:not(:disabled) { border-color: var(--red); color: var(--text); }
+.director-quick-prompts button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.debt-app .director-messages {
+.director-messages {
   padding: 16px;
   max-height: 400px;
   overflow-y: auto;
@@ -1344,52 +1341,52 @@
   gap: 14px;
 }
 
-.debt-app .director-message { display: flex; flex-direction: column; gap: 5px; }
+.director-message { display: flex; flex-direction: column; gap: 5px; }
 
-.debt-app .director-message-label {
+.director-message-label {
   font-family: var(--font-display);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
   color: var(--text-muted);
 }
-.debt-app .director-message.advisor .director-message-label { color: var(--red); }
-.debt-app .director-message.user { align-items: flex-end; }
-.debt-app .director-message.user .director-message-label { color: var(--text-muted); }
+.director-message.advisor .director-message-label { color: var(--red); }
+.director-message.user { align-items: flex-end; }
+.director-message.user .director-message-label { color: var(--text-muted); }
 
-.debt-app .director-message-text {
+.director-message-text {
   font-size: 13px;
   color: var(--text-2);
   line-height: 1.65;
   max-width: 90%;
 }
-.debt-app .director-message.user .director-message-text {
+.director-message.user .director-message-text {
   background: var(--surface2);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   color: var(--text);
 }
-.debt-app .director-message.advisor .director-message-text { max-width: 100%; }
+.director-message.advisor .director-message-text { max-width: 100%; }
 
-.debt-app .director-message-text p { margin-bottom: 2px; }
-.debt-app .director-message-text p:last-child { margin-bottom: 0; }
+.director-message-text p { margin-bottom: 2px; }
+.director-message-text p:last-child { margin-bottom: 0; }
 
-.debt-app .director-thinking {
+.director-thinking {
   color: var(--red);
   font-style: italic;
   opacity: 0.7;
   animation: director-blink 1.1s step-start infinite;
 }
 @keyframes director-blink { 0%,100% { opacity: 0.7; } 50% { opacity: 0.2; } }
-.debt-app .director-message.is-streaming .director-message-label { opacity: 0.5; }
+.director-message.is-streaming .director-message-label { opacity: 0.5; }
 
-.debt-app .director-input-row {
+.director-input-row {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid var(--border);
 }
-.debt-app .director-input-row input {
+.director-input-row input {
   flex: 1;
   background: var(--surface2);
   border: 1px solid var(--border-hi);
@@ -1401,11 +1398,11 @@
   min-height: 42px;
   transition: border-color 0.18s;
 }
-.debt-app .director-input-row input:focus { border-color: var(--red); }
-.debt-app .director-input-row input:disabled { opacity: 0.5; }
-.debt-app .director-input-row input::placeholder { color: var(--text-muted); }
+.director-input-row input:focus { border-color: var(--red); }
+.director-input-row input:disabled { opacity: 0.5; }
+.director-input-row input::placeholder { color: var(--text-muted); }
 
-.debt-app .director-input-row button[type='submit'] {
+.director-input-row button[type='submit'] {
   background: var(--red);
   color: #fff;
   font-family: var(--font-display);
@@ -1418,18 +1415,18 @@
   transition: opacity 0.18s;
   white-space: nowrap;
 }
-.debt-app .director-input-row button[type='submit']:hover:not(:disabled) { opacity: 0.85; }
-.debt-app .director-input-row button[type='submit']:disabled { opacity: 0.35; cursor: not-allowed; }
+.director-input-row button[type='submit']:hover:not(:disabled) { opacity: 0.85; }
+.director-input-row button[type='submit']:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.debt-app .director-disclaimer {
+.director-disclaimer {
   font-size: 11px;
   color: var(--text-muted);
   padding: 8px 16px 12px;
   line-height: 1.5;
-}/* ===================== HAMBURGER MENU ===================== */
+}
 
-
-.debt-app .hamburger-btn {
+/* ===================== HAMBURGER MENU ===================== */
+.hamburger-btn {
   position: fixed;
   top: 14px; right: 16px;
   z-index: 150;
@@ -1442,9 +1439,9 @@
   display: flex; align-items: center; justify-content: center;
   transition: all 0.18s;
 }
-.debt-app .hamburger-btn:hover { color: var(--text); border-color: var(--red); }
+.hamburger-btn:hover { color: var(--text); border-color: var(--red); }
 
-.debt-app .hamburger-menu-panel {
+.hamburger-menu-panel {
   position: fixed;
   top: 0; right: 0; bottom: 0;
   width: min(320px, 92vw);
@@ -1456,39 +1453,39 @@
   box-shadow: -8px 0 32px rgba(0,0,0,0.5);
 }
 
-.debt-app .hamburger-header {
+.hamburger-header {
   padding: 16px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
 }
-.debt-app .hamburger-title {
+.hamburger-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 14px;
   color: var(--text);
   letter-spacing: 0.08em;
 }
-.debt-app .hamburger-close {
+.hamburger-close {
   color: var(--text-muted);
   font-size: 20px;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   transition: color 0.18s;
 }
-.debt-app .hamburger-close:hover { color: var(--text); }
+.hamburger-close:hover { color: var(--text); }
 
-.debt-app .hamburger-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.debt-app .hamburger-section-label {
+.hamburger-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.hamburger-section-label {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-muted);
   letter-spacing: 0.2em;
   margin-bottom: 10px;
 }
-.debt-app .hamburger-btn-row {
+.hamburger-btn-row {
   display: flex; flex-direction: column; gap: 6px;
 }
-.debt-app .hamburger-action-btn {
+.hamburger-action-btn {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text-2);
@@ -1499,12 +1496,12 @@
   transition: all 0.18s;
   min-height: 44px;
 }
-.debt-app .hamburger-action-btn:hover { border-color: var(--red); color: var(--text); }
-.debt-app .hamburger-action-btn.danger { border-color: rgba(255,32,64,0.25); color: var(--red); }
-.debt-app .hamburger-action-btn.danger:hover { background: var(--red-dim); }/* ===================== PLAID / ROBINHOOD / MODALS ===================== */
+.hamburger-action-btn:hover { border-color: var(--red); color: var(--text); }
+.hamburger-action-btn.danger { border-color: rgba(255,32,64,0.25); color: var(--red); }
+.hamburger-action-btn.danger:hover { background: var(--red-dim); }
 
-
-.debt-app .plaid-section-title, .debt-app .rh-modal-title, .debt-app .mapping-title {
+/* ===================== PLAID / ROBINHOOD / MODALS ===================== */
+.plaid-section-title, .rh-modal-title, .mapping-title {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 1.3rem;
@@ -1512,13 +1509,13 @@
   margin-bottom: 6px;
   letter-spacing: 0.06em;
 }
-.debt-app .plaid-desc, .debt-app .rh-modal-copy, .debt-app .mapping-desc {
+.plaid-desc, .rh-modal-copy, .mapping-desc {
   font-size: 13px;
   color: var(--text-2);
   line-height: 1.55;
   margin-bottom: 16px;
 }
-.debt-app .plaid-connected-badge {
+.plaid-connected-badge {
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(0,229,255,0.08);
   border: 1px solid rgba(0,229,255,0.2);
@@ -1528,51 +1525,51 @@
   padding: 5px 12px;
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
-}/* ===================== BATTLE MODE ===================== */
+}
 
-
-.debt-app .battle-shell-header {
+/* ===================== BATTLE MODE ===================== */
+.battle-shell-header {
   position: relative; z-index: 10;
   max-width: 680px; margin: 0 auto; padding: 20px 16px 0;
 }
 
-.debt-app .battle-main {
+.battle-main {
   position: relative; z-index: 10;
   max-width: 680px; margin: 0 auto; padding: 12px 16px 80px;
 }
 
-.debt-app .player-hud { margin-bottom: 20px; }
-.debt-app .player-hud-top { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
-.debt-app .player-name { font-family: var(--font-display); font-weight: 900; font-size: 16px; color: var(--red); letter-spacing: 0.08em; }
-.debt-app .player-stats { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.debt-app .player-stat { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
-.debt-app .player-stat strong { color: var(--text); font-weight: 600; }
+.player-hud { margin-bottom: 20px; }
+.player-hud-top { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+.player-name { font-family: var(--font-display); font-weight: 900; font-size: 16px; color: var(--red); letter-spacing: 0.08em; }
+.player-stats { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.player-stat { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+.player-stat strong { color: var(--text); font-weight: 600; }
 
-.debt-app .battle-bar-outer {
+.battle-bar-outer {
   height: 10px; background: rgba(255,32,64,0.1); border-radius: 5px;
   border: 1px solid rgba(255,32,64,0.2); overflow: hidden;
 }
-.debt-app .battle-bar-fill {
+.battle-bar-fill {
   height: 100%; background: var(--red); border-radius: 5px;
   transition: width 0.6s ease;
 }
 
-.debt-app .battle-deck { display: flex; flex-direction: column; gap: 14px; }
+.battle-deck { display: flex; flex-direction: column; gap: 14px; }
 
-.debt-app .enemy-card {
+.enemy-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 18px;
   transition: border-color 0.2s;
 }
-.debt-app .enemy-card.is-active-enemy { border-color: var(--red); box-shadow: 0 0 20px rgba(255,32,64,0.08); }
-.debt-app .enemy-card.is-defeated { opacity: 0.5; border-color: rgba(255,200,48,0.2); }
+.enemy-card.is-active-enemy { border-color: var(--red); box-shadow: 0 0 20px rgba(255,32,64,0.08); }
+.enemy-card.is-defeated { opacity: 0.5; border-color: rgba(255,200,48,0.2); }
 
-.debt-app .enemy-header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
-.debt-app .enemy-portrait { flex-shrink: 0; }
-.debt-app .villain-portrait-img { width: 52px; height: 52px; border-radius: var(--radius-sm); object-fit: cover; }
-.debt-app .villain-portrait-fallback {
+.enemy-header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+.enemy-portrait { flex-shrink: 0; }
+.villain-portrait-img { width: 52px; height: 52px; border-radius: var(--radius-sm); object-fit: cover; }
+.villain-portrait-fallback {
   width: 52px; height: 52px; border-radius: var(--radius-sm);
   background: var(--surface2); border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
@@ -1580,24 +1577,24 @@
   color: var(--red);
 }
 
-.debt-app .enemy-name { font-family: var(--font-display); font-weight: 900; font-size: 15px; color: var(--text); margin-bottom: 3px; }
-.debt-app .enemy-class { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.12em; margin-bottom: 3px; }
-.debt-app .enemy-flavor { font-size: 12px; color: var(--text-2); font-style: italic; line-height: 1.4; }
+.enemy-name { font-family: var(--font-display); font-weight: 900; font-size: 15px; color: var(--text); margin-bottom: 3px; }
+.enemy-class { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.12em; margin-bottom: 3px; }
+.enemy-flavor { font-size: 12px; color: var(--text-2); font-style: italic; line-height: 1.4; }
 
-.debt-app .enemy-health-outer {
+.enemy-health-outer {
   height: 8px; background: rgba(255,32,64,0.1); border-radius: 4px;
   border: 1px solid rgba(255,32,64,0.18); overflow: hidden; margin-bottom: 8px;
 }
-.debt-app .enemy-health-fill {
+.enemy-health-fill {
   height: 100%; background: var(--red); border-radius: 4px; transition: width 0.6s ease;
 }
 
-.debt-app .enemy-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
-.debt-app .enemy-stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: 0.14em; display: block; margin-bottom: 2px; }
-.debt-app .enemy-stat-value { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); }
-.debt-app .enemy-stat-value.is-red { color: var(--red); }
+.enemy-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.enemy-stat-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: 0.14em; display: block; margin-bottom: 2px; }
+.enemy-stat-value { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--text); }
+.enemy-stat-value.is-red { color: var(--red); }
 
-.debt-app .enemy-taunt {
+.enemy-taunt {
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
@@ -1609,7 +1606,7 @@
   line-height: 1.4;
 }
 
-.debt-app .btn-attack {
+.btn-attack {
   width: 100%;
   background: var(--red);
   color: #fff;
@@ -1623,58 +1620,58 @@
   transition: all 0.18s;
   box-shadow: 0 4px 14px rgba(255,32,64,0.2);
 }
-.debt-app .btn-attack:hover { background: #ff3350; box-shadow: 0 4px 24px rgba(255,32,64,0.4); transform: translateY(-1px); }/* Loot drop */
+.btn-attack:hover { background: #ff3350; box-shadow: 0 4px 24px rgba(255,32,64,0.4); transform: translateY(-1px); }
 
-
-.debt-app .loot-drop {
+/* Loot drop */
+.loot-drop {
   text-align: center; padding: 20px;
   background: var(--surface);
   border: 1px solid rgba(255,200,48,0.3);
   border-radius: var(--radius);
   margin-bottom: 14px;
 }
-.debt-app .loot-title {
+.loot-title {
   font-family: var(--font-display); font-weight: 900;
   font-size: 18px; color: var(--gold); margin-bottom: 6px;
 }
-.debt-app .loot-amount {
+.loot-amount {
   font-family: var(--font-display); font-weight: 900;
   font-size: 2rem; color: var(--text); margin-bottom: 4px;
-}/* Battle arena floor */
+}
 
-
-.debt-app .battle-arena-floor {
+/* Battle arena floor */
+.battle-arena-floor {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: var(--bg); border-top: 1px solid var(--border);
   padding: 12px 16px; z-index: 50;
   display: flex; gap: 10px; justify-content: center;
-}/* Victory screen */
+}
 
-
-.debt-app .victory-screen {
+/* Victory screen */
+.victory-screen {
   position: fixed; inset: 0; background: rgba(6,6,14,0.98); z-index: 400;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 32px; animation: fade-in 0.6s ease;
 }
-.debt-app .victory-title {
+.victory-title {
   font-family: var(--font-display); font-weight: 900;
   font-size: clamp(2.5rem, 12vw, 5rem); color: var(--gold);
   text-shadow: 0 0 24px rgba(255,200,48,0.5);
   margin-bottom: 16px; line-height: 1;
 }
-.debt-app .victory-sub {
+.victory-sub {
   font-family: var(--font-display); font-size: clamp(1rem, 4vw, 1.5rem);
   color: var(--text-2); letter-spacing: 0.1em; margin-bottom: 24px;
-}/* ===================== AUTOPAY CALENDAR ===================== */
+}
 
-
-.debt-app .autopay-calendar-title {
+/* ===================== AUTOPAY CALENDAR ===================== */
+.autopay-calendar-title {
   font-family: var(--font-display); font-weight: 900; font-size: 1.3rem; color: var(--text);
   margin-bottom: 4px;
 }
-.debt-app .autopay-calendar-desc { font-size: 13px; color: var(--text-2); margin-bottom: 16px; line-height: 1.5; }
-.debt-app .autopay-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; }
-.debt-app .autopay-day-cell {
+.autopay-calendar-desc { font-size: 13px; color: var(--text-2); margin-bottom: 16px; line-height: 1.5; }
+.autopay-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; }
+.autopay-day-cell {
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   background: var(--surface2);
@@ -1683,104 +1680,104 @@
   font-size: 11px; color: var(--text-muted);
   cursor: pointer; transition: all 0.15s; gap: 1px;
 }
-.debt-app .autopay-day-cell:hover { border-color: var(--red); color: var(--text); }
-.debt-app .autopay-day-cell.has-payment { border-color: rgba(255,200,48,0.4); background: var(--gold-dim); color: var(--gold); }
-.debt-app .autopay-day-cell .day-num { font-family: var(--font-display); font-size: 12px; font-weight: 700; }
-.debt-app .autopay-day-cell .day-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; }/* ===================== HARVEST MODAL ===================== */
+.autopay-day-cell:hover { border-color: var(--red); color: var(--text); }
+.autopay-day-cell.has-payment { border-color: rgba(255,200,48,0.4); background: var(--gold-dim); color: var(--gold); }
+.autopay-day-cell .day-num { font-family: var(--font-display); font-size: 12px; font-weight: 700; }
+.autopay-day-cell .day-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; }
 
-
-.debt-app .rh-modal-card { max-width: 480px; }
-.debt-app .rh-ticker-input { font-family: var(--font-mono) !important; text-transform: uppercase; }
-.debt-app .harvest-split-row { display: flex; gap: 8px; margin-bottom: 14px; }
-.debt-app .harvest-split-btn {
+/* ===================== HARVEST MODAL ===================== */
+.rh-modal-card { max-width: 480px; }
+.rh-ticker-input { font-family: var(--font-mono) !important; text-transform: uppercase; }
+.harvest-split-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.harvest-split-btn {
   flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   color: var(--text-muted); font-family: var(--font-mono); font-size: 11px;
   transition: all 0.15s;
 }
-.debt-app .harvest-split-btn.active { background: var(--gold-dim); border-color: rgba(255,200,48,0.4); color: var(--gold); }/* ===================== ADD DEBT MODAL ===================== */
+.harvest-split-btn.active { background: var(--gold-dim); border-color: rgba(255,200,48,0.4); color: var(--gold); }
 
-
-.debt-app .add-debt-title {
+/* ===================== ADD DEBT MODAL ===================== */
+.add-debt-title {
   font-family: var(--font-display); font-weight: 900; font-size: 1.3rem; color: var(--red); margin-bottom: 4px;
 }
-.debt-app .add-debt-desc { font-size: 13px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
-.debt-app .add-debt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.debt-app .add-debt-grid .modal-field { margin-bottom: 0; }
-.debt-app .add-debt-grid .full-width { grid-column: 1 / -1; }/* ===================== MAPPING MODAL ===================== */
+.add-debt-desc { font-size: 13px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
+.add-debt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.add-debt-grid .modal-field { margin-bottom: 0; }
+.add-debt-grid .full-width { grid-column: 1 / -1; }
 
-
-.debt-app .mapping-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-.debt-app .mapping-account-label { flex: 1; font-size: 13px; color: var(--text-2); }
-.debt-app .mapping-select {
+/* ===================== MAPPING MODAL ===================== */
+.mapping-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.mapping-account-label { flex: 1; font-size: 13px; color: var(--text-2); }
+.mapping-select {
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
   font-size: 12px; padding: 8px 10px; border-radius: var(--radius-sm); min-width: 140px;
   outline: none;
-}/* ===================== CLEARANCE / SYNC SCORE ===================== */
+}
 
-
-.debt-app .sync-score-modal { max-width: 380px; }
-.debt-app .sync-score-result {
+/* ===================== CLEARANCE / SYNC SCORE ===================== */
+.sync-score-modal { max-width: 380px; }
+.sync-score-result {
   background: var(--surface2); border: 1px solid rgba(0,229,255,0.2);
   border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px;
 }
-.debt-app .sync-score-result-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.14em; margin-bottom: 4px; }/* ===================== LIGHT THEME OVERRIDES ===================== */
+.sync-score-result-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.14em; margin-bottom: 4px; }
 
+/* ===================== LIGHT THEME OVERRIDES ===================== */
+body.theme-light .stat-card { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .debt-row { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .debt-row.is-active { border-color: rgba(204,16,48,0.4); }
+body.theme-light .modal-card { background: #fff; }
+body.theme-light .director-chatbot { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .inline-input,
+body.theme-light .modal-input { background: #f7f4ef; }
+body.theme-light .btn-chip { background: #f0ede8; border-color: rgba(0,0,0,0.1); }
+body.theme-light .hamburger-menu-panel { background: #fff; border-left-color: rgba(0,0,0,0.1); }
+body.theme-light .hamburger-action-btn { background: #f0ede8; border-color: rgba(0,0,0,0.08); }
+body.theme-light .director-input-row input { background: #f0ede8; border-color: rgba(0,0,0,0.12); }
+body.theme-light .director-message.user .director-message-text { background: #f0ede8; }
+body.theme-light .protection-footer { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .add-target-panel { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .history-section { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .active-target { background: #fff; }
+body.theme-light .clearance-panel { background: #fff; }
+body.theme-light .enemy-card { background: #fff; border-color: rgba(0,0,0,0.08); }
+body.theme-light .toast-gold { color: #fff; background: rgba(140,90,0,0.9); }
+body.theme-light .debt-apr-badge { background: #f0ede8; }
+body.theme-light .quick-btn { background: rgba(204,16,48,0.06); }
+body.theme-light .btn-pay-secondary { background: rgba(168,112,0,0.08); }
+body.theme-light .debt-bar-outer { background: rgba(204,16,48,0.08); }
+body.theme-light .clearance-progress-outer { background: rgba(0,112,160,0.08); }
+body.theme-light .progress-bar-outer { background: rgba(204,16,48,0.08); border-color: rgba(204,16,48,0.15); }
+body.theme-light .director-kpis span { color: var(--text-2); }
+body.theme-light .debt-row.is-paid { background: rgba(168,112,0,0.04); }
+body.theme-light .history-body { border-top-color: rgba(0,0,0,0.06); }
 
-.debt-app.theme-light .stat-card { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .debt-row { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .debt-row.is-active { border-color: rgba(204,16,48,0.4); }
-.debt-app.theme-light .modal-card { background: #fff; }
-.debt-app.theme-light .director-chatbot { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .inline-input, .debt-app.theme-light .modal-input { background: #f7f4ef; }
-.debt-app.theme-light .btn-chip { background: #f0ede8; border-color: rgba(0,0,0,0.1); }
-.debt-app.theme-light .hamburger-menu-panel { background: #fff; border-left-color: rgba(0,0,0,0.1); }
-.debt-app.theme-light .hamburger-action-btn { background: #f0ede8; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .director-input-row input { background: #f0ede8; border-color: rgba(0,0,0,0.12); }
-.debt-app.theme-light .director-message.user .director-message-text { background: #f0ede8; }
-.debt-app.theme-light .protection-footer { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .add-target-panel { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .history-section { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .active-target { background: #fff; }
-.debt-app.theme-light .clearance-panel { background: #fff; }
-.debt-app.theme-light .enemy-card { background: #fff; border-color: rgba(0,0,0,0.08); }
-.debt-app.theme-light .toast-gold { color: #fff; background: rgba(140,90,0,0.9); }
-.debt-app.theme-light .debt-apr-badge { background: #f0ede8; }
-.debt-app.theme-light .quick-btn { background: rgba(204,16,48,0.06); }
-.debt-app.theme-light .btn-pay-secondary { background: rgba(168,112,0,0.08); }
-.debt-app.theme-light .debt-bar-outer { background: rgba(204,16,48,0.08); }
-.debt-app.theme-light .clearance-progress-outer { background: rgba(0,112,160,0.08); }
-.debt-app.theme-light .progress-bar-outer { background: rgba(204,16,48,0.08); border-color: rgba(204,16,48,0.15); }
-.debt-app.theme-light .director-kpis span { color: var(--text-2); }
-.debt-app.theme-light .debt-row.is-paid { background: rgba(168,112,0,0.04); }
-.debt-app.theme-light .history-body { border-top-color: rgba(0,0,0,0.06); }/* ===================== MISC / LEGACY COMPAT ===================== */
+/* ===================== MISC / LEGACY COMPAT ===================== */
 /* Scanline beam removed for cleaner look */
+.scanline-beam { display: none; }
 
-
-
-.debt-app .scanline-beam { display: none; }/* Legacy .modal-card styles from older modals */
-
-
-.debt-app select.modal-input {
+/* Legacy .modal-card styles from older modals */
+select.modal-input {
   appearance: none; cursor: pointer;
-}/* Scrollbar styling */
+}
 
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+body.theme-light ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
 
-.debt-app ::-webkit-scrollbar { width: 6px; height: 6px; }
-.debt-app ::-webkit-scrollbar-track { background: transparent; }
-.debt-app ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-.debt-app ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-.debt-app.theme-light ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }/* Mobile tweaks */
-
-
-.debt-app @media (max-width: 520px) {
-  .debt-app .app-main { padding: 14px 12px 80px; }
-  .debt-app .view-toggle { margin-bottom: 16px; }
-  .debt-app .modal-card { padding: 20px 16px; }
-  .debt-app .quick-grid { grid-template-columns: repeat(4, 1fr); }
-  .debt-app .debt-lender { font-size: 14px; }
-  .debt-app .clearance-panel { grid-template-columns: 1fr; gap: 10px; }
-  .debt-app .stats-row-four { grid-template-columns: repeat(2, 1fr); }
-  .debt-app .add-debt-grid { grid-template-columns: 1fr; }
-  .debt-app .add-debt-grid .full-width { grid-column: 1; }
-  .debt-app .modal-actions { grid-template-columns: 1fr 1fr; }
+/* Mobile tweaks */
+@media (max-width: 520px) {
+  .app-main { padding: 14px 12px 80px; }
+  .view-toggle { margin-bottom: 16px; }
+  .modal-card { padding: 20px 16px; }
+  .quick-grid { grid-template-columns: repeat(4, 1fr); }
+  .debt-lender { font-size: 14px; }
+  .clearance-panel { grid-template-columns: 1fr; gap: 10px; }
+  .stats-row-four { grid-template-columns: repeat(2, 1fr); }
+  .add-debt-grid { grid-template-columns: 1fr; }
+  .add-debt-grid .full-width { grid-column: 1; }
+  .modal-actions { grid-template-columns: 1fr 1fr; }
 }

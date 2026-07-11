@@ -1,13 +1,9 @@
-const { plaidClient, plaidConfig } = require('./_plaid')
+const { plaidClient } = require('./_plaid')
 const { requireSameOrigin } = require('./_validate')
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   if (!requireSameOrigin(req, res)) return
-
-  if (!plaidConfig.hasClientId || !plaidConfig.hasSecret) {
-    return res.status(500).json({ error: 'Debt Plaid credentials not configured' })
-  }
 
   try {
     const response = await plaidClient.linkTokenCreate({
