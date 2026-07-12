@@ -52,7 +52,7 @@ function computeBestStreak(dateMap) {
 }
 
 const EMPTY_SUMMARY = {
-  todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0,
+  todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0, allTimeSpend: 0,
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
   perVice: [], last7Days: [], viceEntries: [],
 };
@@ -73,7 +73,8 @@ router.get('/summary', async (req, res, next) => {
            COALESCE(SUM(CASE WHEN e.date = CURRENT_DATE THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
            COALESCE(SUM(CASE WHEN e.date >= CURRENT_DATE - INTERVAL '6 days' THEN e.quantity * e.price_per_unit END), 0)::float AS week_spend,
            COALESCE(SUM(CASE WHEN e.date >= DATE_TRUNC('month', CURRENT_DATE) THEN e.quantity * e.price_per_unit END), 0)::float AS month_spend,
-           COALESCE(SUM(CASE WHEN e.date >= DATE_TRUNC('year', CURRENT_DATE) THEN e.quantity * e.price_per_unit END), 0)::float AS year_spend
+           COALESCE(SUM(CASE WHEN e.date >= DATE_TRUNC('year', CURRENT_DATE) THEN e.quantity * e.price_per_unit END), 0)::float AS year_spend,
+           COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS all_time_spend
          FROM entries e JOIN vices v ON v.id = e.vice_id
          WHERE v.user_id = $1`,
         [userId]
@@ -115,11 +116,12 @@ router.get('/summary', async (req, res, next) => {
       // Recent logged entries across all vices, newest first — mirrors
       // /api/entries/all's shape (quantity > 0 only; clean-day zero-entries excluded).
       pool.query(
-        `SELECT e.id, e.vice_id, e.date::text AS date, e.quantity::float, e.price_per_unit::float
+        `SELECT e.id, e.vice_id, v.name AS vice_name, v.emoji AS emoji,
+                e.date::text AS date, e.quantity::float, e.price_per_unit::float
          FROM entries e JOIN vices v ON v.id = e.vice_id
          WHERE v.user_id = $1 AND e.quantity > 0
          ORDER BY e.date DESC, e.created_at DESC, e.id DESC
-         LIMIT 50`,
+         LIMIT 100`,
         [userId]
       ),
       pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
@@ -174,13 +176,23 @@ router.get('/summary', async (req, res, next) => {
       weekSpend: round2(periods.week_spend),
       monthSpend: round2(periods.month_spend),
       yearSpend: round2(periods.year_spend),
+      allTimeSpend: round2(periods.all_time_spend),
       cleanStreak: computeCurrentStreak(dateMap, today),
       bestStreak: computeBestStreak(dateMap),
       savingsBalance: round2(savingsRow.rows[0]?.savings_balance || 0),
       avgDailySpend,
       perVice,
       last7Days,
-      viceEntries: recentEntryRows.rows,
+      viceEntries: recentEntryRows.rows.map((r) => ({
+        id: r.id,
+        viceId: r.vice_id,
+        viceName: r.vice_name,
+        emoji: r.emoji,
+        date: r.date,
+        quantity: r.quantity,
+        pricePerUnit: r.price_per_unit,
+        total: round2(r.quantity * r.price_per_unit),
+      })),
       generatedAt: new Date().toISOString(),
     });
   } catch (err) { next(err); }
