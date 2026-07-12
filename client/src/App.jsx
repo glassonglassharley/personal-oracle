@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
-import { ClerkProvider, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { ClerkProvider, useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
@@ -1661,9 +1661,12 @@ function SignedOutContent() {
   );
 }
 
-// Routes based on our own auth state — no Clerk routing primitives
+// Routes based on our own auth state, plus Clerk's session as a fallback for
+// accounts that only ever signed in via Clerk (EmailAuth / MetaMask / Base) —
+// see the auth gate investigation for why this fallback was re-added.
 function AppRouter() {
   const { isDemo, isWallet } = useDemoAuth();
+  const { isSignedIn } = useAuth();
   const location = useLocation();
 
   // Legal pages are public — render without any auth requirement
@@ -1673,7 +1676,7 @@ function AppRouter() {
   // If a magic link is in the URL, always let SignedOutContent process it first —
   // even when already authenticated. Reset links must work from an active session.
   const hasMagic = new URLSearchParams(location.search).has('magic');
-  if ((isDemo || isWallet) && !hasMagic) return <AuthenticatedApp />;
+  if ((isDemo || isWallet || isSignedIn) && !hasMagic) return <AuthenticatedApp />;
   return <SignedOutContent />;
 }
 

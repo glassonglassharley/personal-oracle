@@ -1,4 +1,5 @@
 import { createContext, createElement, useContext, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 
 const DemoAuthContext = createContext(null);
 
@@ -273,6 +274,7 @@ export function useDemoAuth() {
 export function useApi() {
   const ctx = useContext(DemoAuthContext);
   const { isWallet, walletPublicKey, walletToken } = ctx;
+  const { getToken } = useAuth();
 
   return async (url, options = {}) => {
     const stored = readSession();
@@ -283,6 +285,13 @@ export function useApi() {
       headers['X-Wallet-Token']   = walletToken;
     } else if (stored?.jwt) {
       headers['Authorization'] = `Bearer ${stored.jwt}`;
+    } else {
+      // Neither VT JWT nor wallet token present — fall back to a Clerk session
+      // token so accounts that only ever signed in via Clerk (EmailAuth /
+      // MetaMask / Base) can still call the API. requireAuth() on the server
+      // already accepts this as the third auth path.
+      const clerkToken = await getToken();
+      if (clerkToken) headers['Authorization'] = `Bearer ${clerkToken}`;
     }
 
     const res = await fetch(url, { ...options, headers });
