@@ -54,7 +54,7 @@ function computeBestStreak(dateMap) {
 const EMPTY_SUMMARY = {
   todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0,
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
-  perVice: [], last7Days: [],
+  perVice: [], last7Days: [], viceEntries: [],
 };
 
 // GET /api/oracle/summary — combined, read-only aggregate across all of the
@@ -66,7 +66,7 @@ router.get('/summary', async (req, res, next) => {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ ...EMPTY_SUMMARY, generatedAt: new Date().toISOString() });
 
-    const [todayRow, periodsRow, perViceRows, last7Rows, streakRows, savingsRow] = await Promise.all([
+    const [todayRow, periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow] = await Promise.all([
       pool.query('SELECT CURRENT_DATE::text AS today'),
       pool.query(
         `SELECT
@@ -79,13 +79,13 @@ router.get('/summary', async (req, res, next) => {
         [userId]
       ),
       pool.query(
-        `SELECT v.name AS name,
+        `SELECT v.id AS id, v.name AS name, v.emoji AS emoji, v.unit_label AS unit_label, v.category AS category,
                 COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS total_spend,
                 COUNT(*) FILTER (WHERE e.quantity > 0)::int AS logged_days,
                 COUNT(*) FILTER (WHERE e.quantity = 0)::int AS clean_days
          FROM vices v LEFT JOIN entries e ON e.vice_id = v.id
          WHERE v.user_id = $1
-         GROUP BY v.id, v.name
+         GROUP BY v.id, v.name, v.emoji, v.unit_label, v.category
          ORDER BY total_spend DESC`,
         [userId]
       ),
@@ -103,17 +103,47 @@ router.get('/summary', async (req, res, next) => {
          GROUP BY e.date`,
         [userId]
       ),
+      // Per-vice version of the streakRows query above — same clean/dirty-day
+      // shape, just grouped by vice too, so computeCurrentStreak can run once per vice.
+      pool.query(
+        `SELECT e.vice_id AS vice_id, e.date::text AS date, BOOL_OR(e.quantity > 0) AS has_positive
+         FROM entries e JOIN vices v ON v.id = e.vice_id
+         WHERE v.user_id = $1
+         GROUP BY e.vice_id, e.date`,
+        [userId]
+      ),
+      // Recent logged entries across all vices, newest first — mirrors
+      // /api/entries/all's shape (quantity > 0 only; clean-day zero-entries excluded).
+      pool.query(
+        `SELECT e.id, e.vice_id, e.date::text AS date, e.quantity::float, e.price_per_unit::float
+         FROM entries e JOIN vices v ON v.id = e.vice_id
+         WHERE v.user_id = $1 AND e.quantity > 0
+         ORDER BY e.date DESC, e.created_at DESC, e.id DESC
+         LIMIT 50`,
+        [userId]
+      ),
       pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
     ]);
 
     const today = todayRow.rows[0].today;
     const periods = periodsRow.rows[0];
 
+    const perViceDateMap = {};
+    perViceStreakRows.rows.forEach((r) => {
+      if (!perViceDateMap[r.vice_id]) perViceDateMap[r.vice_id] = {};
+      perViceDateMap[r.vice_id][r.date] = !r.has_positive;
+    });
+
     const grandTotal = perViceRows.rows.reduce((sum, r) => sum + r.total_spend, 0);
     const perVice = perViceRows.rows.map((r) => ({
       name: r.name,
       total: round2(r.total_spend),
       pct: grandTotal > 0 ? round2((r.total_spend / grandTotal) * 100) : 0,
+      emoji: r.emoji,
+      cleanDays: computeCurrentStreak(perViceDateMap[r.id] || {}, today),
+      logCount: r.logged_days,
+      unitLabel: r.unit_label,
+      category: r.category,
     }));
 
     // Combined avg daily spend, weighted by each vice's estimated days —
@@ -150,6 +180,7 @@ router.get('/summary', async (req, res, next) => {
       avgDailySpend,
       perVice,
       last7Days,
+      viceEntries: recentEntryRows.rows,
       generatedAt: new Date().toISOString(),
     });
   } catch (err) { next(err); }
