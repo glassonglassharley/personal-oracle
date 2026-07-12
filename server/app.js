@@ -183,6 +183,7 @@ app.use('/api/assets',        require('./routes/assets'));
 app.use('/api/voice-tokens',  require('./routes/voice').tokenRouter);
 app.use('/api/account',       require('./routes/account'));
 app.use('/api/oracle',        require('./routes/oracle'));
+app.use('/api/training',      require('./routes/training'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
