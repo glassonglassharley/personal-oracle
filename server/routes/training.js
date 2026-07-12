@@ -13,19 +13,22 @@ router.post('/entries', async (req, res, next) => {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { date, exercise, reps } = req.body || {};
+    const { date, exercise, reps, source } = req.body || {};
     if (!DATE_RE.test(String(date || ''))) return res.status(400).json({ error: 'Invalid date' });
     const exerciseClean = String(exercise || '').trim().slice(0, 64);
     if (!exerciseClean) return res.status(400).json({ error: 'Invalid exercise' });
     const repsNum = Math.max(0, Math.floor(Number(reps) || 0));
+    const sourceClean = typeof source === 'string' && source.trim()
+      ? source.trim().toLowerCase().slice(0, 40)
+      : 'oracle';
 
     const result = await pool.query(
-      `INSERT INTO training_entries (user_id, date, exercise, reps, updated_at)
-       VALUES ($1, $2, $3, $4, now())
+      `INSERT INTO training_entries (user_id, date, exercise, reps, source, updated_at)
+       VALUES ($1, $2, $3, $4, $5, now())
        ON CONFLICT (user_id, date, exercise)
-       DO UPDATE SET reps = EXCLUDED.reps, updated_at = now()
-       RETURNING date, exercise, reps, updated_at`,
-      [userId, date, exerciseClean, repsNum]
+       DO UPDATE SET reps = EXCLUDED.reps, source = EXCLUDED.source, updated_at = now()
+       RETURNING date, exercise, reps, source, updated_at`,
+      [userId, date, exerciseClean, repsNum, sourceClean]
     );
     res.json({ ok: true, entry: result.rows[0] });
   } catch (err) { next(err); }
