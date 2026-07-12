@@ -55,7 +55,13 @@ const EMPTY_SUMMARY = {
   todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0, allTimeSpend: 0,
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
   perVice: [], last7Days: [], viceEntries: [],
+  training: { today: {}, last7: [], updatedAt: null },
 };
+
+// Same set personal-oracle-draft's own file-import path sums for its
+// "cumulative reps, last 7 days" chart (src/App.jsx REP_IDS) — steps/water
+// are tracked but deliberately excluded from that rep total there too.
+const REP_IDS = ['pushups', 'squats', 'situps', 'pullups', 'curls', 'bench', 'dips'];
 
 // GET /api/oracle/summary — combined, read-only aggregate across all of the
 // current user's vices, for personal-oracle-draft's cross-app dashboard.
@@ -66,7 +72,7 @@ router.get('/summary', async (req, res, next) => {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ ...EMPTY_SUMMARY, generatedAt: new Date().toISOString() });
 
-    const [todayRow, periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow] = await Promise.all([
+    const [todayRow, periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows] = await Promise.all([
       pool.query('SELECT CURRENT_DATE::text AS today'),
       pool.query(
         `SELECT
@@ -125,6 +131,23 @@ router.get('/summary', async (req, res, next) => {
         [userId]
       ),
       pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
+      // Today's reps by exercise — raw training_entries rows, no aggregation.
+      pool.query(
+        `SELECT exercise, reps::int AS reps, updated_at
+         FROM training_entries
+         WHERE user_id = $1 AND date = CURRENT_DATE`,
+        [userId]
+      ),
+      // Last 7 days of raw rows for the REP_IDS cumulative series below —
+      // same source rows personal-oracle-draft's file-import path derives
+      // trainingSeries from, just read live instead of from an export file.
+      pool.query(
+        `SELECT date::text AS date, exercise, reps::int AS reps
+         FROM training_entries
+         WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '6 days' AND date <= CURRENT_DATE
+           AND exercise = ANY($2::text[])`,
+        [userId, REP_IDS]
+      ),
     ]);
 
     const today = todayRow.rows[0].today;
@@ -171,6 +194,29 @@ router.get('/summary', async (req, res, next) => {
     const dateMap = {};
     streakRows.rows.forEach((r) => { dateMap[r.date] = !r.has_positive; });
 
+    const trainingToday = {};
+    let trainingUpdatedAt = null;
+    trainingTodayRows.rows.forEach((r) => {
+      trainingToday[r.exercise] = r.reps;
+      if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
+    });
+
+    // Cumulative rep total across the trailing 7 days, oldest to newest — same
+    // running-sum shape as personal-oracle-draft's own trainingSeries, just
+    // computed from live rows instead of an imported export's history array.
+    const trainingByDate = new Map();
+    trainingLast7Rows.rows.forEach((r) => {
+      trainingByDate.set(r.date, (trainingByDate.get(r.date) || 0) + r.reps);
+    });
+    let trainingRunning = 0;
+    const trainingLast7 = [];
+    for (let i = 6; i >= 0; i--) {
+      let cursor = today;
+      for (let j = 0; j < i; j++) cursor = subtractDay(cursor);
+      trainingRunning += trainingByDate.get(cursor) || 0;
+      trainingLast7.push(trainingRunning);
+    }
+
     res.json({
       todaySpend: round2(periods.today_spend),
       weekSpend: round2(periods.week_spend),
@@ -193,6 +239,11 @@ router.get('/summary', async (req, res, next) => {
         pricePerUnit: r.price_per_unit,
         total: round2(r.quantity * r.price_per_unit),
       })),
+      training: {
+        today: trainingToday,
+        last7: trainingLast7,
+        updatedAt: trainingUpdatedAt,
+      },
       generatedAt: new Date().toISOString(),
     });
   } catch (err) { next(err); }
