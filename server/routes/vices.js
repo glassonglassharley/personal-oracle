@@ -6,8 +6,8 @@ const { getInternalUserId, verifyViceOwnership, resolveUnitLabel } = require('..
 router.get('/', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);
-    console.log('DEBUG vices auth', { rawUserId: req.auth.userId, resolvedUid: uid });
     const r = await pool.query('SELECT * FROM vices WHERE user_id = $1 ORDER BY id', [uid]);
+    console.log('DEBUG vices auth', { rawUserId: req.auth.userId, resolvedUid: uid, rowCount: r.rows.length, dbHost: new URL(process.env.DATABASE_URL).hostname });
     res.json(r.rows);
   } catch (err) { next(err); }
 });
