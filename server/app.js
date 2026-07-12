@@ -127,7 +127,7 @@ const ALLOWED_ORIGINS = (() => {
 const ORACLE_ORIGIN = process.env.ORACLE_ORIGIN || 'https://personal-oracle-draft.vercel.app';
 
 app.use(cors((req, callback) => {
-  if (req.path.startsWith('/api/oracle')) {
+  if (req.path.startsWith('/api/oracle') || req.path.startsWith('/api/training')) {
     const allowed = req.headers.origin === ORACLE_ORIGIN;
     return callback(allowed ? null : new Error('Not allowed by CORS'), {
       origin: allowed ? ORACLE_ORIGIN : false,
