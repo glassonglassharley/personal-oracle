@@ -1,55 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
-const { getInternalUserId } = require('../utils');
-
-function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
-
-function subtractDay(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const prev = new Date(Date.UTC(y, m - 1, d - 1));
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(prev.getUTCDate())}`;
-}
-
-function dayDiff(a, b) {
-  return (new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
-}
-
-// Combined-across-vices version of stats.js's per-vice streak logic: a day
-// is clean only if no vice has a positive entry that date.
-function computeCurrentStreak(dateMap, todayStr) {
-  let streak = 0;
-  let current = todayStr;
-  let skippedToday = false;
-  for (let i = 0; i < 365; i++) {
-    if (current in dateMap) {
-      if (dateMap[current]) streak++;
-      else break;
-    } else if (streak === 0 && !skippedToday) {
-      skippedToday = true;
-    } else {
-      break;
-    }
-    current = subtractDay(current);
-  }
-  return streak;
-}
-
-function computeBestStreak(dateMap) {
-  const dates = Object.keys(dateMap).sort();
-  let best = 0, current = 0;
-  for (let i = 0; i < dates.length; i++) {
-    if (dateMap[dates[i]]) {
-      const consecutive = i === 0 || dayDiff(dates[i], dates[i - 1]) === 1;
-      current = consecutive ? current + 1 : 1;
-      if (current > best) best = current;
-    } else {
-      current = 0;
-    }
-  }
-  return best;
-}
+const {
+  getInternalUserId, round2, subtractDay, computeCurrentStreak, computeBestStreak,
+} = require('../utils');
+const { buildOracleContext } = require('../lib/oracleContext');
 
 const EMPTY_SUMMARY = {
   todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0, allTimeSpend: 0,
@@ -246,6 +201,184 @@ router.get('/summary', async (req, res, next) => {
       },
       generatedAt: new Date().toISOString(),
     });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/oracle/chat — cross-domain reasoning chat ──
+
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.warn('[STARTUP] ANTHROPIC_API_KEY is not set — Ask-the-Oracle will use fallback responses only.');
+}
+
+const ORACLE_CHAT_MODEL = 'claude-sonnet-5';
+const ORACLE_CHAT_DAILY_LIMIT = 30;
+
+function getClient() {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw Object.assign(new Error('ANTHROPIC_API_KEY not configured'), { status: 503 });
+  const Anthropic = require('@anthropic-ai/sdk');
+  return new Anthropic({ apiKey });
+}
+
+// Separate table from insights.js's coach_usage — keeps that live feature's
+// rate limiting untouched while this route gets its own budget.
+let oracleChatTableReady = false;
+async function ensureOracleChatUsageTable() {
+  if (oracleChatTableReady) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS oracle_chat_usage (
+      user_id       INTEGER NOT NULL,
+      usage_date    DATE    NOT NULL,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, usage_date)
+    )
+  `);
+  oracleChatTableReady = true;
+}
+
+async function checkOracleChatRateLimit(userId) {
+  await ensureOracleChatUsageTable();
+  const today = new Date().toISOString().split('T')[0];
+  await pool.query(
+    `INSERT INTO oracle_chat_usage (user_id, usage_date, message_count)
+     VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
+    [userId, today]
+  );
+  const r = await pool.query(
+    `UPDATE oracle_chat_usage
+     SET message_count = message_count + 1
+     WHERE user_id = $1 AND usage_date = $2 AND message_count < $3
+     RETURNING message_count`,
+    [userId, today, ORACLE_CHAT_DAILY_LIMIT]
+  );
+  if (r.rows.length === 0) return { allowed: false };
+  return { allowed: true, remaining: ORACLE_CHAT_DAILY_LIMIT - r.rows[0].message_count };
+}
+
+function formatContextForPrompt(context) {
+  const lines = [];
+
+  lines.push(`Data as of: ${context.generatedAt}`);
+  lines.push('');
+
+  lines.push('VICES (spend in USD, windowed):');
+  if (context.vices.length === 0) {
+    lines.push('  none tracked yet');
+  } else {
+    context.vices.forEach((v) => {
+      lines.push(
+        `  - ${v.emoji || ''} ${v.name} [${v.category || 'uncategorized'}]: ` +
+        `7d=$${v.spend7d}, 30d=$${v.spend30d}, 90d=$${v.spend90d}, all-time=$${v.spendAllTime}, ` +
+        `logged ${v.loggedDaysAllTime} day(s), first entry ${v.firstEntryDate || 'n/a'}`
+      );
+    });
+  }
+  lines.push(`  Whole-life clean-day streak: ${context.cleanStreak} (best: ${context.bestCleanStreak})`);
+  lines.push(`  Savings balance: $${context.savingsBalance}`);
+  lines.push('');
+
+  lines.push('TRAINING (reps, windowed):');
+  if (context.training.length === 0) {
+    lines.push('  none tracked yet');
+  } else {
+    context.training.forEach((t) => {
+      lines.push(
+        `  - ${t.exercise}: 7d=${t.reps7d}, 30d=${t.reps30d}, 90d=${t.reps90d}, all-time=${t.repsAllTime}, ` +
+        `active ${t.activeDaysAllTime} day(s), first entry ${t.firstEntryDate || 'n/a'}`
+      );
+    });
+  }
+  lines.push(`  Training-active streak: ${context.trainingStreak} (best: ${context.bestTrainingStreak})`);
+  lines.push('');
+
+  lines.push('CROSS-DOMAIN CORRELATION (next-day training volume, combined across vices — association only, not causation):');
+  const avd = context.correlation.afterViceDay;
+  const acd = context.correlation.afterCleanDay;
+  lines.push(`  - After a day with ANY vice logged (n=${avd.dayCount} days): avg next-day reps = ${avd.avgNextDayReps} (stddev ${avd.stddevNextDayReps})`);
+  lines.push(`  - After a CLEAN day (n=${acd.dayCount} days): avg next-day reps = ${acd.avgNextDayReps} (stddev ${acd.stddevNextDayReps})`);
+  lines.push('');
+
+  lines.push('DATA AVAILABILITY:');
+  Object.entries(context.dataSources).forEach(([key, has]) => {
+    lines.push(`  - ${key}: ${has ? 'available' : 'NOT available yet'}`);
+  });
+
+  return lines.join('\n');
+}
+
+function buildOracleChatSystemPrompt(context) {
+  return `You are the Oracle — an analytical data tool the user consults to understand their own tracked life data. Your job is to reason ACROSS domains (vice spending and training), not describe one in isolation. Nobody has connected these two datasets for the user before; that connection is the whole point of this feature.
+
+Rules:
+- Ground every claim in the numbers provided below. Never invent a figure, date, or trend that isn't in the data.
+- If asked about something with no backing data (debt, income — see DATA AVAILABILITY), say plainly "I don't have that data yet." Do not guess or estimate.
+- The CROSS-DOMAIN CORRELATION section is an association from a small sample, not a proven causal effect. Never claim the vice "causes" a training change — describe it as "on average" or "days that lined up." If the day counts are small (under ~10), say the sample is too small to be confident.
+- Be specific and numeric in recommendations. No generic wellness advice ("try to reduce stress", "stay consistent") — every suggestion should reference the user's actual spend, reps, or streak numbers.
+- Tone: direct, analytical, concise. You are a sharp analyst, not a cheerleader or a therapist. Skip preamble — lead with the finding.
+- Keep responses under 150 words unless the user is asking for a detailed breakdown.
+
+${formatContextForPrompt(context)}`;
+}
+
+function fallbackOracleReply(context) {
+  const topVice = context.vices[0];
+  const topExercise = [...context.training].sort((a, b) => b.repsAllTime - a.repsAllTime)[0];
+  const avd = context.correlation.afterViceDay;
+  const acd = context.correlation.afterCleanDay;
+
+  const parts = [];
+  parts.push(`Data as of ${context.generatedAt.slice(0, 10)}.`);
+  if (topVice) {
+    parts.push(`Top vice by spend: ${topVice.name} — $${topVice.spend30d} in the last 30 days, $${topVice.spendAllTime} all-time. Clean-day streak: ${context.cleanStreak} (best ${context.bestCleanStreak}).`);
+  } else {
+    parts.push('No vice data logged yet.');
+  }
+  if (topExercise) {
+    parts.push(`Most-trained exercise: ${topExercise.exercise} — ${topExercise.reps30d} reps in the last 30 days. Training streak: ${context.trainingStreak} (best ${context.bestTrainingStreak}).`);
+  } else {
+    parts.push('No training data logged yet.');
+  }
+  if (avd.dayCount > 0 || acd.dayCount > 0) {
+    parts.push(`Next-day reps average ${avd.avgNextDayReps} after a vice-logged day (n=${avd.dayCount}) vs ${acd.avgNextDayReps} after a clean day (n=${acd.dayCount}).`);
+  }
+  parts.push("(The Oracle's AI reasoning is temporarily unavailable — this is a data summary, not a personalized answer.)");
+  return parts.join(' ');
+}
+
+router.post('/chat', async (req, res, next) => {
+  const { messages: clientMessages = [] } = req.body;
+  if (!Array.isArray(clientMessages) || clientMessages.length === 0) {
+    return res.status(400).json({ error: 'messages required' });
+  }
+
+  try {
+    const userId = await getInternalUserId(req.auth?.userId);
+    if (!userId) return res.status(401).json({ error: 'Not signed in' });
+
+    const { allowed } = await checkOracleChatRateLimit(userId);
+    if (!allowed) {
+      return res.status(429).json({
+        text: "You've hit today's limit for Oracle conversations. Come back tomorrow — your data will still be here.",
+        rateLimited: true,
+      });
+    }
+
+    const context = await buildOracleContext(userId);
+
+    try {
+      const client = getClient();
+      const response = await client.messages.create({
+        model: ORACLE_CHAT_MODEL,
+        max_tokens: 800,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'medium' },
+        system: buildOracleChatSystemPrompt(context),
+        messages: clientMessages,
+      });
+      res.json({ text: response.content?.[0]?.text || '', dataAsOf: context.generatedAt });
+    } catch (aiErr) {
+      res.json({ text: fallbackOracleReply(context), fallback: true, dataAsOf: context.generatedAt });
+    }
   } catch (err) { next(err); }
 });
 

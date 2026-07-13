@@ -1,5 +1,53 @@
 const pool = require('./db');
 
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+function subtractDay(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(prev.getUTCDate())}`;
+}
+
+function dayDiff(a, b) {
+  return (new Date(`${a}T00:00:00Z`) - new Date(`${b}T00:00:00Z`)) / 86400000;
+}
+
+// Combined-across-vices (or combined-across-exercises) streak logic: a day
+// only counts when dateMap[date] is true (positive/logged that day).
+function computeCurrentStreak(dateMap, todayStr) {
+  let streak = 0;
+  let current = todayStr;
+  let skippedToday = false;
+  for (let i = 0; i < 365; i++) {
+    if (current in dateMap) {
+      if (dateMap[current]) streak++;
+      else break;
+    } else if (streak === 0 && !skippedToday) {
+      skippedToday = true;
+    } else {
+      break;
+    }
+    current = subtractDay(current);
+  }
+  return streak;
+}
+
+function computeBestStreak(dateMap) {
+  const dates = Object.keys(dateMap).sort();
+  let best = 0, current = 0;
+  for (let i = 0; i < dates.length; i++) {
+    if (dateMap[dates[i]]) {
+      const consecutive = i === 0 || dayDiff(dates[i], dates[i - 1]) === 1;
+      current = consecutive ? current + 1 : 1;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
+  }
+  return best;
+}
+
 function isNumericId(userId) {
   return typeof userId === 'number' || /^\d+$/.test(String(userId || ''));
 }
@@ -143,4 +191,5 @@ async function sendPushToUser(userId, { title, body, url = '/' }) {
 module.exports = {
   getInternalUserId, verifyViceOwnership, verifyEntryOwnership, resolveUnitLabel,
   LEVELS, getLevelInfo, awardXP, sendPushToUser,
+  round2, subtractDay, dayDiff, computeCurrentStreak, computeBestStreak,
 };

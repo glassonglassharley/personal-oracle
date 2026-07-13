@@ -133,7 +133,7 @@ app.use(cors((req, callback) => {
       origin: allowed ? ORACLE_ORIGIN : false,
       credentials: true,
       allowedHeaders: ['Authorization', 'Content-Type'],
-      methods: ['GET', 'OPTIONS'],
+      methods: ['GET', 'POST', 'OPTIONS'],
     });
   }
 
