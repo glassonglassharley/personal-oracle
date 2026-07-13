@@ -222,6 +222,16 @@ const MIGRATIONS = `
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, date, exercise)
   );
+
+  -- One row per user: Training Log's config.customExercises (real display
+  -- names for custom exercise ids) and config.goals, relayed on save_config
+  -- so Oracle can render real names/goals instead of raw ids and defaults.
+  CREATE TABLE IF NOT EXISTS training_config (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    custom_exercises JSONB NOT NULL DEFAULT '[]'::jsonb,
+    goals JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
 `;
 
 const { backupEntries } = require('./backup');

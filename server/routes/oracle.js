@@ -10,7 +10,7 @@ const EMPTY_SUMMARY = {
   todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0, allTimeSpend: 0,
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
   perVice: [], last7Days: [], viceEntries: [],
-  training: { today: {}, last7: [], history: [], updatedAt: null },
+  training: { today: {}, last7: [], history: [], customExercises: [], goals: {}, updatedAt: null },
 };
 
 // Same set personal-oracle-draft's own file-import path sums for its
@@ -61,7 +61,7 @@ router.get('/summary', async (req, res, next) => {
 
     const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
 
-    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows] = await Promise.all([
+    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows, trainingConfigRow] = await Promise.all([
       pool.query(
         `SELECT
            COALESCE(SUM(CASE WHEN e.date = $2::date THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
@@ -146,6 +146,13 @@ router.get('/summary', async (req, res, next) => {
          FROM training_entries
          WHERE user_id = $1
          ORDER BY date ASC`,
+        [userId]
+      ),
+      // Real display names/goals for custom exercises, relayed from Training
+      // Log's save_config - without this, the summary only ever has raw
+      // exercise ids (e.g. "custom_1782962202006") and no goal info.
+      pool.query(
+        `SELECT custom_exercises, goals FROM training_config WHERE user_id = $1`,
         [userId]
       ),
     ]);
@@ -252,6 +259,8 @@ router.get('/summary', async (req, res, next) => {
         today: trainingToday,
         last7: trainingLast7,
         history: trainingHistory,
+        customExercises: trainingConfigRow.rows[0]?.custom_exercises || [],
+        goals: trainingConfigRow.rows[0]?.goals || {},
         updatedAt: trainingUpdatedAt,
       },
       generatedAt: new Date().toISOString(),

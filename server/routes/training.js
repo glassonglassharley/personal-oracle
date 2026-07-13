@@ -34,6 +34,31 @@ router.post('/entries', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/training/config — upsert this user's custom-exercise display
+// names and goals, so /api/oracle/summary can render real names/goals
+// instead of raw exercise ids and hardcoded defaults. One row per user;
+// re-syncing overwrites, same upsert semantics as /entries.
+router.post('/config', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { customExercises, goals } = req.body || {};
+    const customExercisesClean = Array.isArray(customExercises) ? customExercises : [];
+    const goalsClean = goals && typeof goals === 'object' && !Array.isArray(goals) ? goals : {};
+
+    const result = await pool.query(
+      `INSERT INTO training_config (user_id, custom_exercises, goals, updated_at)
+       VALUES ($1, $2, $3, now())
+       ON CONFLICT (user_id)
+       DO UPDATE SET custom_exercises = EXCLUDED.custom_exercises, goals = EXCLUDED.goals, updated_at = now()
+       RETURNING custom_exercises, goals, updated_at`,
+      [userId, JSON.stringify(customExercisesClean), JSON.stringify(goalsClean)]
+    );
+    res.json({ ok: true, config: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
 // GET /api/training/entries?date=YYYY-MM-DD — read back this user's entries for a date.
 router.get('/entries', async (req, res, next) => {
   try {
