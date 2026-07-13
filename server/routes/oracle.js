@@ -18,6 +18,38 @@ const EMPTY_SUMMARY = {
 // are tracked but deliberately excluded from that rep total there too.
 const REP_IDS = ['pushups', 'squats', 'situps', 'pullups', 'curls', 'bench', 'dips'];
 
+// Timezone-aware date windows — same pattern as stats.js/savings.js. Entries
+// are saved with the client's local calendar date (entries.js takes `date`
+// straight from the request body), so windowing off Postgres's raw
+// CURRENT_DATE (server/DB timezone) silently misses "today" whenever the DB's
+// UTC day has already rolled past the caller's local calendar day.
+function parseTz(tz) {
+  if (!tz) return 'UTC';
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function localDateStr(tz) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+}
+
+function dateWindows(tz) {
+  const today = localDateStr(tz);
+  const [y, m, d] = today.split('-').map(Number);
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const weekAgoDate = new Date(Date.UTC(y, m - 1, d - 6));
+  const weekAgo = `${weekAgoDate.getUTCFullYear()}-${pad(weekAgoDate.getUTCMonth() + 1)}-${pad(weekAgoDate.getUTCDate())}`;
+  const monthStart = `${y}-${pad(m)}-01`;
+  const yearStart = `${y}-01-01`;
+
+  return { today, weekAgo, monthStart, yearStart };
+}
+
 // GET /api/oracle/summary — combined, read-only aggregate across all of the
 // current user's vices, for personal-oracle-draft's cross-app dashboard.
 // Auth (Clerk session -> req.auth.userId) and CORS scoping for this path
@@ -27,18 +59,19 @@ router.get('/summary', async (req, res, next) => {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.json({ ...EMPTY_SUMMARY, generatedAt: new Date().toISOString() });
 
-    const [todayRow, periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows] = await Promise.all([
-      pool.query('SELECT CURRENT_DATE::text AS today'),
+    const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
+
+    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows] = await Promise.all([
       pool.query(
         `SELECT
-           COALESCE(SUM(CASE WHEN e.date = CURRENT_DATE THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
-           COALESCE(SUM(CASE WHEN e.date >= CURRENT_DATE - INTERVAL '6 days' THEN e.quantity * e.price_per_unit END), 0)::float AS week_spend,
-           COALESCE(SUM(CASE WHEN e.date >= DATE_TRUNC('month', CURRENT_DATE) THEN e.quantity * e.price_per_unit END), 0)::float AS month_spend,
-           COALESCE(SUM(CASE WHEN e.date >= DATE_TRUNC('year', CURRENT_DATE) THEN e.quantity * e.price_per_unit END), 0)::float AS year_spend,
+           COALESCE(SUM(CASE WHEN e.date = $2::date THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
+           COALESCE(SUM(CASE WHEN e.date >= $3::date THEN e.quantity * e.price_per_unit END), 0)::float AS week_spend,
+           COALESCE(SUM(CASE WHEN e.date >= $4::date THEN e.quantity * e.price_per_unit END), 0)::float AS month_spend,
+           COALESCE(SUM(CASE WHEN e.date >= $5::date THEN e.quantity * e.price_per_unit END), 0)::float AS year_spend,
            COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS all_time_spend
          FROM entries e JOIN vices v ON v.id = e.vice_id
          WHERE v.user_id = $1`,
-        [userId]
+        [userId, today, weekAgo, monthStart, yearStart]
       ),
       pool.query(
         `SELECT v.id AS id, v.name AS name, v.emoji AS emoji, v.unit_label AS unit_label, v.category AS category,
@@ -54,9 +87,9 @@ router.get('/summary', async (req, res, next) => {
       pool.query(
         `SELECT e.date::text AS date, COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS amount
          FROM entries e JOIN vices v ON v.id = e.vice_id
-         WHERE v.user_id = $1 AND e.date >= CURRENT_DATE - INTERVAL '6 days' AND e.date <= CURRENT_DATE
+         WHERE v.user_id = $1 AND e.date >= $2::date AND e.date <= $3::date
          GROUP BY e.date`,
-        [userId]
+        [userId, weekAgo, today]
       ),
       pool.query(
         `SELECT e.date::text AS date, BOOL_OR(e.quantity > 0) AS has_positive
@@ -90,8 +123,8 @@ router.get('/summary', async (req, res, next) => {
       pool.query(
         `SELECT exercise, reps::int AS reps, updated_at
          FROM training_entries
-         WHERE user_id = $1 AND date = CURRENT_DATE`,
-        [userId]
+         WHERE user_id = $1 AND date = $2::date`,
+        [userId, today]
       ),
       // Last 7 days of raw rows for the REP_IDS cumulative series below —
       // same source rows personal-oracle-draft's file-import path derives
@@ -99,13 +132,12 @@ router.get('/summary', async (req, res, next) => {
       pool.query(
         `SELECT date::text AS date, exercise, reps::int AS reps
          FROM training_entries
-         WHERE user_id = $1 AND date >= CURRENT_DATE - INTERVAL '6 days' AND date <= CURRENT_DATE
-           AND exercise = ANY($2::text[])`,
-        [userId, REP_IDS]
+         WHERE user_id = $1 AND date >= $2::date AND date <= $3::date
+           AND exercise = ANY($4::text[])`,
+        [userId, weekAgo, today, REP_IDS]
       ),
     ]);
 
-    const today = todayRow.rows[0].today;
     const periods = periodsRow.rows[0];
 
     const perViceDateMap = {};
