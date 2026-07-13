@@ -232,6 +232,66 @@ const MIGRATIONS = `
     goals JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+
+  -- Debt Assassination sync, mirroring Training Log's shape. debt_id is a
+  -- per-user local id (Debt Assassination's own incrementing id, not
+  -- globally unique), and balance is directly mutable in place (paying it
+  -- down updates the same row) unlike training reps, so this upserts on
+  -- (user_id, debt_id) rather than appending.
+  CREATE TABLE IF NOT EXISTS debts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    debt_id INTEGER NOT NULL,
+    lender TEXT NOT NULL,
+    original_balance NUMERIC NOT NULL DEFAULT 0,
+    balance NUMERIC NOT NULL DEFAULT 0,
+    limit_amount NUMERIC NOT NULL DEFAULT 0,
+    apr NUMERIC,
+    min_payment NUMERIC,
+    autopay_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    autopay_amount NUMERIC,
+    autopay_due_day INTEGER,
+    source TEXT NOT NULL DEFAULT 'debt-assassination',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, debt_id)
+  );
+
+  -- One row per user: Debt Assassination's creditScore/playerHealth/
+  -- harleyDefiSplit, same upsert-in-place semantics as training_config.
+  CREATE TABLE IF NOT EXISTS debt_profile (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    credit_score INTEGER,
+    player_health INTEGER,
+    harley_defi_split JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+
+  -- Append-only payment history — unlike debts/debt_profile, individual
+  -- payments are immutable historical facts once logged, so this never
+  -- upserts. Powers cross-domain correlation (e.g. paydown vs. vice
+  -- relapses) that a current-state-only debts table can't answer.
+  CREATE TABLE IF NOT EXISTS debt_payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    debt_id INTEGER NOT NULL,
+    amount NUMERIC NOT NULL,
+    paid_at TIMESTAMPTZ NOT NULL,
+    source TEXT NOT NULL DEFAULT 'debt-assassination',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS debt_payments_user_id_idx ON debt_payments (user_id, paid_at DESC);
+
+  -- Append-only credit score history, same shape/rationale as debt_payments:
+  -- each reading is an immutable historical fact once logged, never upserted.
+  CREATE TABLE IF NOT EXISTS score_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    score INTEGER NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    source TEXT NOT NULL DEFAULT 'debt-assassination',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS score_history_user_id_idx ON score_history (user_id, recorded_at DESC);
 `;
 
 const { backupEntries } = require('./backup');
