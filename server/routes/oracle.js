@@ -10,7 +10,7 @@ const EMPTY_SUMMARY = {
   todaySpend: 0, weekSpend: 0, monthSpend: 0, yearSpend: 0, allTimeSpend: 0,
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
   perVice: [], last7Days: [], viceEntries: [],
-  training: { today: {}, last7: [], updatedAt: null },
+  training: { today: {}, last7: [], history: [], updatedAt: null },
 };
 
 // Same set personal-oracle-draft's own file-import path sums for its
@@ -61,7 +61,7 @@ router.get('/summary', async (req, res, next) => {
 
     const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
 
-    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows] = await Promise.all([
+    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows] = await Promise.all([
       pool.query(
         `SELECT
            COALESCE(SUM(CASE WHEN e.date = $2::date THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
@@ -136,6 +136,18 @@ router.get('/summary', async (req, res, next) => {
            AND exercise = ANY($4::text[])`,
         [userId, weekAgo, today, REP_IDS]
       ),
+      // Full per-day, per-exercise history (every exercise, not just REP_IDS -
+      // training-log's Oracle-relay backfill can carry any custom exercise
+      // into training_entries) so personal-oracle-draft's Training screen can
+      // render a real history table instead of depending on a stale one-time
+      // file import.
+      pool.query(
+        `SELECT date::text AS date, exercise, reps::int AS reps
+         FROM training_entries
+         WHERE user_id = $1
+         ORDER BY date ASC`,
+        [userId]
+      ),
     ]);
 
     const periods = periodsRow.rows[0];
@@ -204,6 +216,16 @@ router.get('/summary', async (req, res, next) => {
       trainingLast7.push(trainingRunning);
     }
 
+    // Pivot (date, exercise, reps) rows into one object per day -
+    // { date, pushups: N, squats: N, ... } - the shape the Training screen's
+    // history table already expects from a file import.
+    const trainingHistoryByDate = new Map();
+    trainingHistoryRows.rows.forEach((r) => {
+      if (!trainingHistoryByDate.has(r.date)) trainingHistoryByDate.set(r.date, { date: r.date });
+      trainingHistoryByDate.get(r.date)[r.exercise] = r.reps;
+    });
+    const trainingHistory = [...trainingHistoryByDate.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
     res.json({
       todaySpend: round2(periods.today_spend),
       weekSpend: round2(periods.week_spend),
@@ -229,6 +251,7 @@ router.get('/summary', async (req, res, next) => {
       training: {
         today: trainingToday,
         last7: trainingLast7,
+        history: trainingHistory,
         updatedAt: trainingUpdatedAt,
       },
       generatedAt: new Date().toISOString(),
