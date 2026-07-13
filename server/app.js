@@ -126,11 +126,30 @@ const ALLOWED_ORIGINS = (() => {
 // every other path keeps the ALLOWED_ORIGINS behavior below, unchanged.
 const ORACLE_ORIGIN = process.env.ORACLE_ORIGIN || 'https://personal-oracle-draft.vercel.app';
 
+// Debt Assassination writes to /api/debt/* directly from the browser with a
+// Clerk JWT, same pattern as ORACLE_ORIGIN above. personal-oracle-draft also
+// reads /api/debt/* the same way it already reads /api/oracle/* — so this
+// branch admits both origins, not just one. Deliberately NOT extended to
+// /api/plaid — Vice Tracker's own frontend already reaches that through the
+// generic ALLOWED_ORIGINS branch below, and scoping it here risks locking
+// that out; Debt's origin is added to ALLOWED_ORIGINS instead.
+const DEBT_ORIGIN = process.env.DEBT_ORIGIN || 'https://debt-assassination.vercel.app';
+
 app.use(cors((req, callback) => {
   if (req.path.startsWith('/api/oracle')) {
     const allowed = req.headers.origin === ORACLE_ORIGIN;
     return callback(allowed ? null : new Error('Not allowed by CORS'), {
       origin: allowed ? ORACLE_ORIGIN : false,
+      credentials: true,
+      allowedHeaders: ['Authorization', 'Content-Type'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+    });
+  }
+
+  if (req.path.startsWith('/api/debt')) {
+    const allowed = req.headers.origin === DEBT_ORIGIN || req.headers.origin === ORACLE_ORIGIN;
+    return callback(allowed ? null : new Error('Not allowed by CORS'), {
+      origin: allowed ? req.headers.origin : false,
       credentials: true,
       allowedHeaders: ['Authorization', 'Content-Type'],
       methods: ['GET', 'POST', 'OPTIONS'],

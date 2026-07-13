@@ -68,12 +68,15 @@ function getPlaidClient() {
 }
 
 // POST /api/plaid/create-link-token
-// Body (all optional): { institution_id } — pass Plaid institution ID to pre-select a bank
+// Body (all optional): { institution_id, client_name } — pass Plaid institution ID
+// to pre-select a bank; client_name overrides the name shown in Plaid's Link modal
+// (defaults to 'Vice Spending') for other apps sharing this endpoint, e.g. Debt
+// Assassination.
 router.post('/create-link-token', async (req, res, next) => {
   try {
     const { Products, CountryCode } = require('plaid');
     const plaid = getPlaidClient();
-    const { institution_id } = req.body || {};
+    const { institution_id, client_name } = req.body || {};
 
     // Pass verified phone from Clerk so Plaid can use it for OTP / identity verification
     const plaidUser = { client_user_id: String(req.auth.userId) };
@@ -90,10 +93,13 @@ router.post('/create-link-token', async (req, res, next) => {
       }
     } catch (_) {}
 
+    const clientNameClean = typeof client_name === 'string' && client_name.trim()
+      ? client_name.trim().slice(0, 60)
+      : 'Vice Spending';
     const linkParams = {
       user: plaidUser,
-      client_name: 'Vice Spending',
-      products: [Products.Transactions],
+      client_name: clientNameClean,
+      products: [Products.Transactions, Products.Liabilities],
       country_codes: [CountryCode.Us],
       language: 'en',
     };
@@ -338,6 +344,7 @@ router.get('/accounts', async (req, res, next) => {
             type: acct.type,
             subtype: acct.subtype,
             balance,
+            limit: acct.balances.limit ?? null,
             institution: institution_name || 'Bank',
           });
         });
@@ -347,6 +354,45 @@ router.get('/accounts', async (req, res, next) => {
     }
 
     res.json({ accounts: allAccounts });
+  } catch (err) { next(err); }
+});
+
+// GET /api/plaid/liabilities — APR, minimum payment, and next due date for credit
+// accounts across all connected banks. Same shape as /accounts: loop
+// plaid_connections, call Plaid server-side, access_token never reaches the browser.
+router.get('/liabilities', async (req, res, next) => {
+  try {
+    const plaid = getPlaidClient();
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.json({ liabilities: { credit: [] } });
+
+    const connRows = await pool.query(
+      'SELECT access_token, institution_name FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    if (!connRows.rows.length) return res.json({ liabilities: { credit: [] } });
+
+    const allCredit = [];
+    for (const { access_token, institution_name } of connRows.rows) {
+      try {
+        const liabRes = await plaid.liabilitiesGet({ access_token });
+        (liabRes.data.liabilities?.credit ?? []).forEach(c => {
+          allCredit.push({
+            account_id: c.account_id,
+            last_payment_amount: c.last_payment_amount,
+            last_payment_date: c.last_payment_date,
+            minimum_payment_amount: c.minimum_payment_amount,
+            next_payment_due_date: c.next_payment_due_date,
+            aprs: c.aprs,
+            institution: institution_name || 'Bank',
+          });
+        });
+      } catch (bankErr) {
+        console.error(`Plaid liabilities error for ${institution_name}:`, bankErr.response?.data || bankErr.message);
+      }
+    }
+
+    res.json({ liabilities: { credit: allCredit } });
   } catch (err) { next(err); }
 });
 
