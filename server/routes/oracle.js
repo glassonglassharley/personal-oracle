@@ -464,4 +464,24 @@ router.post('/chat', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/oracle/context — the same cross-domain context /chat feeds to the
+// model, returned raw with no AI call. Lets a client do its own model call
+// somewhere this server can't reach (e.g. a local model in the browser's own
+// network) while still using the one real buildOracleContext computation.
+// Same auth + rate-limit gate as /chat; read-only.
+router.get('/context', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth?.userId);
+    if (!userId) return res.status(401).json({ error: 'Not signed in' });
+
+    const { allowed } = await checkOracleChatRateLimit(userId);
+    if (!allowed) {
+      return res.status(429).json({ error: "You've hit today's limit for Oracle conversations. Come back tomorrow — your data will still be here." });
+    }
+
+    const context = await buildOracleContext(userId);
+    res.json(context);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
