@@ -270,18 +270,22 @@ router.get('/summary', async (req, res, next) => {
 
 // ── POST /api/oracle/chat — cross-domain reasoning chat ──
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.warn('[STARTUP] ANTHROPIC_API_KEY is not set — Ask-the-Oracle will use fallback responses only.');
+if (!process.env.AI_API_KEY) {
+  console.warn('[STARTUP] AI_API_KEY is not set — Ask-the-Oracle will use fallback responses only.');
 }
 
-const ORACLE_CHAT_MODEL = 'claude-sonnet-5';
 const ORACLE_CHAT_DAILY_LIMIT = 30;
 
-function getClient() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw Object.assign(new Error('ANTHROPIC_API_KEY not configured'), { status: 503 });
-  const Anthropic = require('@anthropic-ai/sdk');
-  return new Anthropic({ apiKey });
+// OpenAI-compatible chat/completions call - works against OpenAI itself or
+// any compatible provider (NVIDIA NIM, DeepSeek, etc.) by pointing AI_BASE_URL
+// elsewhere. One plain fetch instead of a provider SDK, so swapping providers
+// is an env var change, not a code change.
+function getAiConfig() {
+  const baseUrl = String(process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  const apiKey = process.env.AI_API_KEY;
+  const model = process.env.AI_MODEL || 'gpt-4.1-mini';
+  if (!apiKey) throw Object.assign(new Error('AI_API_KEY not configured'), { status: 503 });
+  return { baseUrl, apiKey, model };
 }
 
 // Separate table from insights.js's coach_usage — keeps that live feature's
@@ -430,18 +434,31 @@ router.post('/chat', async (req, res, next) => {
     const context = await buildOracleContext(userId);
 
     try {
-      const client = getClient();
-      const response = await client.messages.create({
-        model: ORACLE_CHAT_MODEL,
-        max_tokens: 800,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'medium' },
-        system: buildOracleChatSystemPrompt(context),
-        messages: clientMessages,
+      const { baseUrl, apiKey, model } = getAiConfig();
+      const upstream = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 800,
+          temperature: 0.4,
+          messages: [
+            { role: 'system', content: buildOracleChatSystemPrompt(context) },
+            ...clientMessages,
+          ],
+        }),
       });
-      res.json({ text: response.content?.[0]?.text || '', dataAsOf: context.generatedAt });
+      const json = await upstream.json();
+      if (!upstream.ok) {
+        throw Object.assign(new Error(json?.error?.message || `AI provider returned ${upstream.status}`), { status: upstream.status });
+      }
+      const text = json.choices?.[0]?.message?.content || '';
+      res.json({ text, dataAsOf: context.generatedAt });
     } catch (aiErr) {
-      console.error('oracle chat: Claude call failed, using fallback:', aiErr);
+      console.error('oracle chat: AI call failed, using fallback:', aiErr);
       res.json({ text: fallbackOracleReply(context), fallback: true, dataAsOf: context.generatedAt });
     }
   } catch (err) { next(err); }
