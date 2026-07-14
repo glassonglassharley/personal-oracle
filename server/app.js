@@ -125,6 +125,12 @@ const ALLOWED_ORIGINS = (() => {
 // Clerk session JWT (no shared secret). Scoped to that one path only —
 // every other path keeps the ALLOWED_ORIGINS behavior below, unchanged.
 const ORACLE_ORIGIN = process.env.ORACLE_ORIGIN || 'https://personal-oracle-draft.vercel.app';
+// Additive, not a replacement for the exact prod match above — lets
+// personal-oracle-draft's local Ollama testing flow (npm run dev) reach
+// /api/oracle/* from a localhost dev server. Same regex ALLOWED_ORIGINS
+// already uses for its own dev fallback (see above). Scoped to localhost
+// only, deliberately not widened to 127.0.0.1 or any other host.
+const ORACLE_LOCALHOST_ORIGIN = /^http:\/\/localhost(:\d+)?$/;
 
 // Debt Assassination writes to /api/debt/* directly from the browser with a
 // Clerk JWT, same pattern as ORACLE_ORIGIN above. personal-oracle-draft also
@@ -137,9 +143,9 @@ const DEBT_ORIGIN = process.env.DEBT_ORIGIN || 'https://debt-assassination.verce
 
 app.use(cors((req, callback) => {
   if (req.path.startsWith('/api/oracle')) {
-    const allowed = req.headers.origin === ORACLE_ORIGIN;
+    const allowed = req.headers.origin === ORACLE_ORIGIN || ORACLE_LOCALHOST_ORIGIN.test(req.headers.origin || '');
     return callback(allowed ? null : new Error('Not allowed by CORS'), {
-      origin: allowed ? ORACLE_ORIGIN : false,
+      origin: allowed ? req.headers.origin : false,
       credentials: true,
       allowedHeaders: ['Authorization', 'Content-Type'],
       methods: ['GET', 'POST', 'OPTIONS'],
