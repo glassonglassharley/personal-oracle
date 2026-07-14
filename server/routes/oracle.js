@@ -441,6 +441,7 @@ router.post('/chat', async (req, res, next) => {
       });
       res.json({ text: response.content?.[0]?.text || '', dataAsOf: context.generatedAt });
     } catch (aiErr) {
+      console.error('oracle chat: Claude call failed, using fallback:', aiErr);
       res.json({ text: fallbackOracleReply(context), fallback: true, dataAsOf: context.generatedAt });
     }
   } catch (err) { next(err); }
