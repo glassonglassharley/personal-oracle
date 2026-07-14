@@ -1,10 +1,10 @@
 const pool = require('../db');
 const { round2, computeCurrentStreak, computeBestStreak } = require('../utils');
 
-// Assembles everything the Oracle chat needs to reason across vice spending
-// and training data for one user, date-aligned, in a single round trip.
-// Debt/income have no backing tables yet — dataSources flags that so the
-// system prompt can say "I don't have that yet" instead of inventing numbers.
+// Assembles everything the Oracle chat needs to reason across vice spending,
+// training, and debt data for one user, date-aligned, in a single round trip.
+// Income has no backing table yet — dataSources flags that so the system
+// prompt can say "I don't have that yet" instead of inventing numbers.
 async function buildOracleContext(userId) {
   const [
     todayRow,
@@ -14,6 +14,7 @@ async function buildOracleContext(userId) {
     trainingDateRows,
     correlationRows,
     savingsRow,
+    debtRows,
   ] = await Promise.all([
     pool.query('SELECT CURRENT_DATE::text AS today'),
 
@@ -94,6 +95,16 @@ async function buildOracleContext(userId) {
     ),
 
     pool.query('SELECT savings_balance FROM users WHERE id = $1', [userId]),
+
+    // Current debts, smallest balance first (snowball order — matches the
+    // "next target" logic already used in personal-oracle-draft's Debt panel).
+    pool.query(
+      `SELECT lender, original_balance, balance, apr, min_payment
+       FROM debts
+       WHERE user_id = $1
+       ORDER BY balance ASC`,
+      [userId]
+    ),
   ]);
 
   const today = todayRow.rows[0].today;
@@ -141,6 +152,23 @@ async function buildOracleContext(userId) {
     };
   });
 
+  const debts = debtRows.rows.map((r) => ({
+    lender: r.lender,
+    balance: round2(r.balance),
+    originalBalance: round2(r.original_balance),
+    apr: r.apr == null ? null : round2(r.apr),
+    minPayment: r.min_payment == null ? null : round2(r.min_payment),
+  }));
+  const debtTotalBalance = round2(debts.reduce((sum, d) => sum + d.balance, 0));
+  const debtTotalOriginal = round2(debts.reduce((sum, d) => sum + d.originalBalance, 0));
+  const debtSummary = {
+    debts,
+    totalBalance: debtTotalBalance,
+    totalOriginal: debtTotalOriginal,
+    paidPct: debtTotalOriginal ? Math.round(((debtTotalOriginal - debtTotalBalance) / debtTotalOriginal) * 100) : 0,
+    nextTarget: debts.find((d) => d.balance > 0) || null,
+  };
+
   return {
     generatedAt: new Date().toISOString(),
     vices,
@@ -151,7 +179,8 @@ async function buildOracleContext(userId) {
     bestTrainingStreak: computeBestStreak(trainingDateMap),
     correlation,
     savingsBalance: round2(savingsRow.rows[0]?.savings_balance || 0),
-    dataSources: { vices: true, training: true, debt: false, income: false },
+    debt: debtSummary,
+    dataSources: { vices: true, training: true, debt: true, income: false },
   };
 }
 

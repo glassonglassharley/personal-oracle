@@ -141,6 +141,14 @@ const ORACLE_LOCALHOST_ORIGIN = /^http:\/\/localhost(:\d+)?$/;
 // that out; Debt's origin is added to ALLOWED_ORIGINS instead.
 const DEBT_ORIGIN = process.env.DEBT_ORIGIN || 'https://debt-assassination.vercel.app';
 
+// Pre-Game writes to /api/income/* directly from the browser with its own
+// Clerk JWT (added in the sync_id -> Clerk migration), same pattern as
+// DEBT_ORIGIN above. personal-oracle-draft reads /api/income/* the same way
+// it already reads /api/debt/* and /api/oracle/*. Confirmed production
+// domain via the Vercel API (project prj_i2lxwCqDjLsuovLlhYWJQgYnIkC6) —
+// not guessed.
+const INCOME_ORIGIN = process.env.INCOME_ORIGIN || 'https://pre-game-umber.vercel.app';
+
 app.use(cors((req, callback) => {
   if (req.path.startsWith('/api/oracle')) {
     const allowed = req.headers.origin === ORACLE_ORIGIN || ORACLE_LOCALHOST_ORIGIN.test(req.headers.origin || '');
@@ -154,6 +162,16 @@ app.use(cors((req, callback) => {
 
   if (req.path.startsWith('/api/debt')) {
     const allowed = req.headers.origin === DEBT_ORIGIN || req.headers.origin === ORACLE_ORIGIN;
+    return callback(allowed ? null : new Error('Not allowed by CORS'), {
+      origin: allowed ? req.headers.origin : false,
+      credentials: true,
+      allowedHeaders: ['Authorization', 'Content-Type'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+    });
+  }
+
+  if (req.path.startsWith('/api/income')) {
+    const allowed = req.headers.origin === INCOME_ORIGIN || req.headers.origin === ORACLE_ORIGIN;
     return callback(allowed ? null : new Error('Not allowed by CORS'), {
       origin: allowed ? req.headers.origin : false,
       credentials: true,
@@ -210,6 +228,7 @@ app.use('/api/account',       require('./routes/account'));
 app.use('/api/oracle',        require('./routes/oracle'));
 app.use('/api/training',      require('./routes/training'));
 app.use('/api/debt',          require('./routes/debt'));
+app.use('/api/income',        require('./routes/income'));
 
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;

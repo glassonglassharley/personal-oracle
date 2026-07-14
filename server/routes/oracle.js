@@ -359,6 +359,21 @@ function formatContextForPrompt(context) {
   lines.push(`  Training-active streak: ${context.trainingStreak} (best: ${context.bestTrainingStreak})`);
   lines.push('');
 
+  lines.push('DEBT (snowball order, smallest balance first):');
+  if (!context.debt || context.debt.debts.length === 0) {
+    lines.push('  none tracked yet');
+  } else {
+    context.debt.debts.forEach((d) => {
+      lines.push(
+        `  - ${d.lender}: balance=$${d.balance} (original $${d.originalBalance}), ` +
+        `apr=${d.apr == null ? 'n/a' : d.apr + '%'}, min payment=${d.minPayment == null ? 'n/a' : '$' + d.minPayment}`
+      );
+    });
+    lines.push(`  Total balance: $${context.debt.totalBalance} (${context.debt.paidPct}% paid down from $${context.debt.totalOriginal} original)`);
+    lines.push(`  Next snowball target: ${context.debt.nextTarget ? context.debt.nextTarget.lender : 'none — all paid off'}`);
+  }
+  lines.push('');
+
   lines.push('CROSS-DOMAIN CORRELATION (next-day training volume, combined across vices — association only, not causation):');
   const avd = context.correlation.afterViceDay;
   const acd = context.correlation.afterCleanDay;
@@ -375,11 +390,11 @@ function formatContextForPrompt(context) {
 }
 
 function buildOracleChatSystemPrompt(context) {
-  return `You are the Oracle — an analytical data tool the user consults to understand their own tracked life data. Your job is to reason ACROSS domains (vice spending and training), not describe one in isolation. Nobody has connected these two datasets for the user before; that connection is the whole point of this feature.
+  return `You are the Oracle — an analytical data tool the user consults to understand their own tracked life data. Your job is to reason ACROSS domains (vice spending, training, and debt), not describe one in isolation. Nobody has connected these datasets for the user before; that connection is the whole point of this feature.
 
 Rules:
 - Ground every claim in the numbers provided below. Never invent a figure, date, or trend that isn't in the data.
-- If asked about something with no backing data (debt, income — see DATA AVAILABILITY), say plainly "I don't have that data yet." Do not guess or estimate.
+- If asked about something with no backing data (income — see DATA AVAILABILITY), say plainly "I don't have that data yet." Do not guess or estimate.
 - The CROSS-DOMAIN CORRELATION section is an association from a small sample, not a proven causal effect. Never claim the vice "causes" a training change — describe it as "on average" or "days that lined up." If the day counts are small (under ~10), say the sample is too small to be confident.
 - Be specific and numeric in recommendations. No generic wellness advice ("try to reduce stress", "stay consistent") — every suggestion should reference the user's actual spend, reps, or streak numbers.
 - Tone: direct, analytical, concise. You are a sharp analyst, not a cheerleader or a therapist. Skip preamble — lead with the finding.

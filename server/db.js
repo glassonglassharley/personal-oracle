@@ -292,6 +292,102 @@ const MIGRATIONS = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS score_history_user_id_idx ON score_history (user_id, recorded_at DESC);
+
+  -- Pre-Game (Income) sync. source_id/task_id/etc are pre-game's own
+  -- client-generated ids (strings, not integers like debt_id) — upsert on
+  -- (user_id, that id), same rationale as debts: these represent current
+  -- mutable state, not historical events. "source" here means "which app
+  -- synced this row" (always 'pre-game', matching the debts/training_entries
+  -- convention); pre-game's own per-item origin field (gmail/calendar/manual)
+  -- is named "origin" instead, to avoid colliding with that convention.
+  CREATE TABLE IF NOT EXISTS income_sources (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    source_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'work',
+    pay_type TEXT,
+    pay NUMERIC,
+    hours NUMERIC,
+    w2_pay_mode TEXT,
+    hourly_rate NUMERIC,
+    salary_amount NUMERIC,
+    salary_period TEXT,
+    instrument TEXT,
+    principal NUMERIC,
+    rate NUMERIC,
+    recurring_amount NUMERIC,
+    recurring_frequency TEXT,
+    source TEXT NOT NULL DEFAULT 'pre-game',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, source_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS income_tasks (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    done BOOLEAN NOT NULL DEFAULT FALSE,
+    type TEXT NOT NULL DEFAULT 'daily',
+    category TEXT,
+    completed_at TIMESTAMPTZ,
+    scheduled_at TIMESTAMPTZ,
+    completed_dates JSONB NOT NULL DEFAULT '[]'::jsonb,
+    source TEXT NOT NULL DEFAULT 'pre-game',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, task_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS income_opportunities (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    opportunity_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    company_or_client TEXT,
+    stage TEXT NOT NULL DEFAULT 'lead',
+    origin TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source TEXT NOT NULL DEFAULT 'pre-game',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, opportunity_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS income_followups (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    followup_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    due_date DATE,
+    status TEXT NOT NULL DEFAULT 'open',
+    origin TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source TEXT NOT NULL DEFAULT 'pre-game',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, followup_id)
+  );
+
+  -- Append-only, like debt_payments/score_history: an income event is an
+  -- immutable historical fact once logged. Unlike debt_payments, pre-game's
+  -- own sync effect resends its FULL current arrays on every debounced state
+  -- change (not one call per new event), so this needs a uniqueness
+  -- constraint + ON CONFLICT DO NOTHING in the route — otherwise the same
+  -- event would be re-inserted as a duplicate on every unrelated edit.
+  CREATE TABLE IF NOT EXISTS income_events (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    amount NUMERIC,
+    event_date DATE NOT NULL,
+    opportunity_id TEXT,
+    origin TEXT,
+    notes TEXT,
+    source TEXT NOT NULL DEFAULT 'pre-game',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, event_id)
+  );
+  CREATE INDEX IF NOT EXISTS income_events_user_id_idx ON income_events (user_id, event_date DESC);
 `;
 
 const { backupEntries } = require('./backup');
