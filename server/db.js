@@ -388,6 +388,20 @@ const MIGRATIONS = `
     UNIQUE (user_id, event_id)
   );
   CREATE INDEX IF NOT EXISTS income_events_user_id_idx ON income_events (user_id, event_date DESC);
+
+  -- Append-only, like debt_payments/score_history: each row is an immutable
+  -- snapshot of the user's savings balance at the moment it was saved (manual
+  -- edit or bank sync). Never backfilled or simulated — history only grows
+  -- forward from real saves.
+  CREATE TABLE IF NOT EXISTS savings_balance_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    balance NUMERIC NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    source TEXT NOT NULL DEFAULT 'manual',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS savings_balance_history_user_id_idx ON savings_balance_history (user_id, recorded_at DESC);
 `;
 
 const { backupEntries } = require('./backup');

@@ -14,18 +14,44 @@ router.get('/balance', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/savings/balance — manually update actual savings balance
+// PUT /api/savings/balance — manually update actual savings balance. Also
+// used by the bank-sync flow (Savings.jsx prefills the input from a Plaid
+// account balance, then this same endpoint commits it) — source distinguishes
+// the two so history isn't ambiguous about where a snapshot came from.
 router.put('/balance', async (req, res, next) => {
   try {
     const userId = await getInternalUserId(req.auth.userId);
     if (!userId) return res.status(404).json({ error: 'User not found' });
     const balance = Number(req.body?.balance);
     if (!Number.isFinite(balance) || balance < 0) return res.status(400).json({ error: 'Invalid balance' });
+    const source = req.body?.source === 'plaid' ? 'plaid' : 'manual';
     await pool.query(
       'UPDATE users SET savings_balance = $1, savings_updated_at = NOW() WHERE id = $2',
       [balance, userId]
     );
+    await pool.query(
+      'INSERT INTO savings_balance_history (user_id, balance, source) VALUES ($1, $2, $3)',
+      [userId, balance, source]
+    );
     res.json({ balance, updated_at: new Date().toISOString() });
+  } catch (err) { next(err); }
+});
+
+// GET /api/savings/history — snapshot history for the line chart, newest first.
+// No backfill and no simulated points: only rows written by an actual save
+// (manual or bank-sync) ever appear here.
+router.get('/history', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.json({ history: [] });
+    const r = await pool.query(
+      `SELECT balance, recorded_at, source
+       FROM savings_balance_history
+       WHERE user_id = $1
+       ORDER BY recorded_at DESC`,
+      [userId]
+    );
+    res.json({ history: r.rows });
   } catch (err) { next(err); }
 });
 

@@ -147,6 +147,7 @@ export default function Savings() {
   // Actual savings balance
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
   const [balanceInput, setBalanceInput] = useState('');
+  const [balanceSource, setBalanceSource] = useState('manual');
   const [balanceSaving, setBalanceSaving] = useState(false);
   const [balanceError, setBalanceError] = useState('');
   const [balanceSaved, setBalanceSaved] = useState(false);
@@ -291,7 +292,7 @@ export default function Savings() {
     try {
       const data = await api('/api/savings/balance', {
         method: 'PUT',
-        body: JSON.stringify({ balance: val }),
+        body: JSON.stringify({ balance: val, source: balanceSource }),
       });
       setBalance(data);
       setBalanceSaved(true);
@@ -317,6 +318,7 @@ export default function Savings() {
         setPlaidSyncError('No checking, savings, or investment accounts with balances were found in your connected accounts.');
       } else if (balanceAccounts.length === 1) {
         setBalanceInput(String(balanceAccounts[0].balance));
+        setBalanceSource('plaid');
       } else {
         setPlaidAccounts(balanceAccounts);
         setShowAccountPicker(true);
@@ -561,7 +563,7 @@ export default function Savings() {
               step="0.01"
               className="sv-balance-input"
               value={balanceInput}
-              onChange={e => setBalanceInput(e.target.value)}
+              onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
               placeholder="0.00"
             />
             <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '5px 12px' }}>
@@ -581,6 +583,7 @@ export default function Savings() {
                   style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                   onClick={() => {
                     setBalanceInput(acct.balance != null ? String(acct.balance) : '');
+                    setBalanceSource('plaid');
                     setShowAccountPicker(false);
                     setPlaidAccounts([]);
                   }}
