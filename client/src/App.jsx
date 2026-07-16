@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, Component, lazy, Suspense } from 'react';
-import { ClerkProvider, useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { ClerkProvider, AuthenticateWithRedirectCallback, useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 const LogEntry          = lazy(() => import('./pages/LogEntry'));
@@ -594,6 +594,47 @@ function WalletSignIn() {
           </button>
         ))}
       </div>
+      {error && <div className="form-error wallet-error">{error}</div>}
+    </div>
+  );
+}
+
+function XSignIn() {
+  const { isLoaded, signIn } = useSignIn();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const connectX = async () => {
+    if (!isLoaded) return;
+    setError('');
+    setLoading(true);
+    try {
+      // Redirects away on success — loading state ends with the navigation.
+      await signIn.authenticateWithRedirect({
+        strategy: 'oauth_x',
+        redirectUrl: '/sso-callback',
+        redirectUrlComplete: '/',
+      });
+    } catch (err) {
+      setError(err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err.message || 'Could not start X sign-in.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="wallet-button-grid">
+      <button
+        type="button"
+        className="wallet-connect-btn"
+        disabled={!isLoaded || loading}
+        onClick={connectX}
+      >
+        <span className="wallet-icon wallet-icon-x">𝕏</span>
+        <span>
+          <span className="wallet-name">{loading ? 'Redirecting…' : 'Sign in with X'}</span>
+          <span className="wallet-sub">X / Twitter account</span>
+        </span>
+      </button>
       {error && <div className="form-error wallet-error">{error}</div>}
     </div>
   );
@@ -1428,6 +1469,8 @@ function AuthDrawer({ mode, onClose, initialView }) {
             </button>
             {moreExpanded && (
               <>
+                <div className="auth-divider"><span>or continue with X</span></div>
+                <XSignIn />
                 <div className="auth-divider"><span>or connect a wallet</span></div>
                 <WalletSignIn />
                 <div className="auth-divider"><span>or sign in with email</span></div>
@@ -1672,6 +1715,12 @@ function AppRouter() {
   // Legal pages are public — render without any auth requirement
   if (location.pathname === '/privacy') return <Suspense fallback={null}><Privacy /></Suspense>;
   if (location.pathname === '/terms')   return <Suspense fallback={null}><Terms /></Suspense>;
+
+  // OAuth (X) redirect landing — Clerk completes the handshake here, then
+  // forwards to '/'. Without a Clerk key this falls through to the normal gate.
+  if (location.pathname === '/sso-callback' && PUBLISHABLE_KEY) {
+    return <AuthenticateWithRedirectCallback signInFallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" />;
+  }
 
   // If a magic link is in the URL, always let SignedOutContent process it first —
   // even when already authenticated. Reset links must work from an active session.
