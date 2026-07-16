@@ -156,6 +156,9 @@ export default function Savings() {
   const [plaidSyncError, setPlaidSyncError] = useState('');
   const [showAccountPicker, setShowAccountPicker] = useState(false);
 
+  // Total vice spending (for savings vs. spending comparison)
+  const [spendTotal, setSpendTotal] = useState(null);
+
   // Custom assets (server-backed)
   const [userAssets, setUserAssets] = useState([]);
   const [assetModalOpen, setAssetModalOpen] = useState(false);
@@ -256,6 +259,12 @@ export default function Savings() {
         setBalanceInput(data.balance > 0 ? String(data.balance) : '');
       })
       .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    api('/api/entries/all')
+      .then(d => setSpendTotal(Number(d.spend_total) || 0))
+      .catch(() => setSpendTotal(0));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -415,6 +424,14 @@ export default function Savings() {
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
+
+  // Savings vs. vice spending comparison (current real totals, no simulated history)
+  const savingsTotal   = balance.balance || 0;
+  const spendTotalVal  = spendTotal || 0;
+  const compareMax     = Math.max(savingsTotal, spendTotalVal, 1);
+  const savingsPct     = (savingsTotal / compareMax) * 100;
+  const spendPct       = (spendTotalVal / compareMax) * 100;
+  const hasCompareData = savingsTotal > 0 || spendTotalVal > 0;
   const assetColors = {
     primary:   '#6a92c4',
     secondary: chartColors.money,
@@ -915,6 +932,41 @@ export default function Savings() {
         onUpdateGoal={updateGoal}
         onDeleteGoal={deleteGoal}
       />
+
+      {spendTotal !== null && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <span className="sv-section-title">Savings vs. vice spending</span>
+          </div>
+          {hasCompareData ? (
+            <div className="sv-compare-section">
+              <div className="sv-compare-row">
+                <div className="sv-compare-row-head">
+                  <span className="sv-compare-row-label">Savings balance</span>
+                  <span className="sv-compare-row-value">{fmt$0(savingsTotal)}</span>
+                </div>
+                <div className="sv-compare-track">
+                  <div className="sv-compare-fill savings" style={{ width: `${savingsPct}%` }} />
+                </div>
+              </div>
+              <div className="sv-compare-row">
+                <div className="sv-compare-row-head">
+                  <span className="sv-compare-row-label">Total vice spending</span>
+                  <span className="sv-compare-row-value">{fmt$0(spendTotalVal)}</span>
+                </div>
+                <div className="sv-compare-track">
+                  <div className="sv-compare-fill spending" style={{ width: `${spendPct}%` }} />
+                </div>
+              </div>
+              <div className="sv-compare-takeaway">
+                Savings: {fmt$0(savingsTotal)} · Vice spending: {fmt$0(spendTotalVal)}
+              </div>
+            </div>
+          ) : (
+            <div className="sv-compare-empty">Log a vice or set your savings balance to see this comparison.</div>
+          )}
+        </div>
+      )}
 
       {celebGoal && (
         <CelebOverlay

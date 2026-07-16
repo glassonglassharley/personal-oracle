@@ -1404,6 +1404,37 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   border-radius: 14px; padding: 24px 20px; height: 300px;
 }
 
+.sv-compare-section {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 14px; padding: 24px 20px;
+}
+.sv-compare-row { margin-bottom: 20px; }
+.sv-compare-row:last-of-type { margin-bottom: 0; }
+.sv-compare-row-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px; font-family: var(--mono);
+}
+.sv-compare-row-label { font-size: 13px; color: var(--ink-3); }
+.sv-compare-row-value { font-size: 15px; font-weight: 600; color: var(--ink); }
+.sv-compare-track {
+  height: 14px; background: var(--rule-2); border-radius: 999px; overflow: hidden;
+}
+.sv-compare-fill {
+  height: 100%; border-radius: inherit;
+  transition: width 0.6s cubic-bezier(0.2,0.7,0.2,1);
+}
+.sv-compare-fill.savings  { background: var(--money); }
+.sv-compare-fill.spending { background: var(--warn); }
+.sv-compare-takeaway {
+  margin-top: 18px; text-align: center; font-size: 13px;
+  font-family: var(--mono); color: var(--ink-3);
+}
+.sv-compare-empty {
+  background: var(--paper-2); border: 1px solid var(--rule);
+  border-radius: 14px; padding: 24px 20px; text-align: center;
+  font-size: 13px; color: var(--ink-3); font-family: var(--mono);
+}
+
 .sv-invest-grid {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
 }
