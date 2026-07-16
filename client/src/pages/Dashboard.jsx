@@ -260,6 +260,10 @@ export default function Dashboard() {
 
   // Actual savings balance (also shown/edited on the Savings page)
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
+
+  // Total vice spending (for savings vs. spending comparison)
+  const [spendTotal, setSpendTotal] = useState(null);
 
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
@@ -302,7 +306,17 @@ export default function Dashboard() {
       .catch(() => {});
     apiRef.current('/api/savings/balance')
       .then(setBalance)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBalanceLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    apiRef.current('/api/entries/all')
+      .then(d => {
+        const v = Number(d?.spend_total);
+        setSpendTotal(Number.isFinite(v) ? v : 0);
+      })
+      .catch(() => setSpendTotal(0));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -352,6 +366,15 @@ export default function Dashboard() {
   }, [vices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 520;
+
+  // Savings vs. vice spending comparison (current real totals, no simulated history)
+  const compareLoaded  = balanceLoaded && spendTotal !== null;
+  const savingsTotal   = Number.isFinite(balance?.balance) ? balance.balance : 0;
+  const spendTotalVal  = Number.isFinite(spendTotal) ? spendTotal : 0;
+  const compareMax     = Math.max(savingsTotal, spendTotalVal, 1);
+  const savingsPct     = compareMax > 0 ? (savingsTotal / compareMax) * 100 : 0;
+  const spendPct       = compareMax > 0 ? (spendTotalVal / compareMax) * 100 : 0;
+  const hasCompareData = savingsTotal > 0 || spendTotalVal > 0;
 
   const chartData = {
     labels: last7.map(({ date }) => {
@@ -511,6 +534,41 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">Savings vs. vice spending</span>
+            </div>
+            {!compareLoaded ? (
+              <p className="text-muted">Loading…</p>
+            ) : hasCompareData ? (
+              <>
+                <div className="sv-compare-row">
+                  <div className="sv-compare-row-head">
+                    <span className="sv-compare-row-label">Savings balance</span>
+                    <span className="sv-compare-row-value">{fmt$0(savingsTotal)}</span>
+                  </div>
+                  <div className="sv-compare-track">
+                    <div className="sv-compare-fill savings" style={{ width: `${savingsPct}%` }} />
+                  </div>
+                </div>
+                <div className="sv-compare-row">
+                  <div className="sv-compare-row-head">
+                    <span className="sv-compare-row-label">Total vice spending</span>
+                    <span className="sv-compare-row-value">{fmt$0(spendTotalVal)}</span>
+                  </div>
+                  <div className="sv-compare-track">
+                    <div className="sv-compare-fill spending" style={{ width: `${spendPct}%` }} />
+                  </div>
+                </div>
+                <div className="sv-compare-takeaway">
+                  Savings: {fmt$0(savingsTotal)} · Vice spending: {fmt$0(spendTotalVal)}
+                </div>
+              </>
+            ) : (
+              <p className="text-muted">Log a vice or set your savings balance to see this comparison.</p>
+            )}
           </div>
 
       {companion?.companion_type && (
