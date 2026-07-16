@@ -63,6 +63,26 @@ router.get('/all', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/entries/spend-by-date — per-day spend totals across all vices,
+// oldest first. Feeds the Dashboard cumulative-spend line; aggregated
+// server-side because /all caps at 200 rows and the chart needs full history.
+router.get('/spend-by-date', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.json({ days: [] });
+    const r = await pool.query(
+      `SELECT e.date::text AS date,
+              COALESCE(SUM(e.quantity * e.price_per_unit), 0)::float AS spend
+       FROM entries e JOIN vices v ON v.id = e.vice_id
+       WHERE v.user_id = $1 AND e.quantity > 0
+       GROUP BY e.date
+       ORDER BY e.date ASC`,
+      [userId]
+    );
+    res.json({ days: r.rows });
+  } catch (err) { next(err); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { vice_id, from, to } = req.query;

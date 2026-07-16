@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 
 function Confetti() {
   const ref = useRef(null);
@@ -69,7 +69,7 @@ function LevelUpOverlay({ data, onDismiss }) {
 }
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
-  BarElement, Title, Tooltip, Legend
+  BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
@@ -80,10 +80,26 @@ import InsightsPanel from '../components/InsightsPanel';
 import { getProgressionName, getProgressionIcon } from '../companions/companionData';
 import OnboardingWizard from '../components/OnboardingWizard';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const fmt$ = n => '$' + Number(n || 0).toFixed(2);
 const fmt$0 = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+function withAlpha(color, alpha) {
+  const rgba = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (rgba) return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
+  const hex = color.match(/^#([0-9a-f]{6})$/i);
+  if (hex) {
+    const v = hex[1];
+    return `rgba(${parseInt(v.slice(0, 2), 16)}, ${parseInt(v.slice(2, 4), 16)}, ${parseInt(v.slice(4, 6), 16)}, ${alpha})`;
+  }
+  return color;
+}
+
+function cssVar(name, fallback) {
+  if (typeof document === 'undefined') return fallback;
+  return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
+}
 
 function last7Dates() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -237,7 +253,7 @@ export default function Dashboard() {
   const apiRef = useRef(api);
   apiRef.current = api;
 
-  const { vices, companion, setShowOnboarding, viceFetchError, loadVices } = useViceContext();
+  const { vices, companion, setShowOnboarding, viceFetchError, loadVices, theme } = useViceContext();
   const [stats, setStats] = useState(null);
   const [last7, setLast7] = useState([]);
   const [recentEntries, setRecentEntries] = useState([]);
@@ -260,10 +276,10 @@ export default function Dashboard() {
 
   // Actual savings balance (also shown/edited on the Savings page)
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
-  const [balanceLoaded, setBalanceLoaded] = useState(false);
 
-  // Total vice spending (for savings vs. spending comparison)
-  const [spendTotal, setSpendTotal] = useState(null);
+  // Trend chart series — null until each fetch resolves
+  const [spendDays, setSpendDays] = useState(null);      // [{ date, spend }] per-day totals, oldest first
+  const [savingsHist, setSavingsHist] = useState(null);  // [{ balance, recorded_at, source }] newest first
 
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
@@ -306,17 +322,16 @@ export default function Dashboard() {
       .catch(() => {});
     apiRef.current('/api/savings/balance')
       .then(setBalance)
-      .catch(() => {})
-      .finally(() => setBalanceLoaded(true));
+      .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    apiRef.current('/api/entries/all')
-      .then(d => {
-        const v = Number(d?.spend_total);
-        setSpendTotal(Number.isFinite(v) ? v : 0);
-      })
-      .catch(() => setSpendTotal(0));
+    apiRef.current('/api/entries/spend-by-date')
+      .then(d => setSpendDays(Array.isArray(d?.days) ? d.days : []))
+      .catch(() => setSpendDays([]));
+    apiRef.current('/api/savings/history')
+      .then(d => setSavingsHist(Array.isArray(d?.history) ? d.history : []))
+      .catch(() => setSavingsHist([]));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -367,14 +382,40 @@ export default function Dashboard() {
 
   const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 520;
 
-  // Savings vs. vice spending comparison (current real totals, no simulated history)
-  const compareLoaded  = balanceLoaded && spendTotal !== null;
-  const savingsTotal   = Number.isFinite(balance?.balance) ? balance.balance : 0;
-  const spendTotalVal  = Number.isFinite(spendTotal) ? spendTotal : 0;
-  const compareMax     = Math.max(savingsTotal, spendTotalVal, 1);
-  const savingsPct     = compareMax > 0 ? (savingsTotal / compareMax) * 100 : 0;
-  const spendPct       = compareMax > 0 ? (spendTotalVal / compareMax) * 100 : 0;
-  const hasCompareData = savingsTotal > 0 || spendTotalVal > 0;
+  // Savings vs. vice spending over time — real data only. The spend line is a
+  // running total of actual dated entries; the savings line plots only real
+  // snapshots (nulls elsewhere, so Chart.js draws nothing for those dates).
+  const trendLoaded = spendDays !== null && savingsHist !== null;
+  const trend = useMemo(() => {
+    if (!trendLoaded) return null;
+
+    // Latest snapshot per calendar day (history arrives newest-first)
+    const snapByDate = new Map();
+    savingsHist.forEach(s => {
+      const day = String(s?.recorded_at || '').split('T')[0];
+      const bal = Number(s?.balance);
+      if (day && Number.isFinite(bal) && !snapByDate.has(day)) snapByDate.set(day, bal);
+    });
+
+    const spendByDate = new Map();
+    spendDays.forEach(dp => {
+      const day = String(dp?.date || '').split('T')[0];
+      const amt = Number(dp?.spend);
+      if (day && Number.isFinite(amt)) spendByDate.set(day, amt);
+    });
+
+    const labels = [...new Set([...spendByDate.keys(), ...snapByDate.keys()])].sort();
+    let running = 0;
+    const spendLine = labels.map(day => {
+      running += spendByDate.get(day) || 0;
+      return Math.round(running);
+    });
+    const savingsLine = labels.map(day =>
+      snapByDate.has(day) ? Math.round(snapByDate.get(day)) : null
+    );
+    const savingsPointCount = savingsLine.filter(v => v !== null).length;
+    return { labels, spendLine, savingsLine, savingsPointCount, hasData: labels.length > 0 };
+  }, [trendLoaded, spendDays, savingsHist]);
 
   const chartData = {
     labels: last7.map(({ date }) => {
@@ -409,6 +450,79 @@ export default function Dashboard() {
       },
       x: { grid: { display: false }, ticks: { color: inkColor, maxRotation: 0, font: { size: isMobileView ? 9 : 11 } } },
     }
+  };
+
+  // Trend chart — matches the Savings page "Investment growth comparison" style:
+  // theme CSS vars resolved at render, light area fills, index-mode tooltip.
+  const warnColor  = cssVar('--warn', '#d9583a');
+  const ruleColor  = cssVar('--rule', 'rgba(232,239,224,0.08)');
+  const rule2Color = cssVar('--rule-2', 'rgba(232,239,224,0.20)');
+  const paper2Color = cssVar('--paper-2', '#1a1a1a');
+  const inkStrong  = cssVar('--ink', '#f5f5f5');
+  const ink2Color  = cssVar('--ink-2', '#d4d4d4');
+
+  const trendData = trend ? {
+    labels: trend.labels.map(d => {
+      const dt = new Date(d + 'T00:00:00');
+      return Number.isNaN(dt.getTime())
+        ? d
+        : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }),
+    datasets: [
+      {
+        label: 'Savings balance',
+        data: trend.savingsLine,
+        borderColor: moneyColor,
+        backgroundColor: withAlpha(moneyColor, 0.1),
+        borderWidth: 2.5,
+        pointRadius: 3,
+        tension: 0.3,
+        spanGaps: true,
+        fill: true,
+      },
+      {
+        label: 'Cumulative vice spending',
+        data: trend.spendLine,
+        borderColor: warnColor,
+        backgroundColor: withAlpha(warnColor, 0.1),
+        borderWidth: 2,
+        borderDash: [5, 3],
+        pointRadius: 0,
+        tension: 0.3,
+        fill: true,
+      },
+    ],
+  } : null;
+
+  const trendOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: inkColor, boxWidth: 16, padding: 20, font: { size: 12 } },
+      },
+      tooltip: {
+        backgroundColor: paper2Color,
+        borderColor: rule2Color,
+        borderWidth: 1,
+        titleColor: ink2Color,
+        bodyColor: inkStrong,
+        filter: item => item.parsed.y !== null,
+        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt$0(ctx.parsed.y)}` },
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: ruleColor },
+        ticks: { color: inkColor, maxTicksLimit: isMobileView ? 5 : 10, maxRotation: 0, font: { size: isMobileView ? 9 : 11 } },
+      },
+      y: {
+        grid: { color: ruleColor },
+        ticks: { color: inkColor, callback: v => fmt$0(v) },
+      },
+    },
   };
 
   if (viceFetchError) {
@@ -538,36 +652,23 @@ export default function Dashboard() {
 
           <div className="panel">
             <div className="panel-head">
-              <span className="panel-title">Savings vs. vice spending</span>
+              <span className="panel-title">Savings vs. vice spending over time</span>
             </div>
-            {!compareLoaded ? (
+            {!trendLoaded ? (
               <p className="text-muted">Loading…</p>
-            ) : hasCompareData ? (
+            ) : trend?.hasData ? (
               <>
-                <div className="sv-compare-row">
-                  <div className="sv-compare-row-head">
-                    <span className="sv-compare-row-label">Savings balance</span>
-                    <span className="sv-compare-row-value">{fmt$0(savingsTotal)}</span>
-                  </div>
-                  <div className="sv-compare-track">
-                    <div className="sv-compare-fill savings" style={{ width: `${savingsPct}%` }} />
-                  </div>
+                <div className="dashboard-chart-wrap">
+                  <Line key={theme} data={trendData} options={trendOptions} />
                 </div>
-                <div className="sv-compare-row">
-                  <div className="sv-compare-row-head">
-                    <span className="sv-compare-row-label">Total vice spending</span>
-                    <span className="sv-compare-row-value">{fmt$0(spendTotalVal)}</span>
-                  </div>
-                  <div className="sv-compare-track">
-                    <div className="sv-compare-fill spending" style={{ width: `${spendPct}%` }} />
-                  </div>
-                </div>
-                <div className="sv-compare-takeaway">
-                  Savings: {fmt$0(savingsTotal)} · Vice spending: {fmt$0(spendTotalVal)}
-                </div>
+                {trend.savingsPointCount <= 1 && (
+                  <p className="text-muted" style={{ marginTop: 10, fontSize: 12 }}>
+                    Savings history builds forward from real saves — each balance update adds a point.
+                  </p>
+                )}
               </>
             ) : (
-              <p className="text-muted">Log a vice or set your savings balance to see this comparison.</p>
+              <p className="text-muted">Log an entry or update your savings balance to start this chart.</p>
             )}
           </div>
 
