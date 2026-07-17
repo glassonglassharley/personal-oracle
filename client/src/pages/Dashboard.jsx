@@ -276,6 +276,7 @@ export default function Dashboard() {
 
   // Actual savings balance (also shown/edited on the Savings page)
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
 
   // Trend chart series — null until each fetch resolves
   const [spendDays, setSpendDays] = useState(null);      // [{ date, spend }] per-day totals, oldest first
@@ -322,7 +323,8 @@ export default function Dashboard() {
       .catch(() => {});
     apiRef.current('/api/savings/balance')
       .then(setBalance)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBalanceLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -385,7 +387,7 @@ export default function Dashboard() {
   // Savings vs. vice spending over time — real data only. The spend line is a
   // running total of actual dated entries; the savings line plots only real
   // snapshots (nulls elsewhere, so Chart.js draws nothing for those dates).
-  const trendLoaded = spendDays !== null && savingsHist !== null;
+  const trendLoaded = spendDays !== null && savingsHist !== null && balanceLoaded;
   const trend = useMemo(() => {
     if (!trendLoaded) return null;
 
@@ -397,6 +399,18 @@ export default function Dashboard() {
       if (day && Number.isFinite(bal) && !snapByDate.has(day)) snapByDate.set(day, bal);
     });
 
+    // The Savings page's actual balance is the source of truth for the current
+    // balance card. Mirror that same value into the dashboard line chart too,
+    // even when the append-only history table has no prior snapshots yet (for
+    // example an older Plaid/Traditional IRA sync that set users.savings_balance
+    // before history existed).
+    const currentBalance = Number(balance?.balance || 0);
+    const fallbackDates = last7Dates();
+    const currentBalanceDay = dateKey(balance?.updated_at) || fallbackDates[6];
+    if (currentBalance > 0 && currentBalanceDay) {
+      snapByDate.set(currentBalanceDay, currentBalance);
+    }
+
     const spendByDate = new Map();
     spendDays.forEach(dp => {
       const day = String(dp?.date || '').split('T')[0];
@@ -404,18 +418,26 @@ export default function Dashboard() {
       if (day && Number.isFinite(amt)) spendByDate.set(day, amt);
     });
 
-    const labels = [...new Set([...spendByDate.keys(), ...snapByDate.keys()])].sort();
+    let labels = [...new Set([...spendByDate.keys(), ...snapByDate.keys()])].sort();
+    if (currentBalance > 0 && labels.length === 0) {
+      labels = [...new Set([fallbackDates[0], currentBalanceDay])].sort();
+    } else if (currentBalance > 0 && labels.length === 1) {
+      labels = [...new Set([fallbackDates[0], ...labels])].sort();
+    }
     let running = 0;
     const spendLine = labels.map(day => {
       running += spendByDate.get(day) || 0;
       return Math.round(running);
     });
-    const savingsLine = labels.map(day =>
-      snapByDate.has(day) ? Math.round(snapByDate.get(day)) : null
-    );
+    const showCurrentBalanceBenchmark = currentBalance > 0 && savingsHist.length === 0;
+    let latestSavings = showCurrentBalanceBenchmark ? currentBalance : null;
+    const savingsLine = labels.map(day => {
+      if (snapByDate.has(day)) latestSavings = snapByDate.get(day);
+      return latestSavings === null ? null : Math.round(latestSavings);
+    });
     const savingsPointCount = savingsLine.filter(v => v !== null).length;
     return { labels, spendLine, savingsLine, savingsPointCount, hasData: labels.length > 0 };
-  }, [trendLoaded, spendDays, savingsHist]);
+  }, [trendLoaded, spendDays, savingsHist, balance]);
 
   const chartData = {
     labels: last7.map(({ date }) => {
@@ -663,7 +685,7 @@ export default function Dashboard() {
                 </div>
                 {trend.savingsPointCount <= 1 && (
                   <p className="text-muted" style={{ marginTop: 10, fontSize: 12 }}>
-                    Savings history builds forward from real saves — each balance update adds a point.
+                    Savings line uses the same current balance shown on the Savings page. More balance updates add new history points.
                   </p>
                 )}
               </>
