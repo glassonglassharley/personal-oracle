@@ -232,6 +232,25 @@ const MIGRATIONS = `
     goals JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+  ALTER TABLE training_config ADD COLUMN IF NOT EXISTS nutrition_goals JSONB NOT NULL DEFAULT '{}'::jsonb;
+  ALTER TABLE training_config ADD COLUMN IF NOT EXISTS plate_settings JSONB NOT NULL DEFAULT '{}'::jsonb;
+  ALTER TABLE training_config ADD COLUMN IF NOT EXISTS plate_order JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+  -- Full daily Training Log metrics mirrored from Growth Mirror. The older
+  -- training_entries table stores one numeric field per row; this JSON row
+  -- preserves the rest of the dashboard metrics too (water, sleep, meals,
+  -- nutrition, meditation/books, rest day, and any future safe numeric metric)
+  -- so Oracle's Health page can match Training Log instead of showing reps only.
+  CREATE TABLE IF NOT EXISTS training_daily_metrics (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source TEXT NOT NULL DEFAULT 'training-log',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, date)
+  );
+  CREATE INDEX IF NOT EXISTS training_daily_metrics_user_date_idx
+    ON training_daily_metrics (user_id, date DESC);
 
   -- Debt Assassination sync, mirroring Training Log's shape. debt_id is a
   -- per-user local id (Debt Assassination's own incrementing id, not

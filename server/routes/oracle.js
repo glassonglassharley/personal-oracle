@@ -62,7 +62,7 @@ router.get('/summary', async (req, res, next) => {
 
     const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
 
-    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows, trainingConfigRow, incomeSourceRows] = await Promise.all([
+    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows, trainingDailyRows, trainingConfigRow, incomeSourceRows] = await Promise.all([
       pool.query(
         `SELECT
            COALESCE(SUM(CASE WHEN e.date = $2::date THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
@@ -149,11 +149,23 @@ router.get('/summary', async (req, res, next) => {
          ORDER BY date ASC`,
         [userId]
       ),
+      // Full Growth Mirror day metrics (water, sleep, meals, nutrition,
+      // meditation/books, rest day, plus exercise totals). This is the source
+      // that lets Oracle's Health page match Training Log's current visuals
+      // instead of showing only rows from training_entries.
+      pool.query(
+        `SELECT date::text AS date, data, updated_at
+         FROM training_daily_metrics
+         WHERE user_id = $1
+         ORDER BY date ASC`,
+        [userId]
+      ),
       // Real display names/goals for custom exercises, relayed from Training
       // Log's save_config - without this, the summary only ever has raw
       // exercise ids (e.g. "custom_1782962202006") and no goal info.
       pool.query(
-        `SELECT custom_exercises, goals FROM training_config WHERE user_id = $1`,
+        `SELECT custom_exercises, goals, nutrition_goals, plate_settings, plate_order
+         FROM training_config WHERE user_id = $1`,
         [userId]
       ),
       // Income sources synced from pre-game — same weekly-normalization as
@@ -212,6 +224,11 @@ router.get('/summary', async (req, res, next) => {
 
     const trainingToday = {};
     let trainingUpdatedAt = null;
+    trainingDailyRows.rows.forEach((r) => {
+      if (r.date !== today) return;
+      Object.assign(trainingToday, r.data || {});
+      if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
+    });
     trainingTodayRows.rows.forEach((r) => {
       trainingToday[r.exercise] = r.reps;
       if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
@@ -237,6 +254,10 @@ router.get('/summary', async (req, res, next) => {
     // { date, pushups: N, squats: N, ... } - the shape the Training screen's
     // history table already expects from a file import.
     const trainingHistoryByDate = new Map();
+    trainingDailyRows.rows.forEach((r) => {
+      trainingHistoryByDate.set(r.date, { date: r.date, ...(r.data || {}) });
+      if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
+    });
     trainingHistoryRows.rows.forEach((r) => {
       if (!trainingHistoryByDate.has(r.date)) trainingHistoryByDate.set(r.date, { date: r.date });
       trainingHistoryByDate.get(r.date)[r.exercise] = r.reps;
@@ -285,6 +306,9 @@ router.get('/summary', async (req, res, next) => {
         history: trainingHistory,
         customExercises: trainingConfigRow.rows[0]?.custom_exercises || [],
         goals: trainingConfigRow.rows[0]?.goals || {},
+        nutritionGoals: trainingConfigRow.rows[0]?.nutrition_goals || {},
+        plateSettings: trainingConfigRow.rows[0]?.plate_settings || {},
+        plateOrder: trainingConfigRow.rows[0]?.plate_order || [],
         updatedAt: trainingUpdatedAt,
       },
       income: {
