@@ -323,6 +323,39 @@ async function checkOracleChatRateLimit(userId) {
   return { allowed: true, remaining: ORACLE_CHAT_DAILY_LIMIT - r.rows[0].message_count };
 }
 
+function sanitizeCompactClientContext(value) {
+  if (!value || typeof value !== 'object' || value.schema !== 'personal-oracle-compact-v1') return null;
+  const finite = (input) => Number.isFinite(Number(input)) ? Math.round(Number(input) * 100) / 100 : 0;
+  const shortText = (input, max = 160) => typeof input === 'string' ? input.trim().slice(0, max) : '';
+  return {
+    weeklyCashFlow: finite(value.weeklyCashFlow),
+    liabilitiesRemaining: finite(value.liabilitiesRemaining),
+    liabilitiesPaidPct: finite(value.liabilitiesPaidPct),
+    invested: finite(value.invested),
+    viceSpendWeek: finite(value.viceSpendWeek),
+    trainingCompletedActions: finite(value.trainingCompletedActions),
+    trainingTotalActions: finite(value.trainingTotalActions),
+    activeBrief: value.activeBrief && typeof value.activeBrief === 'object' ? {
+      title: shortText(value.activeBrief.title, 100),
+      recommendedMove: shortText(value.activeBrief.recommendedMove, 180),
+    } : null,
+  };
+}
+
+function formatCompactClientContext(context) {
+  if (!context) return 'No current Command Center snapshot was supplied.';
+  const lines = [
+    'CURRENT COMMAND CENTER SNAPSHOT (compact browser summary; no raw logs):',
+    `- Weekly cash flow: $${context.weeklyCashFlow}`,
+    `- Liabilities remaining: $${context.liabilitiesRemaining} (${context.liabilitiesPaidPct}% paid off)`,
+    `- Invested balance: $${context.invested}`,
+    `- Tracked vice spend this week: $${context.viceSpendWeek}`,
+    `- Training actions completed: ${context.trainingCompletedActions} of ${context.trainingTotalActions}`,
+  ];
+  if (context.activeBrief?.title) lines.push(`- Active brief: ${context.activeBrief.title}`);
+  if (context.activeBrief?.recommendedMove) lines.push(`- Current recommended move: ${context.activeBrief.recommendedMove}`);
+  return lines.join('\n');
+}
 function formatContextForPrompt(context) {
   const lines = [];
 
@@ -389,47 +422,122 @@ function formatContextForPrompt(context) {
   return lines.join('\n');
 }
 
-function buildOracleChatSystemPrompt(context) {
+function buildOracleChatSystemPrompt(context, clientContext, mode = 'quick') {
   return `You are the Oracle — an analytical data tool the user consults to understand their own tracked life data. Your job is to reason ACROSS domains (vice spending, training, and debt), not describe one in isolation. Nobody has connected these datasets for the user before; that connection is the whole point of this feature.
 
 Rules:
-- Ground every claim in the numbers provided below. Never invent a figure, date, or trend that isn't in the data.
-- If asked about something with no backing data (income — see DATA AVAILABILITY), say plainly "I don't have that data yet." Do not guess or estimate.
+- For anything about the user's own tracked data (vices, training, debt, income): ground every claim in the numbers provided below. Never invent a figure, date, or trend that isn't in the data.
+- If asked about a tracked category with no backing data yet (income — see DATA AVAILABILITY), say plainly "I don't have that data yet." Do not guess or estimate the user's own numbers.
+- For general-knowledge or current-events questions unrelated to the user's tracked data, answer normally using your own knowledge or web search — you are not restricted to the numbers below for those.
 - The CROSS-DOMAIN CORRELATION section is an association from a small sample, not a proven causal effect. Never claim the vice "causes" a training change — describe it as "on average" or "days that lined up." If the day counts are small (under ~10), say the sample is too small to be confident.
 - Be specific and numeric in recommendations. No generic wellness advice ("try to reduce stress", "stay consistent") — every suggestion should reference the user's actual spend, reps, or streak numbers.
 - Tone: direct, analytical, concise. You are a sharp analyst, not a cheerleader or a therapist. Skip preamble — lead with the finding.
-- Keep responses under 150 words unless the user is asking for a detailed breakdown.
+- QUICK mode: answer in 80 words or fewer. Lead with one recommendation, then cite 2-3 supplied facts. No preamble.
+- DEEP mode: answer in 220 words or fewer with finding, evidence, tradeoff, and next move.
+- The requested mode is: ${mode === 'deep' ? 'DEEP' : 'QUICK'}.
+- Prefer plain language. Never use vague slogans such as "protect the margin" without immediately explaining them.
 
-${formatContextForPrompt(context)}`;
+${formatContextForPrompt(context)}` + "\n\n" + formatCompactClientContext(clientContext);
 }
 
-function fallbackOracleReply(context) {
-  const topVice = context.vices[0];
-  const topExercise = [...context.training].sort((a, b) => b.repsAllTime - a.repsAllTime)[0];
-  const avd = context.correlation.afterViceDay;
-  const acd = context.correlation.afterCleanDay;
+function localOracleReply(serverContext, clientContext, clientMessages, mode = 'quick') {
+  const question = String([...clientMessages].reverse().find((message) => message?.role === 'user')?.content || '').toLowerCase();
+  const compact = clientContext || {};
+  const cashFlow = Number(compact.weeklyCashFlow || 0);
+  const liabilities = Number(compact.liabilitiesRemaining || serverContext.debt?.totalBalance || 0);
+  const invested = Number(compact.invested || serverContext.savingsBalance || 0);
+  const viceSpend = Number(compact.viceSpendWeek || 0);
+  const completed = Number(compact.trainingCompletedActions || 0);
+  const trainingTotal = Number(compact.trainingTotalActions || 0);
+  const nextTarget = serverContext.debt?.nextTarget;
+  const money = (value) => `$${Math.round(Number(value || 0) * 100) / 100}`;
+  const evidence = [];
+  if (cashFlow > 0) evidence.push(`weekly cash flow is ${money(cashFlow)}`);
+  if (liabilities > 0) evidence.push(`liabilities are ${money(liabilities)}`);
+  if (viceSpend > 0) evidence.push(`tracked vice spend is ${money(viceSpend)} this week`);
+  if (invested > 0) evidence.push(`the invested balance is ${money(invested)}`);
+  if (trainingTotal > 0) evidence.push(`${completed} of ${trainingTotal} training actions are complete`);
 
-  const parts = [];
-  parts.push(`Data as of ${context.generatedAt.slice(0, 10)}.`);
-  if (topVice) {
-    parts.push(`Top vice by spend: ${topVice.name} — $${topVice.spend30d} in the last 30 days, $${topVice.spendAllTime} all-time. Clean-day streak: ${context.cleanStreak} (best ${context.bestCleanStreak}).`);
+  const previousAssistant = [...clientMessages].reverse().find((message, index, list) => message?.role === 'assistant' && index > 0)?.content;
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$/.test(question)) {
+    return 'Hello. I’m here and I have your latest synced summary. What would you like to talk through—money, liabilities, spending, investing, training, or your next priority?';
+  }
+  if (/^(thanks|thank you|appreciate it|got it)[!. ]*$/.test(question)) {
+    return 'You’re welcome. Would you like to keep working through this priority or look at another part of your life?';
+  }
+  if (/^(how are you|how’s it going|how is it going)[?!. ]*$/.test(question)) {
+    return 'Ready to help. I’m working from your latest synced facts rather than guessing. What’s on your mind?';
+  }
+  if (/^(bye|goodbye|talk later|see you)[!. ]*$/.test(question)) {
+    return 'Understood. I’ll be here when you want to review what changed or decide your next move.';
+  }
+  if (/^(help|can you help|what can you do)[?!. ]*$/.test(question)) {
+    return 'Yes. I can help you understand cash flow, liabilities, investing, vice spending, training progress, and the tradeoffs between them. Tell me what feels most important right now.';
+  }
+  if (/^(yes|yeah|yep|okay|ok|sure)[!. ]*$/.test(question)) {
+    return previousAssistant ? 'Understood. What part would you like to explore—the evidence, another option, or the first practical step?' : 'Understood. What would you like to focus on first?';
+  }
+  if (/^(no|nope|not really)[!. ]*$/.test(question)) {
+    return 'That’s fine. Tell me what does not fit, and I’ll approach it from a different angle.';
+  }
+  let recommendation;
+  let reason;
+  if (/evidence|why|reason|how did|explain/.test(question)) {
+    recommendation = compact.activeBrief?.recommendedMove || 'Use the strongest current signal as your next move.';
+    reason = evidence.length ? `The current evidence is that ${evidence.slice(0, 3).join(', ')}.` : 'There are not enough synced facts yet to support a recommendation.';
+  } else if (/cut|reduce|spend|vice/.test(question)) {
+    if (viceSpend > 0) {
+      const reduction = Math.max(1, Math.round(viceSpend * 0.2));
+      recommendation = `Reduce tracked vice spending by ${money(reduction)} this week.`;
+      reason = `That is a 20% reduction from the current ${money(viceSpend)} and keeps the target measurable.`;
+    } else {
+      recommendation = 'No spending cut is supported by the current synced data.';
+      reason = 'Tracked vice spending is currently zero or unavailable.';
+    }
+  } else if (/train|health|workout|exercise/.test(question)) {
+    const remaining = Math.max(0, trainingTotal - completed);
+    recommendation = remaining > 0 ? `Complete one of the ${remaining} remaining training actions next.` : 'Maintain the completed training plan.';
+    reason = trainingTotal > 0 ? `${completed} of ${trainingTotal} tracked actions are complete.` : 'Training goals are not synced yet.';
+  } else if (/liabilit|debt|pay/.test(question)) {
+    recommendation = nextTarget ? `Make the next payment toward ${nextTarget.lender}.` : liabilities > 0 ? 'Direct the next planned payment toward the smallest open liability.' : 'No open liability is available to prioritize.';
+    reason = nextTarget ? `${nextTarget.lender} is the current snowball target at ${money(nextTarget.balance)}.` : `Current liabilities total ${money(liabilities)}.`;
+  } else if (/invest|saving/.test(question)) {
+    recommendation = liabilities > 0 ? 'Keep investing consistent, but prioritize the next planned liability payment first.' : 'Direct the next available contribution to investing.';
+    reason = `The invested balance is ${money(invested)}${liabilities > 0 ? ` while liabilities remain ${money(liabilities)}` : ''}.`;
+  } else if (/another|option|alternative/.test(question)) {
+    recommendation = trainingTotal > completed ? 'Choose one remaining training action as today’s alternative priority.' : viceSpend > 0 ? 'Use a smaller vice-spending reduction as the alternative move.' : 'Review the smallest open liability as the alternative priority.';
+    reason = evidence.length ? `This keeps the choice grounded in current data: ${evidence.slice(0, 2).join(' and ')}.` : 'More synced data is needed for a stronger alternative.';
+  } else if (!/(priorit|should|next|focus|recommend|what do|plan|afford)/.test(question)) {
+    recommendation = 'Tell me a little more about what you want to decide.';
+    reason = 'I can use your synced facts once I know whether you want to discuss spending, liabilities, investing, training, or something else.';
+  } else if (cashFlow <= 0) {
+    recommendation = 'Sync or import income before making a financial recommendation.';
+    reason = 'Current weekly cash flow is unavailable, so affordability cannot be verified.';
+  } else if (viceSpend >= cashFlow * 0.2) {
+    const reserve = Math.max(1, Math.round(Math.min(viceSpend * 0.2, cashFlow * 0.1)));
+    recommendation = `Set aside ${money(reserve)} before optional spending.`;
+    reason = `Tracked vice spending is ${money(viceSpend)}, which is ${Math.round((viceSpend / cashFlow) * 100)}% of ${money(cashFlow)} weekly cash flow.`;
+  } else if (liabilities > 0) {
+    recommendation = nextTarget ? `Prioritize the next payment to ${nextTarget.lender}.` : 'Prioritize the next planned liability payment.';
+    reason = `${money(liabilities)} remains in liabilities${compact.liabilitiesPaidPct ? ` and ${compact.liabilitiesPaidPct}% has been paid off` : ''}.`;
+  } else if (trainingTotal > completed) {
+    recommendation = 'Complete one remaining training action next.';
+    reason = `${completed} of ${trainingTotal} actions are complete.`;
   } else {
-    parts.push('No vice data logged yet.');
+    recommendation = 'Keep the current plan and direct the next surplus toward investing.';
+    reason = `No stronger risk signal is present; the invested balance is ${money(invested)}.`;
   }
-  if (topExercise) {
-    parts.push(`Most-trained exercise: ${topExercise.exercise} — ${topExercise.reps30d} reps in the last 30 days. Training streak: ${context.trainingStreak} (best ${context.bestTrainingStreak}).`);
-  } else {
-    parts.push('No training data logged yet.');
+
+  if (mode === 'deep') {
+    const evidenceLine = evidence.length ? ` Evidence: ${evidence.join('; ')}.` : '';
+    return `${recommendation} ${reason}${evidenceLine} This is a rules-based Oracle response generated from the latest synced summary, not a prediction.`;
   }
-  if (avd.dayCount > 0 || acd.dayCount > 0) {
-    parts.push(`Next-day reps average ${avd.avgNextDayReps} after a vice-logged day (n=${avd.dayCount}) vs ${acd.avgNextDayReps} after a clean day (n=${acd.dayCount}).`);
-  }
-  parts.push("(The Oracle's AI reasoning is temporarily unavailable — this is a data summary, not a personalized answer.)");
-  return parts.join(' ');
+  return `${recommendation} ${reason}`;
 }
-
 router.post('/chat', async (req, res, next) => {
-  const { messages: clientMessages = [] } = req.body;
+  const { messages: clientMessages = [], context: rawClientContext = null, mode: rawMode = 'quick' } = req.body;
+  const clientContext = sanitizeCompactClientContext(rawClientContext);
+  const mode = rawMode === 'deep' ? 'deep' : 'quick';
   if (!Array.isArray(clientMessages) || clientMessages.length === 0) {
     return res.status(400).json({ error: 'messages required' });
   }
@@ -458,10 +566,11 @@ router.post('/chat', async (req, res, next) => {
         },
         body: JSON.stringify({
           model,
-          max_tokens: 800,
+          max_tokens: mode === 'deep' ? 600 : 250,
           temperature: 0.4,
+          tools: [{ type: 'openrouter:web_search' }],
           messages: [
-            { role: 'system', content: buildOracleChatSystemPrompt(context) },
+            { role: 'system', content: buildOracleChatSystemPrompt(context, clientContext, mode) },
             ...clientMessages,
           ],
         }),
@@ -474,7 +583,7 @@ router.post('/chat', async (req, res, next) => {
       res.json({ text, dataAsOf: context.generatedAt });
     } catch (aiErr) {
       console.error('oracle chat: AI call failed, using fallback:', aiErr);
-      res.json({ text: fallbackOracleReply(context), fallback: true, dataAsOf: context.generatedAt });
+      res.json({ text: localOracleReply(context, clientContext, clientMessages, mode), fallback: true, localReasoning: true, dataAsOf: context.generatedAt });
     }
   } catch (err) { next(err); }
 });
