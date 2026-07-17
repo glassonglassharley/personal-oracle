@@ -224,13 +224,21 @@ router.get('/summary', async (req, res, next) => {
 
     const trainingToday = {};
     let trainingUpdatedAt = null;
-    trainingDailyRows.rows.forEach((r) => {
-      if (r.date !== today) return;
-      Object.assign(trainingToday, r.data || {});
-      if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
-    });
+    const dailyMetricsToday = trainingDailyRows.rows.find((r) => r.date === today) || null;
+    if (dailyMetricsToday) {
+      Object.assign(trainingToday, dailyMetricsToday.data || {});
+      if (!trainingUpdatedAt || dailyMetricsToday.updated_at > trainingUpdatedAt) trainingUpdatedAt = dailyMetricsToday.updated_at;
+    }
+    // training_entries is relayed per-exercise, independently of the full
+    // day-metrics blob, so it can go stale relative to daily_metrics for a
+    // given exercise (e.g. a value dropping to zero that never re-relayed
+    // here). Only let it overwrite daily_metrics' value when it's actually
+    // newer, or when daily_metrics never had that exercise at all.
     trainingTodayRows.rows.forEach((r) => {
-      trainingToday[r.exercise] = r.reps;
+      const dailyMetricsHasNewer = dailyMetricsToday
+        && Object.prototype.hasOwnProperty.call(dailyMetricsToday.data || {}, r.exercise)
+        && dailyMetricsToday.updated_at >= r.updated_at;
+      if (!dailyMetricsHasNewer) trainingToday[r.exercise] = r.reps;
       if (!trainingUpdatedAt || r.updated_at > trainingUpdatedAt) trainingUpdatedAt = r.updated_at;
     });
 
