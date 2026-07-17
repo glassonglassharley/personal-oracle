@@ -2,9 +2,8 @@ const pool = require('../db');
 const { round2, computeCurrentStreak, computeBestStreak } = require('../utils');
 
 // Assembles everything the Oracle chat needs to reason across vice spending,
-// training, and debt data for one user, date-aligned, in a single round trip.
-// Income has no backing table yet — dataSources flags that so the system
-// prompt can say "I don't have that yet" instead of inventing numbers.
+// training, debt, and income data for one user, date-aligned, in a single
+// round trip.
 async function buildOracleContext(userId) {
   const [
     todayRow,
@@ -15,6 +14,7 @@ async function buildOracleContext(userId) {
     correlationRows,
     savingsRow,
     debtRows,
+    incomeSourceRows,
   ] = await Promise.all([
     pool.query('SELECT CURRENT_DATE::text AS today'),
 
@@ -105,6 +105,24 @@ async function buildOracleContext(userId) {
        ORDER BY balance ASC`,
       [userId]
     ),
+
+    // Income sources synced from pre-game (via /api/income/sources). "pay" is
+    // already weekly-normalized client-side before it ever reaches this table
+    // (pre-game's addSource(): W2 hourly -> hourlyRate*hours, W2 salary ->
+    // annualPay/52, 1099 -> direct weekly entry) -- so work sources need no
+    // recomputation here. Only recurring investment income needs converting,
+    // using pre-game's own frequency multipliers (see below). Non-recurring
+    // investment kinds (CD/Dividend/Interest) have no weekly-equivalent in
+    // pre-game's own model either (balance+rate, not periodic cash flow), so
+    // they're listed but contribute 0 to cash flow -- consistent with the
+    // source app, not invented here.
+    pool.query(
+      `SELECT name, kind, pay, instrument, recurring_amount, recurring_frequency, updated_at
+       FROM income_sources
+       WHERE user_id = $1
+       ORDER BY updated_at DESC`,
+      [userId]
+    ),
   ]);
 
   const today = todayRow.rows[0].today;
@@ -169,6 +187,33 @@ async function buildOracleContext(userId) {
     nextTarget: debts.find((d) => d.balance > 0) || null,
   };
 
+  // Same annual multipliers pre-game's own PASSIVE_FREQUENCIES table uses
+  // (PreGameApp.tsx) -- occurrences per year, converted to weekly by /52.
+  const INCOME_ANNUAL_MULTIPLIER = { weekly: 52, biweekly: 26, monthly: 12, annual: 1 };
+  const incomeSources = incomeSourceRows.rows.map((r) => {
+    let weeklyPay = 0;
+    if (r.kind === 'work') {
+      weeklyPay = Number(r.pay) || 0;
+    } else if (r.kind === 'invest' && r.instrument === 'Recurring') {
+      const multiplier = INCOME_ANNUAL_MULTIPLIER[r.recurring_frequency] || 0;
+      weeklyPay = ((Number(r.recurring_amount) || 0) * multiplier) / 52;
+    }
+    return {
+      name: r.name,
+      kind: r.kind,
+      instrument: r.instrument,
+      weeklyPay: round2(weeklyPay),
+      updatedAt: r.updated_at,
+    };
+  });
+  const incomeWeeklyCashFlow = round2(incomeSources.reduce((sum, s) => sum + s.weeklyPay, 0));
+  const incomeSummary = {
+    sources: incomeSources,
+    weeklyCashFlow: incomeWeeklyCashFlow,
+    monthlyCashFlow: round2((incomeWeeklyCashFlow * 52) / 12),
+    yearlyCashFlow: round2(incomeWeeklyCashFlow * 52),
+  };
+
   return {
     generatedAt: new Date().toISOString(),
     vices,
@@ -180,7 +225,8 @@ async function buildOracleContext(userId) {
     correlation,
     savingsBalance: round2(savingsRow.rows[0]?.savings_balance || 0),
     debt: debtSummary,
-    dataSources: { vices: true, training: true, debt: true, income: false },
+    income: incomeSummary,
+    dataSources: { vices: true, training: true, debt: true, income: true },
   };
 }
 

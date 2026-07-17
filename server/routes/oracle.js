@@ -407,6 +407,17 @@ function formatContextForPrompt(context) {
   }
   lines.push('');
 
+  lines.push('INCOME (weekly-normalized cash flow per source):');
+  if (!context.income || context.income.sources.length === 0) {
+    lines.push('  none tracked yet');
+  } else {
+    context.income.sources.forEach((s) => {
+      lines.push(`  - ${s.name} [${s.kind}${s.instrument ? '/' + s.instrument : ''}]: $${s.weeklyPay}/wk`);
+    });
+    lines.push(`  Total weekly cash flow: $${context.income.weeklyCashFlow} (monthly ~$${context.income.monthlyCashFlow}, yearly ~$${context.income.yearlyCashFlow})`);
+  }
+  lines.push('');
+
   lines.push('CROSS-DOMAIN CORRELATION (next-day training volume, combined across vices — association only, not causation):');
   const avd = context.correlation.afterViceDay;
   const acd = context.correlation.afterCleanDay;
