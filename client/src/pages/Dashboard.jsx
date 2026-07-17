@@ -385,8 +385,10 @@ export default function Dashboard() {
   const isMobileView = typeof window !== 'undefined' && window.innerWidth <= 520;
 
   // Savings vs. vice spending over time — real data only. The spend line is a
-  // running total of actual dated entries; the savings line plots only real
-  // snapshots (nulls elsewhere, so Chart.js draws nothing for those dates).
+  // running total of actual dated entries; the savings line carries each real
+  // recorded balance forward (step chart), and carries the earliest recorded
+  // balance backward to the start of the range so both lines span the same
+  // x-axis with no gaps.
   const trendLoaded = spendDays !== null && savingsHist !== null && balanceLoaded;
   const trend = useMemo(() => {
     if (!trendLoaded) return null;
@@ -429,8 +431,8 @@ export default function Dashboard() {
       running += spendByDate.get(day) || 0;
       return Math.round(running);
     });
-    const showCurrentBalanceBenchmark = currentBalance > 0 && savingsHist.length === 0;
-    let latestSavings = showCurrentBalanceBenchmark ? currentBalance : null;
+    const savingsDates = [...snapByDate.keys()].sort();
+    let latestSavings = savingsDates.length > 0 ? snapByDate.get(savingsDates[0]) : null;
     const savingsLine = labels.map(day => {
       if (snapByDate.has(day)) latestSavings = snapByDate.get(day);
       return latestSavings === null ? null : Math.round(latestSavings);
