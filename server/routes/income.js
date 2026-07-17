@@ -16,7 +16,9 @@ const dateOrNull = (value) => {
 // per-date event, so re-syncing the same sourceId overwrites, not duplicates.
 router.post('/sources', async (req, res, next) => {
   try {
+    console.log('[INCOME-DEBUG] arrival', { path: req.path, hasAuth: !!req.headers.authorization, origin: req.headers.origin, bodyKeys: Object.keys(req.body || {}) });
     const userId = await getInternalUserId(req.auth.userId);
+    console.log('[INCOME-DEBUG] auth', { clerkUserId: req.auth?.userId || null, internalUserId: userId });
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const {
@@ -26,11 +28,18 @@ router.post('/sources', async (req, res, next) => {
     } = req.body || {};
 
     const sourceIdClean = cleanStr(sourceId, 80);
-    if (!sourceIdClean) return res.status(400).json({ error: 'Invalid sourceId' });
+    if (!sourceIdClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'sourceId' });
+      return res.status(400).json({ error: 'Invalid sourceId' });
+    }
     const nameClean = cleanStr(name, 120);
-    if (!nameClean) return res.status(400).json({ error: 'Invalid name' });
+    if (!nameClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'name' });
+      return res.status(400).json({ error: 'Invalid name' });
+    }
     const kindClean = kind === 'invest' ? 'invest' : 'work';
 
+    console.log('[INCOME-DEBUG] pre-insert', { path: req.path, userId });
     const result = await pool.query(
       `INSERT INTO income_sources (
          user_id, source_id, name, kind, pay_type, pay, hours, w2_pay_mode,
@@ -71,8 +80,9 @@ router.post('/sources', async (req, res, next) => {
         recurringFrequency ? cleanStr(recurringFrequency, 20) : null,
       ]
     );
+    console.log('[INCOME-DEBUG] inserted', { path: req.path, returned: !!result.rows[0] });
     res.json({ ok: true, source: result.rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // GET /api/income/sources — read back all of this user's income sources.
@@ -91,26 +101,35 @@ router.get('/sources', async (req, res, next) => {
       [userId]
     );
     res.json({ sources: result.rows });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // POST /api/income/tasks — upsert one action item for the authenticated user.
 router.post('/tasks', async (req, res, next) => {
   try {
+    console.log('[INCOME-DEBUG] arrival', { path: req.path, hasAuth: !!req.headers.authorization, origin: req.headers.origin, bodyKeys: Object.keys(req.body || {}) });
     const userId = await getInternalUserId(req.auth.userId);
+    console.log('[INCOME-DEBUG] auth', { clerkUserId: req.auth?.userId || null, internalUserId: userId });
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { taskId, text, done, type, category, completedAt, scheduledAt, completedDates } = req.body || {};
 
     const taskIdClean = cleanStr(taskId, 80);
-    if (!taskIdClean) return res.status(400).json({ error: 'Invalid taskId' });
+    if (!taskIdClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'taskId' });
+      return res.status(400).json({ error: 'Invalid taskId' });
+    }
     const textClean = cleanStr(text, 500);
-    if (!textClean) return res.status(400).json({ error: 'Invalid text' });
+    if (!textClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'text' });
+      return res.status(400).json({ error: 'Invalid text' });
+    }
     const typeClean = ['daily', 'goal', 'upcoming'].includes(type) ? type : 'daily';
     const completedDatesClean = Array.isArray(completedDates)
       ? completedDates.filter((d) => typeof d === 'string').slice(0, 400)
       : [];
 
+    console.log('[INCOME-DEBUG] pre-insert', { path: req.path, userId });
     const result = await pool.query(
       `INSERT INTO income_tasks (
          user_id, task_id, text, done, type, category, completed_at,
@@ -135,8 +154,9 @@ router.post('/tasks', async (req, res, next) => {
         JSON.stringify(completedDatesClean),
       ]
     );
+    console.log('[INCOME-DEBUG] inserted', { path: req.path, returned: !!result.rows[0] });
     res.json({ ok: true, task: result.rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // GET /api/income/tasks — read back this user's action items.
@@ -153,24 +173,33 @@ router.get('/tasks', async (req, res, next) => {
       [userId]
     );
     res.json({ tasks: result.rows });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // POST /api/income/opportunities — upsert one opportunity for the authenticated user.
 router.post('/opportunities', async (req, res, next) => {
   try {
+    console.log('[INCOME-DEBUG] arrival', { path: req.path, hasAuth: !!req.headers.authorization, origin: req.headers.origin, bodyKeys: Object.keys(req.body || {}) });
     const userId = await getInternalUserId(req.auth.userId);
+    console.log('[INCOME-DEBUG] auth', { clerkUserId: req.auth?.userId || null, internalUserId: userId });
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { opportunityId, title, companyOrClient, stage, origin, createdAt } = req.body || {};
 
     const opportunityIdClean = cleanStr(opportunityId, 80);
-    if (!opportunityIdClean) return res.status(400).json({ error: 'Invalid opportunityId' });
+    if (!opportunityIdClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'opportunityId' });
+      return res.status(400).json({ error: 'Invalid opportunityId' });
+    }
     const titleClean = cleanStr(title, 200);
-    if (!titleClean) return res.status(400).json({ error: 'Invalid title' });
+    if (!titleClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'title' });
+      return res.status(400).json({ error: 'Invalid title' });
+    }
     const validStages = ['lead', 'applied', 'replied', 'interview', 'offer', 'won', 'lost'];
     const stageClean = validStages.includes(stage) ? stage : 'lead';
 
+    console.log('[INCOME-DEBUG] pre-insert', { path: req.path, userId });
     const result = await pool.query(
       `INSERT INTO income_opportunities (
          user_id, opportunity_id, title, company_or_client, stage, origin, created_at, updated_at
@@ -192,8 +221,9 @@ router.post('/opportunities', async (req, res, next) => {
         dateOrNull(createdAt),
       ]
     );
+    console.log('[INCOME-DEBUG] inserted', { path: req.path, returned: !!result.rows[0] });
     res.json({ ok: true, opportunity: result.rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // GET /api/income/opportunities — read back this user's opportunities.
@@ -210,23 +240,32 @@ router.get('/opportunities', async (req, res, next) => {
       [userId]
     );
     res.json({ opportunities: result.rows });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // POST /api/income/followups — upsert one follow-up for the authenticated user.
 router.post('/followups', async (req, res, next) => {
   try {
+    console.log('[INCOME-DEBUG] arrival', { path: req.path, hasAuth: !!req.headers.authorization, origin: req.headers.origin, bodyKeys: Object.keys(req.body || {}) });
     const userId = await getInternalUserId(req.auth.userId);
+    console.log('[INCOME-DEBUG] auth', { clerkUserId: req.auth?.userId || null, internalUserId: userId });
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { followUpId, title, dueDate, status, origin, createdAt } = req.body || {};
 
     const followUpIdClean = cleanStr(followUpId, 80);
-    if (!followUpIdClean) return res.status(400).json({ error: 'Invalid followUpId' });
+    if (!followUpIdClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'followUpId' });
+      return res.status(400).json({ error: 'Invalid followUpId' });
+    }
     const titleClean = cleanStr(title, 200);
-    if (!titleClean) return res.status(400).json({ error: 'Invalid title' });
+    if (!titleClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'title' });
+      return res.status(400).json({ error: 'Invalid title' });
+    }
     const statusClean = ['open', 'done', 'dismissed'].includes(status) ? status : 'open';
 
+    console.log('[INCOME-DEBUG] pre-insert', { path: req.path, userId });
     const result = await pool.query(
       `INSERT INTO income_followups (
          user_id, followup_id, title, due_date, status, origin, created_at, updated_at
@@ -247,8 +286,9 @@ router.post('/followups', async (req, res, next) => {
         dateOrNull(createdAt),
       ]
     );
+    console.log('[INCOME-DEBUG] inserted', { path: req.path, returned: !!result.rows[0] });
     res.json({ ok: true, followUp: result.rows[0] });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // GET /api/income/followups — read back this user's follow-ups.
@@ -265,7 +305,7 @@ router.get('/followups', async (req, res, next) => {
       [userId]
     );
     res.json({ followUps: result.rows });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // POST /api/income/events — append one income event. Events are immutable
@@ -275,18 +315,30 @@ router.get('/followups', async (req, res, next) => {
 // again or updated.
 router.post('/events', async (req, res, next) => {
   try {
+    console.log('[INCOME-DEBUG] arrival', { path: req.path, hasAuth: !!req.headers.authorization, origin: req.headers.origin, bodyKeys: Object.keys(req.body || {}) });
     const userId = await getInternalUserId(req.auth.userId);
+    console.log('[INCOME-DEBUG] auth', { clerkUserId: req.auth?.userId || null, internalUserId: userId });
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { eventId, title, amount, eventDate, opportunityId, origin, notes } = req.body || {};
 
     const eventIdClean = cleanStr(eventId, 80);
-    if (!eventIdClean) return res.status(400).json({ error: 'Invalid eventId' });
+    if (!eventIdClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'eventId' });
+      return res.status(400).json({ error: 'Invalid eventId' });
+    }
     const titleClean = cleanStr(title, 200);
-    if (!titleClean) return res.status(400).json({ error: 'Invalid title' });
+    if (!titleClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'title' });
+      return res.status(400).json({ error: 'Invalid title' });
+    }
     const eventDateClean = dateOrNull(eventDate);
-    if (!eventDateClean) return res.status(400).json({ error: 'Invalid eventDate' });
+    if (!eventDateClean) {
+      console.log('[INCOME-DEBUG] reject', { path: req.path, reason: 'eventDate' });
+      return res.status(400).json({ error: 'Invalid eventDate' });
+    }
 
+    console.log('[INCOME-DEBUG] pre-insert', { path: req.path, userId });
     const result = await pool.query(
       `INSERT INTO income_events (user_id, event_id, title, amount, event_date, opportunity_id, origin, notes)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -299,8 +351,9 @@ router.post('/events', async (req, res, next) => {
         notes ? cleanStr(notes, 1000) : null,
       ]
     );
+    console.log('[INCOME-DEBUG] inserted', { path: req.path, returned: !!result.rows[0] });
     res.json({ ok: true, event: result.rows[0] || null });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 // GET /api/income/events — read back this user's income events, most recent first.
@@ -317,7 +370,7 @@ router.get('/events', async (req, res, next) => {
       [userId]
     );
     res.json({ events: result.rows });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[INCOME-DEBUG] ERROR', { path: req.path, message: err.message }); next(err); }
 });
 
 module.exports = router;
