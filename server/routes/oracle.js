@@ -11,6 +11,7 @@ const EMPTY_SUMMARY = {
   cleanStreak: 0, bestStreak: 0, savingsBalance: 0, avgDailySpend: 0,
   perVice: [], last7Days: [], viceEntries: [],
   training: { today: {}, last7: [], history: [], customExercises: [], goals: {}, updatedAt: null },
+  income: { weeklyCashFlow: 0, sourceCount: 0, updatedAt: null },
 };
 
 // Same set personal-oracle-draft's own file-import path sums for its
@@ -61,7 +62,7 @@ router.get('/summary', async (req, res, next) => {
 
     const { today, weekAgo, monthStart, yearStart } = dateWindows(parseTz(req.query.tz));
 
-    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows, trainingConfigRow] = await Promise.all([
+    const [periodsRow, perViceRows, last7Rows, streakRows, perViceStreakRows, recentEntryRows, savingsRow, trainingTodayRows, trainingLast7Rows, trainingHistoryRows, trainingConfigRow, incomeSourceRows] = await Promise.all([
       pool.query(
         `SELECT
            COALESCE(SUM(CASE WHEN e.date = $2::date THEN e.quantity * e.price_per_unit END), 0)::float AS today_spend,
@@ -155,6 +156,15 @@ router.get('/summary', async (req, res, next) => {
         `SELECT custom_exercises, goals FROM training_config WHERE user_id = $1`,
         [userId]
       ),
+      // Income sources synced from pre-game — same weekly-normalization as
+      // buildOracleContext's income section (server/lib/oracleContext.js),
+      // kept in sync so the dashboard and chat never disagree.
+      pool.query(
+        `SELECT pay, kind, instrument, recurring_amount, recurring_frequency, updated_at
+         FROM income_sources
+         WHERE user_id = $1`,
+        [userId]
+      ),
     ]);
 
     const periods = periodsRow.rows[0];
@@ -233,6 +243,20 @@ router.get('/summary', async (req, res, next) => {
     });
     const trainingHistory = [...trainingHistoryByDate.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
+    // Same annual multipliers pre-game's own PASSIVE_FREQUENCIES table uses
+    // (PreGameApp.tsx) — occurrences per year, converted to weekly by /52.
+    const INCOME_ANNUAL_MULTIPLIER = { weekly: 52, biweekly: 26, monthly: 12, annual: 1 };
+    let incomeUpdatedAt = null;
+    const incomeWeeklyCashFlow = round2(incomeSourceRows.rows.reduce((sum, r) => {
+      if (!incomeUpdatedAt || r.updated_at > incomeUpdatedAt) incomeUpdatedAt = r.updated_at;
+      if (r.kind === 'work') return sum + (Number(r.pay) || 0);
+      if (r.kind === 'invest' && r.instrument === 'Recurring') {
+        const multiplier = INCOME_ANNUAL_MULTIPLIER[r.recurring_frequency] || 0;
+        return sum + ((Number(r.recurring_amount) || 0) * multiplier) / 52;
+      }
+      return sum;
+    }, 0));
+
     res.json({
       todaySpend: round2(periods.today_spend),
       weekSpend: round2(periods.week_spend),
@@ -262,6 +286,11 @@ router.get('/summary', async (req, res, next) => {
         customExercises: trainingConfigRow.rows[0]?.custom_exercises || [],
         goals: trainingConfigRow.rows[0]?.goals || {},
         updatedAt: trainingUpdatedAt,
+      },
+      income: {
+        weeklyCashFlow: incomeWeeklyCashFlow,
+        sourceCount: incomeSourceRows.rows.length,
+        updatedAt: incomeUpdatedAt,
       },
       generatedAt: new Date().toISOString(),
     });
