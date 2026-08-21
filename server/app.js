@@ -113,12 +113,19 @@ async function usernameOrClerkAuth(req, res, next) {
 
 const ALLOWED_ORIGINS = (() => {
   const env = process.env.ALLOWED_ORIGINS || process.env.APP_URL || '';
-  const origins = env.split(',').map(s => s.trim()).filter(Boolean);
-  if (!origins.length) {
-    // Dev fallback: allow localhost on common ports
-    return [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/127\.0\.0\.1(:\d+)?$/];
-  }
-  return origins;
+  const configured = env.split(',').map(s => s.trim()).filter(Boolean);
+  return [
+    ...configured,
+    // Vice Tracker production aliases. Keep these in code so a missing/stale
+    // ALLOWED_ORIGINS env value cannot lock the app out of its own API after
+    // Vercel moves a production alias.
+    'https://vice-tracker-orpin.vercel.app',
+    'https://vice-tracker-glassonglassharley-4498s-projects.vercel.app',
+    'https://vice-tracker-git-main-glassonglassharley-4498s-projects.vercel.app',
+    // Dev fallback: allow localhost on common ports.
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  ];
 })();
 
 // personal-oracle-draft calls GET /api/oracle/summary cross-origin with a
