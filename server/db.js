@@ -123,10 +123,12 @@ const MIGRATIONS = `
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     access_token TEXT NOT NULL,
     item_id TEXT NOT NULL,
+    institution_id TEXT,
     institution_name TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (user_id, item_id)
   );
+  ALTER TABLE plaid_connections ADD COLUMN IF NOT EXISTS institution_id TEXT;
 
   CREATE TABLE IF NOT EXISTS plaid_transaction_actions (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

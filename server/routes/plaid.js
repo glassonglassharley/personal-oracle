@@ -134,7 +134,7 @@ router.post('/create-link-token', async (req, res, next) => {
 router.post('/exchange-token', async (req, res, next) => {
   try {
     const plaid = getPlaidClient();
-    const { public_token, institution_name } = req.body;
+    const { public_token, institution_name, institution_id } = req.body;
     if (!public_token) return res.status(400).json({ error: 'public_token required' });
 
     // Look up user before calling Plaid so we fail early with a clear error
@@ -152,12 +152,13 @@ router.post('/exchange-token', async (req, res, next) => {
     const { access_token, item_id } = exchangeRes.data;
 
     await pool.query(
-      `INSERT INTO plaid_connections (user_id, access_token, item_id, institution_name)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO plaid_connections (user_id, access_token, item_id, institution_id, institution_name)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (user_id, item_id) DO UPDATE
          SET access_token = EXCLUDED.access_token,
+             institution_id = COALESCE(EXCLUDED.institution_id, plaid_connections.institution_id),
              institution_name = EXCLUDED.institution_name`,
-      [userId, access_token, item_id, institution_name || null]
+      [userId, access_token, item_id, institution_id || null, institution_name || null]
     );
 
     res.json({ ok: true, institution_name });
@@ -399,7 +400,7 @@ router.get('/connections', async (req, res, next) => {
     if (!userId) return res.status(404).json({ error: 'User not found' });
 
     const connRows = await pool.query(
-      'SELECT item_id, access_token, institution_name, created_at FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
+      'SELECT item_id, access_token, institution_id, institution_name, created_at FROM plaid_connections WHERE user_id = $1 ORDER BY created_at DESC',
       [userId]
     );
 
@@ -407,6 +408,7 @@ router.get('/connections', async (req, res, next) => {
     for (const conn of connRows.rows) {
       const item = {
         item_id: conn.item_id,
+        institution_id: conn.institution_id || null,
         institution_name: conn.institution_name || 'Bank',
         connected_at: conn.created_at,
         accounts: [],

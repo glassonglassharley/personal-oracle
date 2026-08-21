@@ -78,7 +78,7 @@ function combinedBalanceFromRows(rows) {
 
 async function refreshPlaidCombinedAccounts(userId) {
   const connRows = await pool.query(
-    `SELECT access_token, item_id, institution_name
+    `SELECT access_token, item_id, institution_id, institution_name
      FROM plaid_connections
      WHERE user_id = $1
      ORDER BY created_at DESC`,
@@ -131,7 +131,7 @@ async function refreshPlaidCombinedAccounts(userId) {
           [
             userId,
             accountKey,
-            conn.item_id || null,
+            conn.institution_id || conn.item_id || null,
             conn.institution_name || 'Bank',
             acct.name || acct.official_name || 'Account',
             acct.type || null,

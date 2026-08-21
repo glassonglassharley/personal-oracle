@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -143,6 +143,17 @@ function accountDisplayName(account) {
   return `${institution} — ${name}${mask}`;
 }
 
+function loadPlaidScript() {
+  return new Promise((resolve, reject) => {
+    if (window.Plaid) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Failed to load Plaid Link script'));
+    document.head.appendChild(script);
+  });
+}
+
 export default function Savings() {
   const api = useApi();
   const { vices, theme } = useViceContext();
@@ -161,6 +172,7 @@ export default function Savings() {
   const [combinedBalance, setCombinedBalance] = useState(0);
   const [combinedLoaded, setCombinedLoaded] = useState(false);
   const [syncingPlaid, setSyncingPlaid] = useState(false);
+  const [linkingPlaid, setLinkingPlaid] = useState(false);
   const [plaidSyncError, setPlaidSyncError] = useState('');
   const [showManualAccountForm, setShowManualAccountForm] = useState(false);
   const [manualAccountForm, setManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
@@ -393,6 +405,52 @@ export default function Savings() {
     }
   };
 
+  const connectPlaidInstitution = useCallback(async (institutionId = null) => {
+    setLinkingPlaid(true);
+    setPlaidSyncError('');
+    try {
+      await loadPlaidScript();
+      const body = institutionId ? JSON.stringify({ institution_id: institutionId }) : undefined;
+      const { link_token } = await api('/api/plaid/create-link-token', {
+        method: 'POST',
+        ...(body ? { body } : {}),
+      });
+      sessionStorage.setItem('plaid_link_token', link_token);
+      const handler = window.Plaid.create({
+        token: link_token,
+        onSuccess: async (public_token, metadata) => {
+          const institution = metadata?.institution || {};
+          try {
+            await api('/api/plaid/exchange-token', {
+              method: 'POST',
+              body: JSON.stringify({
+                public_token,
+                institution_name: institution.name || '',
+                institution_id: institution.institution_id || institutionId || null,
+              }),
+            });
+            setPlaidConnected(true);
+            await loadCombinedAccounts({ refresh: true });
+          } catch (err) {
+            setPlaidSyncError(err.message || 'Could not finish connecting this institution.');
+          } finally {
+            sessionStorage.removeItem('plaid_link_token');
+            setLinkingPlaid(false);
+          }
+        },
+        onExit: (err) => {
+          if (err) setPlaidSyncError(err.error_message || 'Plaid Link closed with an error. Please try again.');
+          sessionStorage.removeItem('plaid_link_token');
+          setLinkingPlaid(false);
+        },
+      });
+      handler.open();
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not open Plaid Link.');
+      setLinkingPlaid(false);
+    }
+  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const createGoal = async (e) => {
     e.preventDefault();
     setGoalError('');
@@ -578,18 +636,6 @@ export default function Savings() {
   const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
   const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
 
-  if (vices.length === 0) {
-    return (
-      <main className="main sv-page">
-        <div className="empty-state">
-          <div className="empty-icon">💰</div>
-          <h2>Add a vice to see your savings</h2>
-          <p>Go to <a href="/vices">Vices</a> to add one.</p>
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="main sv-page">
       <div className="crumbs">
@@ -607,17 +653,26 @@ export default function Savings() {
       <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
         <div className="panel-head" style={{ marginBottom: 10 }}>
           <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
-          {plaidConnected && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ fontSize: 12, padding: '4px 10px' }}
+              onClick={() => connectPlaidInstitution()}
+              disabled={linkingPlaid || syncingPlaid}
+            >
+              {linkingPlaid ? 'Opening Plaid…' : '+ Connect bank'}
+            </button>
             <button
               type="button"
               className="btn ghost"
               style={{ fontSize: 12, padding: '4px 10px' }}
               onClick={syncFromBank}
-              disabled={syncingPlaid}
+              disabled={syncingPlaid || linkingPlaid}
             >
-              {syncingPlaid ? 'Syncing…' : '↻ Sync from bank'}
+              {syncingPlaid ? 'Syncing…' : '↻ Sync balances'}
             </button>
-          )}
+          </div>
         </div>
         <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
           <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
@@ -644,7 +699,7 @@ export default function Savings() {
             <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Accounts included in Combined Savings</p>
             {combinedAccounts.length === 0 ? (
               <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '0 0 8px' }}>
-                No synced accounts loaded yet. Use Sync from bank, or add a manual fallback.
+                No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
               </p>
             ) : combinedAccounts.map(acct => (
               <label
