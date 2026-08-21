@@ -329,11 +329,6 @@ router.get('/accounts', async (req, res, next) => {
     for (const { access_token, institution_name } of connRows.rows) {
       try {
         const balRes = await plaid.accountsBalanceGet({ access_token });
-        console.log(`[plaid/accounts] ${institution_name} raw accounts:`,
-          balRes.data.accounts.map(a =>
-            `${a.name}(${a.subtype}) current=${a.balances.current} available=${a.balances.available}`
-          )
-        );
         balRes.data.accounts.forEach(acct => {
           // CDs often return null for current balance in real-time API; fall back to available
           const balance = acct.balances.current ?? acct.balances.available ?? null;

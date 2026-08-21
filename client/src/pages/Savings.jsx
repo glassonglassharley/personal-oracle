@@ -117,11 +117,9 @@ const CATEGORY_PRESETS = [
   { label: 'Custom',                emoji: '📦', rate: 0,   description: '' },
 ];
 
-const SAVINGS_BALANCE_ACCOUNT_TYPES = new Set(['depository', 'investment']);
-
 function plaidAccountKind(account) {
-  const type = String(account?.type || '').toLowerCase();
-  const subtype = String(account?.subtype || '').toLowerCase();
+  const type = String(account?.type || account?.accountType || '').toLowerCase();
+  const subtype = String(account?.subtype || account?.accountSubtype || '').toLowerCase();
 
   if (type === 'investment') {
     if (subtype.includes('ira')) return 'Investment · IRA';
@@ -138,6 +136,13 @@ function plaidAccountKind(account) {
   return [account?.type, account?.subtype].filter(Boolean).join(' · ') || 'Account';
 }
 
+function accountDisplayName(account) {
+  const institution = account?.institutionName || account?.institution || 'Account';
+  const name = account?.accountName || account?.name || 'Account';
+  const mask = account?.mask ? ` ••••${account.mask}` : '';
+  return `${institution} — ${name}${mask}`;
+}
+
 export default function Savings() {
   const api = useApi();
   const { vices, theme } = useViceContext();
@@ -152,10 +157,13 @@ export default function Savings() {
   const [balanceError, setBalanceError] = useState('');
   const [balanceSaved, setBalanceSaved] = useState(false);
   const [plaidConnected, setPlaidConnected] = useState(false);
-  const [plaidAccounts, setPlaidAccounts] = useState([]);
+  const [combinedAccounts, setCombinedAccounts] = useState([]);
+  const [combinedBalance, setCombinedBalance] = useState(0);
+  const [combinedLoaded, setCombinedLoaded] = useState(false);
   const [syncingPlaid, setSyncingPlaid] = useState(false);
   const [plaidSyncError, setPlaidSyncError] = useState('');
-  const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [showManualAccountForm, setShowManualAccountForm] = useState(false);
+  const [manualAccountForm, setManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
 
   // Custom assets (server-backed)
   const [userAssets, setUserAssets] = useState([]);
@@ -200,6 +208,68 @@ export default function Savings() {
   };
 
   const removeOppItem = (id) => setOppItems(prev => prev.filter(item => item.id !== id));
+
+  const applyCombinedSavings = (payload) => {
+    setCombinedAccounts(payload.accounts || []);
+    setCombinedBalance(Number(payload.combinedBalance || 0));
+    setCombinedLoaded(true);
+    if ((payload.accounts || []).length > 0) {
+      setBalance({ balance: Number(payload.combinedBalance || 0), updated_at: payload.updated_at || new Date().toISOString() });
+      setBalanceInput(payload.combinedBalance > 0 ? String(payload.combinedBalance) : '');
+      setBalanceSource('plaid');
+    }
+    if (payload.syncErrors?.length) {
+      setPlaidSyncError('Some connected institutions could not refresh. Existing selections were preserved.');
+    }
+  };
+
+  const loadCombinedAccounts = async ({ refresh = true } = {}) => {
+    const payload = await api(`/api/savings/combined-accounts${refresh ? '' : '?refresh=0'}`);
+    applyCombinedSavings(payload);
+    return payload;
+  };
+
+  const toggleCombinedAccount = async (account, included) => {
+    setPlaidSyncError('');
+    try {
+      const payload = await api('/api/savings/combined-accounts', {
+        method: 'PUT',
+        body: JSON.stringify({ account_key: account.id, included }),
+      });
+      applyCombinedSavings(payload);
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not update account selection.');
+    }
+  };
+
+  const addManualAccount = async (e) => {
+    e.preventDefault();
+    setPlaidSyncError('');
+    try {
+      const payload = await api('/api/savings/combined-accounts/manual', {
+        method: 'POST',
+        body: JSON.stringify(manualAccountForm),
+      });
+      applyCombinedSavings(payload);
+      setManualAccountForm({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
+      setShowManualAccountForm(false);
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not add manual account.');
+    }
+  };
+
+  const deleteManualAccount = async (account) => {
+    setPlaidSyncError('');
+    try {
+      const payload = await api('/api/savings/combined-accounts/manual', {
+        method: 'DELETE',
+        body: JSON.stringify({ account_key: account.id }),
+      });
+      applyCombinedSavings(payload);
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not delete manual account.');
+    }
+  };
 
   // Resolve CSS vars synchronously during render — useMemo runs in the render
   // phase, so by the time this fires the body class is already updated and
@@ -263,6 +333,7 @@ export default function Savings() {
     api('/api/plaid/status')
       .then(d => setPlaidConnected(!!d.connected))
       .catch(() => {});
+    loadCombinedAccounts({ refresh: true }).catch(() => setCombinedLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -274,14 +345,14 @@ export default function Savings() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const saved = balance.balance;
+    const saved = combinedLoaded ? combinedBalance : balance.balance;
     goals.filter(g => !g.completed_at).forEach(g => {
       if (saved >= Number(g.target_amount) && !celebratedRef.current.has(g.id)) {
         celebratedRef.current.add(g.id);
         setCelebGoal(g);
       }
     });
-  }, [balance.balance, goals]);
+  }, [balance.balance, combinedBalance, combinedLoaded, goals]);
 
   const handleBalanceSave = async (e) => {
     e.preventDefault();
@@ -295,6 +366,9 @@ export default function Savings() {
         body: JSON.stringify({ balance: val, source: balanceSource }),
       });
       setBalance(data);
+      if (balanceSource === 'manual') {
+        setCombinedLoaded(false);
+      }
       setBalanceSaved(true);
       setTimeout(() => setBalanceSaved(false), 2500);
     } catch (err) {
@@ -307,21 +381,10 @@ export default function Savings() {
   const syncFromBank = async () => {
     setSyncingPlaid(true);
     setPlaidSyncError('');
-    setShowAccountPicker(false);
     try {
-      const d = await api('/api/plaid/accounts');
-      const balanceAccounts = (d.accounts || []).filter(a =>
-        SAVINGS_BALANCE_ACCOUNT_TYPES.has(String(a.type || '').toLowerCase()) &&
-        a.balance != null
-      );
-      if (balanceAccounts.length === 0) {
-        setPlaidSyncError('No checking, savings, or investment accounts with balances were found in your connected accounts.');
-      } else if (balanceAccounts.length === 1) {
-        setBalanceInput(String(balanceAccounts[0].balance));
-        setBalanceSource('plaid');
-      } else {
-        setPlaidAccounts(balanceAccounts);
-        setShowAccountPicker(true);
+      const payload = await loadCombinedAccounts({ refresh: true });
+      if (!payload.accounts?.length) {
+        setPlaidSyncError('No synced accounts were found. Connect a bank or add a manual account.');
       }
     } catch (err) {
       setPlaidSyncError(err.message || 'Could not fetch balances. Try again.');
@@ -512,6 +575,8 @@ export default function Savings() {
   });
 
   const investmentCards = [...builtInInvestmentCards, ...userAssetCards];
+  const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
+  const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
 
   if (vices.length === 0) {
     return (
@@ -555,7 +620,10 @@ export default function Savings() {
           )}
         </div>
         <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
-          <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+          <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
+          <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 10px' }}>
+            {selectedCombinedAccounts.length} account{selectedCombinedAccounts.length === 1 ? '' : 's'} included in Combined Savings
+          </p>
           <form className="sv-balance-form" onSubmit={handleBalanceSave}>
             <input
               type="number"
@@ -572,41 +640,61 @@ export default function Savings() {
           </form>
           {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
           {plaidSyncError && <p className="form-error" style={{ marginTop: 8 }}>{plaidSyncError}</p>}
-          {showAccountPicker && plaidAccounts.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Choose which account balance to use:</p>
-              {plaidAccounts.map(acct => (
-                <button
-                  key={acct.account_id}
-                  type="button"
-                  className="btn ghost"
-                  style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  onClick={() => {
-                    setBalanceInput(acct.balance != null ? String(acct.balance) : '');
-                    setBalanceSource('plaid');
-                    setShowAccountPicker(false);
-                    setPlaidAccounts([]);
-                  }}
-                >
-                  <span><strong>{acct.institution}</strong> — {acct.name} <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>({plaidAccountKind(acct)})</span></span>
-                  <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12 }}>{fmt$2(acct.balance)}</span>
-                </button>
-              ))}
-              <button
-                type="button"
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Accounts included in Combined Savings</p>
+            {combinedAccounts.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '0 0 8px' }}>
+                No synced accounts loaded yet. Use Sync from bank, or add a manual fallback.
+              </p>
+            ) : combinedAccounts.map(acct => (
+              <label
+                key={acct.id}
                 className="btn ghost"
-                style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}
-                onClick={() => { setShowAccountPicker(false); setPlaidAccounts([]); }}
-              >Cancel</button>
-            </div>
-          )}
+                style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', cursor: acct.disconnected ? 'not-allowed' : 'pointer', opacity: acct.disconnected ? 0.62 : 1 }}
+              >
+                <span style={{ display: 'flex', gap: 8, minWidth: 0, alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!acct.includedInCombinedSavings && !acct.disconnected}
+                    disabled={acct.disconnected}
+                    onChange={e => toggleCombinedAccount(acct, e.target.checked)}
+                    style={{ flexShrink: 0 }}
+                  />
+                  <span style={{ minWidth: 0 }}>
+                    <strong>{accountDisplayName(acct)}</strong>{' '}
+                    <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                      ({plaidAccountKind(acct)}{acct.source === 'manual' ? ' · Manual' : ''}{acct.disconnected ? ' · Disconnected' : ''})
+                    </span>
+                  </span>
+                </span>
+                <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
+                {acct.source === 'manual' && (
+                  <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); deleteManualAccount(acct); }}>×</button>
+                )}
+              </label>
+            ))}
+            {showManualAccountForm ? (
+              <form onSubmit={addManualAccount} style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                <input className="form-input" placeholder="Institution" value={manualAccountForm.institutionName} onChange={e => setManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
+                <input className="form-input" placeholder="Account name" value={manualAccountForm.accountName} onChange={e => setManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
+                <input className="form-input" placeholder="Account type" value={manualAccountForm.accountType} onChange={e => setManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
+                <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={manualAccountForm.currentBalance} onChange={e => setManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" type="submit" style={{ fontSize: 12, padding: '5px 12px' }}>Add manual account</button>
+                  <button className="btn ghost" type="button" style={{ fontSize: 12, padding: '5px 12px' }} onClick={() => setShowManualAccountForm(false)}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <button type="button" className="btn ghost" style={{ fontSize: 12, padding: '4px 10px', marginTop: 4 }} onClick={() => setShowManualAccountForm(true)}>+ Add manual account</button>
+            )}
+          </div>
         </div>
         {goals.filter(g => !g.completed_at).length > 0 ? (
           <div className="sv-balance-badges">
             {goals.filter(g => !g.completed_at).map(g => {
               const target = Number(g.target_amount);
-              const pct = target > 0 ? Math.min(100, (balance.balance / target) * 100) : 0;
-              const earned = balance.balance >= target;
+              const pct = target > 0 ? Math.min(100, (actualSavingsBalance / target) * 100) : 0;
+              const earned = actualSavingsBalance >= target;
               return (
                 <div key={g.id} className={`sv-bb-item${earned ? ' earned' : ''}`}>
                   <div className="sv-bb-label">
@@ -905,7 +993,7 @@ export default function Savings() {
 
       <GoalsSection
         goals={goals}
-        savings={balance.balance}
+        savings={actualSavingsBalance}
         avgDailySpend={data?.per_day || 0}
         showForm={showGoalForm}
         setShowForm={setShowGoalForm}

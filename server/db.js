@@ -408,6 +408,33 @@ const MIGRATIONS = `
   );
   CREATE INDEX IF NOT EXISTS income_events_user_id_idx ON income_events (user_id, event_date DESC);
 
+  -- Combined Savings account inclusion state. Plaid account rows are refreshed
+  -- from /accounts/balance/get by stable Plaid account_id; manual rows live in
+  -- the same table so the savings total has one server-backed source of truth.
+  CREATE TABLE IF NOT EXISTS combined_savings_accounts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_key TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('plaid', 'manual')),
+    institution_id TEXT,
+    institution_name TEXT NOT NULL DEFAULT 'Manual',
+    account_name TEXT NOT NULL,
+    account_type TEXT,
+    account_subtype TEXT,
+    mask TEXT,
+    current_balance NUMERIC,
+    available_balance NUMERIC,
+    currency TEXT DEFAULT 'USD',
+    included_in_combined_savings BOOLEAN NOT NULL DEFAULT FALSE,
+    disconnected BOOLEAN NOT NULL DEFAULT FALSE,
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, account_key)
+  );
+  CREATE INDEX IF NOT EXISTS combined_savings_accounts_user_idx
+    ON combined_savings_accounts (user_id, included_in_combined_savings, disconnected);
+
   -- Append-only, like debt_payments/score_history: each row is an immutable
   -- snapshot of the user's savings balance at the moment it was saved (manual
   -- edit or bank sync). Never backfilled or simulated — history only grows
