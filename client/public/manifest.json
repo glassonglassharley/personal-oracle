@@ -45,13 +45,19 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/apple-touch-icon-vtv-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-vtv-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-vtv-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
@@ -63,13 +69,13 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192-maskable.png",
+      "src": "/icon-vtv-192-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-512-maskable.png",
+      "src": "/icon-vtv-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
