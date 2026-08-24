@@ -265,27 +265,6 @@ function periodNote(key, period) {
   return top ? `Mostly ${top.vice.name}` : 'Tracked across all vices';
 }
 
-function buildRecentRows(entries, avgDailySpend) {
-  const rows = [];
-  const cleanByDate = new Map();
-  entries.forEach(entry => {
-    if (Number(entry.quantity) === 0) {
-      const key = dateKey(entry.date);
-      const group = cleanByDate.get(key) || { type: 'clean-group', date: key, count: 0, saved: 0, vices: [] };
-      group.count += 1;
-      group.saved += Number(avgDailySpend || 0);
-      group.vices.push(entry.vice);
-      cleanByDate.set(key, group);
-    } else {
-      rows.push({ type: 'spend', entry, date: dateKey(entry.date) });
-    }
-  });
-  cleanByDate.forEach(group => rows.push(group));
-  return rows
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 10);
-}
-
 export default function Dashboard() {
   const api = useApi();
   const apiRef = useRef(api);
@@ -294,7 +273,6 @@ export default function Dashboard() {
   const { vices, companion, setShowOnboarding, viceFetchError, loadVices, theme } = useViceContext();
   const [stats, setStats] = useState(null);
   const [last7, setLast7] = useState([]);
-  const [recentEntries, setRecentEntries] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Challenge notifications
@@ -380,7 +358,6 @@ export default function Dashboard() {
     if (vices.length === 0) {
       setStats(null);
       setLast7([]);
-      setRecentEntries([]);
       return;
     }
 
@@ -411,9 +388,6 @@ export default function Dashboard() {
 
       setStats(combineStats(vices, statsByVice, allEntries));
       setLast7(dates.map(date => ({ date, spend: spendByDate[date] || 0 })));
-      setRecentEntries(allEntries
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10));
       setLoading(false);
     }).catch(err => {
       console.error(err);
@@ -508,8 +482,6 @@ export default function Dashboard() {
   const treeNextAmount = companion?.growth?.treeGrowthState && companion.growth.treeGrowthState < 5
     ? Math.max(0, [0, 50, 150, 500, 1500, Infinity][companion.growth.treeGrowthState] - Number(companion.growth.totalSaved || 0))
     : null;
-  const recentRows = buildRecentRows(recentEntries, stats?.avg_daily_spend || 0);
-
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -824,82 +796,38 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid-2">
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">Per-vice breakdown</span>
-              </div>
-              <div className="savings-rows">
-                {(() => {
-                  const totalSpend = stats.year?.byVice?.reduce((sum, v) => sum + v.spend, 0) || 0;
-                  return (stats.year?.byVice || [])
-                    .map(item => ({ vice: item.vice, viceSpend: item.spend || 0 }))
-                    .sort((a, b) => b.viceSpend - a.viceSpend)
-                    .map(({ vice, viceSpend }, index) => {
-                    const pct = totalSpend > 0 ? Math.round((viceSpend / totalSpend) * 100) : 0;
-                    return (
-                      <div key={vice.id} style={{ marginBottom: 10 }}>
-                        <div className="savings-row" style={{ marginBottom: 4 }}>
-                          <span>{vice.emoji} {vice.name} {index === 0 && viceSpend > 0 && <em className="db-top-offender">cut first</em>}</span>
-                          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <strong className="text-money">{fmt$(viceSpend)}</strong>
-                            <span className="text-muted" style={{ fontSize: 11 }}>{pct}%</span>
-                          </span>
-                        </div>
-                        {totalSpend > 0 && (
-                          <div className="budget-bar">
-                            <div className="budget-bar-fill" style={{ width: `${pct}%`, background: vice.color || 'var(--money)' }} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  });
-                })()}
-                <div className="savings-divider" />
-                <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
-              </div>
+          <div className="panel">
+            <div className="panel-head">
+              <span className="panel-title">Per-vice breakdown</span>
             </div>
-
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">Recent entries · all vices</span>
-              </div>
-              {recentRows.length === 0 ? (
-                <p className="text-muted">No entries yet — go to Log to add one.</p>
-              ) : (
-                <div className="entry-list">
-                  {recentRows.map(row => {
-                    const isCleanGroup = row.type === 'clean-group';
-                    const e = row.entry;
-                    const d = new Date((row.date || '').split('T')[0] + 'T00:00:00');
-                    return (
-                      <div key={isCleanGroup ? `clean-${row.date}` : `${e.vice.id}-${e.id}`} className={`entry-item ${isCleanGroup ? 'clean clean-group' : ''}`}>
-                        <span className="entry-date">
-                          {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            <div className="savings-rows">
+              {(() => {
+                const totalSpend = stats.year?.byVice?.reduce((sum, v) => sum + v.spend, 0) || 0;
+                return (stats.year?.byVice || [])
+                  .map(item => ({ vice: item.vice, viceSpend: item.spend || 0 }))
+                  .sort((a, b) => b.viceSpend - a.viceSpend)
+                  .map(({ vice, viceSpend }, index) => {
+                  const pct = totalSpend > 0 ? Math.round((viceSpend / totalSpend) * 100) : 0;
+                  return (
+                    <div key={vice.id} style={{ marginBottom: 10 }}>
+                      <div className="savings-row" style={{ marginBottom: 4 }}>
+                        <span>{vice.emoji} {vice.name} {index === 0 && viceSpend > 0 && <em className="db-top-offender">cut first</em>}</span>
+                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <strong className="text-money">{fmt$(viceSpend)}</strong>
+                          <span className="text-muted" style={{ fontSize: 11 }}>{pct}%</span>
                         </span>
-                        {isCleanGroup ? (
-                          <>
-                            <span className="text-money entry-label">✓ {row.count} clean log{row.count === 1 ? '' : 's'}</span>
-                            <span className="text-money entry-saved">saved {fmt$(row.saved)}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="entry-qty">{e.vice.emoji} {formatQuantityWithUnit(e.quantity, e.vice)}</span>
-                            <span className="entry-spend">{fmt$(e.quantity * e.price_per_unit)}</span>
-                          </>
-                        )}
-                        <Link
-                          className="entry-edit-btn"
-                          to="/log"
-                          state={isCleanGroup ? undefined : { editEntry: { ...e, vice_id: e.vice_id || e.vice.id } }}
-                        >
-                          {isCleanGroup ? 'View' : 'Edit'}
-                        </Link>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      {totalSpend > 0 && (
+                        <div className="budget-bar">
+                          <div className="budget-bar-fill" style={{ width: `${pct}%`, background: vice.color || 'var(--money)' }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+              <div className="savings-divider" />
+              <div className="savings-row"><span>Avg daily spend</span><strong>{fmt$(stats.avg_daily_spend)}</strong></div>
             </div>
           </div>
 
