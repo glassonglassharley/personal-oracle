@@ -290,6 +290,41 @@ router.post('/combined-accounts/manual', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PUT /api/savings/combined-accounts/manual — edit a manual fallback account.
+// Plaid-synced account names/balances remain provider-controlled; only manual
+// rows owned by the authenticated user can be changed here.
+router.put('/combined-accounts/manual', async (req, res, next) => {
+  try {
+    const userId = await getInternalUserId(req.auth.userId);
+    if (!userId) return res.status(404).json({ error: 'User not found' });
+    const accountKey = typeof req.body?.account_key === 'string' ? req.body.account_key.trim() : '';
+    if (!accountKey) return res.status(400).json({ error: 'account_key required' });
+
+    const institutionName = String(req.body?.institutionName || req.body?.institution || '').trim().slice(0, 120);
+    const accountName = String(req.body?.accountName || req.body?.name || '').trim().slice(0, 120);
+    const accountType = String(req.body?.accountType || req.body?.type || 'manual').trim().slice(0, 80);
+    const balance = Number(req.body?.currentBalance ?? req.body?.balance);
+    if (!institutionName) return res.status(400).json({ error: 'Institution required' });
+    if (!accountName) return res.status(400).json({ error: 'Account name required' });
+    if (!Number.isFinite(balance)) return res.status(400).json({ error: 'Valid current balance required' });
+
+    const update = await pool.query(
+      `UPDATE combined_savings_accounts
+       SET institution_name = $1,
+           account_name = $2,
+           account_type = $3,
+           current_balance = $4,
+           last_synced_at = NOW(),
+           updated_at = NOW()
+       WHERE user_id = $5 AND account_key = $6 AND source = 'manual'`,
+      [institutionName, accountName, accountType, balance, userId, accountKey]
+    );
+    if (update.rowCount === 0) return res.status(404).json({ error: 'Manual account not found' });
+
+    res.json(await loadCombinedSavings(userId, { refreshPlaid: false }));
+  } catch (err) { next(err); }
+});
+
 // DELETE /api/savings/combined-accounts/manual — remove a manual fallback
 // account. Synced Plaid accounts are disconnected through /api/plaid/connections.
 router.delete('/combined-accounts/manual', async (req, res, next) => {

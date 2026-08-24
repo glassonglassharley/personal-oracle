@@ -176,6 +176,8 @@ export default function Savings() {
   const [plaidSyncError, setPlaidSyncError] = useState('');
   const [showManualAccountForm, setShowManualAccountForm] = useState(false);
   const [manualAccountForm, setManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
+  const [editingManualAccountId, setEditingManualAccountId] = useState(null);
+  const [editingManualAccountForm, setEditingManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
 
   // Custom assets (server-backed)
   const [userAssets, setUserAssets] = useState([]);
@@ -267,6 +269,39 @@ export default function Savings() {
       setShowManualAccountForm(false);
     } catch (err) {
       setPlaidSyncError(err.message || 'Could not add manual account.');
+    }
+  };
+
+  const startEditingManualAccount = (account) => {
+    setPlaidSyncError('');
+    setEditingManualAccountId(account.id);
+    setEditingManualAccountForm({
+      institutionName: account.institutionName || account.institution || '',
+      accountName: account.accountName || account.name || '',
+      accountType: account.accountType || account.type || '',
+      currentBalance: account.currentBalance == null ? '' : String(account.currentBalance),
+    });
+    setShowManualAccountForm(false);
+  };
+
+  const cancelEditingManualAccount = () => {
+    setEditingManualAccountId(null);
+    setEditingManualAccountForm({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
+  };
+
+  const updateManualAccount = async (e) => {
+    e.preventDefault();
+    if (!editingManualAccountId) return;
+    setPlaidSyncError('');
+    try {
+      const payload = await api('/api/savings/combined-accounts/manual', {
+        method: 'PUT',
+        body: JSON.stringify({ account_key: editingManualAccountId, ...editingManualAccountForm }),
+      });
+      applyCombinedSavings(payload);
+      cancelEditingManualAccount();
+    } catch (err) {
+      setPlaidSyncError(err.message || 'Could not update manual account.');
     }
   };
 
@@ -702,31 +737,49 @@ export default function Savings() {
                 No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
               </p>
             ) : combinedAccounts.map(acct => (
-              <label
-                key={acct.id}
-                className="btn ghost"
-                style={{ width: '100%', textAlign: 'left', marginBottom: 6, fontSize: 13, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', cursor: acct.disconnected ? 'not-allowed' : 'pointer', opacity: acct.disconnected ? 0.62 : 1 }}
-              >
-                <span style={{ display: 'flex', gap: 8, minWidth: 0, alignItems: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!acct.includedInCombinedSavings && !acct.disconnected}
-                    disabled={acct.disconnected}
-                    onChange={e => toggleCombinedAccount(acct, e.target.checked)}
-                    style={{ flexShrink: 0 }}
-                  />
-                  <span style={{ minWidth: 0 }}>
-                    <strong>{accountDisplayName(acct)}</strong>{' '}
-                    <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                      ({plaidAccountKind(acct)}{acct.source === 'manual' ? ' · Manual' : ''}{acct.disconnected ? ' · Disconnected' : ''})
+              <div key={acct.id} style={{ marginBottom: editingManualAccountId === acct.id ? 8 : 6 }}>
+                <label
+                  className="btn ghost"
+                  style={{ width: '100%', textAlign: 'left', fontSize: 13, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', cursor: acct.disconnected ? 'not-allowed' : 'pointer', opacity: acct.disconnected ? 0.62 : 1 }}
+                >
+                  <span style={{ display: 'flex', gap: 8, minWidth: 0, alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!acct.includedInCombinedSavings && !acct.disconnected}
+                      disabled={acct.disconnected}
+                      onChange={e => toggleCombinedAccount(acct, e.target.checked)}
+                      style={{ flexShrink: 0 }}
+                    />
+                    <span style={{ minWidth: 0 }}>
+                      <strong>{accountDisplayName(acct)}</strong>{' '}
+                      <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                        ({plaidAccountKind(acct)}{acct.source === 'manual' ? ' · Manual' : ''}{acct.disconnected ? ' · Disconnected' : ''})
+                      </span>
                     </span>
                   </span>
-                </span>
-                <span style={{ color: 'var(--money)', fontWeight: 700, marginLeft: 12, flexShrink: 0 }}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
-                {acct.source === 'manual' && (
-                  <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); deleteManualAccount(acct); }}>×</button>
+                  <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 12, flexShrink: 0 }}>
+                    <span style={{ color: 'var(--money)', fontWeight: 700 }}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
+                    {acct.source === 'manual' && (
+                      <>
+                        <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); startEditingManualAccount(acct); }}>Edit</button>
+                        <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); deleteManualAccount(acct); }}>×</button>
+                      </>
+                    )}
+                  </span>
+                </label>
+                {editingManualAccountId === acct.id && (
+                  <form onSubmit={updateManualAccount} style={{ display: 'grid', gap: 6, marginTop: 6, padding: 8, border: '1px solid var(--rule)', borderRadius: 10 }}>
+                    <input className="form-input" placeholder="Institution" value={editingManualAccountForm.institutionName} onChange={e => setEditingManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
+                    <input className="form-input" placeholder="Account name" value={editingManualAccountForm.accountName} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
+                    <input className="form-input" placeholder="Account type" value={editingManualAccountForm.accountType} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
+                    <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={editingManualAccountForm.currentBalance} onChange={e => setEditingManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} autoFocus />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-primary" type="submit" style={{ fontSize: 12, padding: '5px 12px' }}>Save account</button>
+                      <button className="btn ghost" type="button" style={{ fontSize: 12, padding: '5px 12px' }} onClick={cancelEditingManualAccount}>Cancel</button>
+                    </div>
+                  </form>
                 )}
-              </label>
+              </div>
             ))}
             {showManualAccountForm ? (
               <form onSubmit={addManualAccount} style={{ display: 'grid', gap: 6, marginTop: 8 }}>
