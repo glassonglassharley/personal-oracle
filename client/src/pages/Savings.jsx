@@ -80,6 +80,10 @@ function dcaFV(dailyPMT, annualRate, days) {
 
 const fmt$0 = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 const fmt$2 = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtInput2 = n => {
+  const value = Number(n || 0);
+  return Number.isFinite(value) && value > 0 ? value.toFixed(2) : '';
+};
 function fmtBig(n) {
   if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
   if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
@@ -229,7 +233,7 @@ export default function Savings() {
     setCombinedLoaded(true);
     if ((payload.accounts || []).length > 0) {
       setBalance({ balance: Number(payload.combinedBalance || 0), updated_at: payload.updated_at || new Date().toISOString() });
-      setBalanceInput(payload.combinedBalance > 0 ? String(payload.combinedBalance) : '');
+      setBalanceInput(fmtInput2(payload.combinedBalance));
       setBalanceSource('plaid');
     }
     if (payload.syncErrors?.length) {
@@ -279,7 +283,7 @@ export default function Savings() {
       institutionName: account.institutionName || account.institution || '',
       accountName: account.accountName || account.name || '',
       accountType: account.accountType || account.type || '',
-      currentBalance: account.currentBalance == null ? '' : String(account.currentBalance),
+      currentBalance: fmtInput2(account.currentBalance),
     });
     setShowManualAccountForm(false);
   };
@@ -371,7 +375,7 @@ export default function Savings() {
     api('/api/savings/balance')
       .then(data => {
         setBalance(data);
-        setBalanceInput(data.balance > 0 ? String(data.balance) : '');
+        setBalanceInput(fmtInput2(data.balance));
       })
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
