@@ -674,6 +674,16 @@ export default function Savings() {
   const investmentCards = [...builtInInvestmentCards, ...userAssetCards];
   const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
   const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
+  const connectedAccounts = combinedAccounts.filter(a => !a.disconnected);
+  const manualAccounts = connectedAccounts.filter(a => a.source === 'manual');
+  const syncedAccounts = connectedAccounts.filter(a => a.source !== 'manual');
+  const excludedAccounts = connectedAccounts.filter(a => !a.includedInCombinedSavings);
+  const selectedManualAccounts = selectedCombinedAccounts.filter(a => a.source === 'manual');
+  const selectedSyncedAccounts = selectedCombinedAccounts.filter(a => a.source !== 'manual');
+  const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
+  const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
+  const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
+  const projectedVsActual = actualSavingsBalance > 0 ? projected / actualSavingsBalance : 0;
 
   return (
     <main className="main sv-page">
@@ -689,14 +699,17 @@ export default function Savings() {
 
 
       {/* ── Actual Savings Balance ── */}
-      <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
-        <div className="panel-head" style={{ marginBottom: 10 }}>
-          <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <div className="panel sv-balance-panel sv-balance-panel-polished">
+        <div className="sv-balance-head">
+          <div>
+            <span className="panel-title sv-balance-title">Combined Savings</span>
+            <p className="sv-balance-note">Choose exactly which synced and manual accounts count toward your real saved-so-far number.</p>
+          </div>
+          <div className="sv-balance-actions">
             <button
               type="button"
               className="btn btn-primary"
-              style={{ fontSize: 12, padding: '4px 10px' }}
+              style={{ fontSize: 12, padding: '5px 12px' }}
               onClick={() => connectPlaidInstitution()}
               disabled={linkingPlaid || syncingPlaid}
             >
@@ -705,7 +718,7 @@ export default function Savings() {
             <button
               type="button"
               className="btn ghost"
-              style={{ fontSize: 12, padding: '4px 10px' }}
+              style={{ fontSize: 12, padding: '5px 12px' }}
               onClick={syncFromBank}
               disabled={syncingPlaid || linkingPlaid}
             >
@@ -713,93 +726,122 @@ export default function Savings() {
             </button>
           </div>
         </div>
-        <div className="sv-balance-body" style={{ marginBottom: goals.filter(g => !g.completed_at).length > 0 ? 8 : 0 }}>
-          <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
-          <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 10px' }}>
-            {selectedCombinedAccounts.length} account{selectedCombinedAccounts.length === 1 ? '' : 's'} included in Combined Savings
-          </p>
-          <form className="sv-balance-form" onSubmit={handleBalanceSave}>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="sv-balance-input"
-              value={balanceInput}
-              onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
-              placeholder="0.00"
-            />
-            <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '5px 12px' }}>
-              {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
-            </button>
+
+        <div className="sv-balance-kpi-grid">
+          <div className="sv-balance-kpi-card primary">
+            <span className="sv-kpi-label">Actual savings balance</span>
+            <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
+            <span className="sv-kpi-sub">{selectedCombinedAccounts.length} of {connectedAccounts.length} connected account{connectedAccounts.length === 1 ? '' : 's'} included</span>
+          </div>
+          <div className="sv-balance-kpi-card">
+            <span className="sv-kpi-label">Synced included</span>
+            <strong>{selectedSyncedAccounts.length}</strong>
+            <span className="sv-kpi-sub">of {syncedAccounts.length} bank/provider accounts</span>
+          </div>
+          <div className="sv-balance-kpi-card">
+            <span className="sv-kpi-label">Manual included</span>
+            <strong>{selectedManualAccounts.length}</strong>
+            <span className="sv-kpi-sub">of {manualAccounts.length} editable accounts</span>
+          </div>
+          <form className="sv-balance-form sv-balance-update-card" onSubmit={handleBalanceSave}>
+            <span className="sv-kpi-label">Manual balance override</span>
+            <div className="sv-balance-update-row">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="sv-balance-input"
+                value={balanceInput}
+                onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
+                placeholder="0.00"
+              />
+              <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '6px 12px' }}>
+                {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
+              </button>
+            </div>
+            <span className="sv-kpi-sub">Use only when you want to track a non-synced total.</span>
           </form>
-          {balanceError && <p className="form-error" style={{ marginTop: 8 }}>{balanceError}</p>}
-          {plaidSyncError && <p className="form-error" style={{ marginTop: 8 }}>{plaidSyncError}</p>}
-          <div style={{ marginTop: 12 }}>
-            <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '0 0 8px' }}>Accounts included in Combined Savings</p>
-            {combinedAccounts.length === 0 ? (
-              <p style={{ fontSize: 12, color: 'var(--ink-4)', margin: '0 0 8px' }}>
-                No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
-              </p>
-            ) : combinedAccounts.map(acct => (
-              <div key={acct.id} style={{ marginBottom: editingManualAccountId === acct.id ? 8 : 6 }}>
-                <label
-                  className="btn ghost"
-                  style={{ width: '100%', textAlign: 'left', fontSize: 13, display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', cursor: acct.disconnected ? 'not-allowed' : 'pointer', opacity: acct.disconnected ? 0.62 : 1 }}
-                >
-                  <span style={{ display: 'flex', gap: 8, minWidth: 0, alignItems: 'center' }}>
+        </div>
+
+        {(balanceError || plaidSyncError) && (
+          <div className="sv-balance-errors">
+            {balanceError && <p className="form-error">{balanceError}</p>}
+            {plaidSyncError && <p className="form-error">{plaidSyncError}</p>}
+          </div>
+        )}
+
+        <div className="sv-account-section">
+          <div className="sv-account-head">
+            <div>
+              <span className="sv-account-title">Accounts included in Combined Savings</span>
+              <p>{excludedAccounts.length} excluded · {negativeAccounts.length} selected negative balance{negativeAccounts.length === 1 ? '' : 's'}</p>
+            </div>
+            <button type="button" className="sv-add-asset-btn" onClick={() => setShowManualAccountForm(true)}>+ Add manual account</button>
+          </div>
+          {combinedAccounts.length === 0 ? (
+            <p className="sv-empty-copy">
+              No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
+            </p>
+          ) : combinedAccounts.map(acct => {
+            const isManual = acct.source === 'manual';
+            const isIncluded = !!acct.includedInCombinedSavings && !acct.disconnected;
+            const isNegative = Number(acct.currentBalance || 0) < 0;
+            return (
+              <div key={acct.id} className={`sv-account-wrap${editingManualAccountId === acct.id ? ' editing' : ''}`}>
+                <div className={`sv-account-row${isIncluded ? ' included' : ''}${isManual ? ' manual' : ''}${acct.disconnected ? ' disconnected' : ''}`}>
+                  <label className="sv-account-check">
                     <input
                       type="checkbox"
-                      checked={!!acct.includedInCombinedSavings && !acct.disconnected}
+                      checked={isIncluded}
                       disabled={acct.disconnected}
                       onChange={e => toggleCombinedAccount(acct, e.target.checked)}
-                      style={{ flexShrink: 0 }}
                     />
-                    <span style={{ minWidth: 0 }}>
-                      <strong>{accountDisplayName(acct)}</strong>{' '}
-                      <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                        ({plaidAccountKind(acct)}{acct.source === 'manual' ? ' · Manual' : ''}{acct.disconnected ? ' · Disconnected' : ''})
+                    <span className="sv-check-copy">
+                      <strong>{accountDisplayName(acct)}</strong>
+                      <span>
+                        <b>{plaidAccountKind(acct)}</b>
+                        {isManual && <em>Manual</em>}
+                        {acct.disconnected && <em>Disconnected</em>}
                       </span>
                     </span>
-                  </span>
-                  <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginLeft: 12, flexShrink: 0 }}>
-                    <span style={{ color: 'var(--money)', fontWeight: 700 }}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
-                    {acct.source === 'manual' && (
-                      <>
-                        <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); startEditingManualAccount(acct); }}>Edit</button>
-                        <button type="button" className="btn ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={e => { e.preventDefault(); e.stopPropagation(); deleteManualAccount(acct); }}>×</button>
-                      </>
+                  </label>
+                  <div className="sv-account-right">
+                    <span className={`sv-account-balance${isNegative ? ' negative' : ''}`}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
+                    {isManual && (
+                      <div className="sv-account-actions">
+                        <button type="button" className="btn ghost" onClick={() => startEditingManualAccount(acct)}>Edit</button>
+                        <button type="button" className="btn ghost sv-row-delete" onClick={() => deleteManualAccount(acct)} aria-label={`Delete ${accountDisplayName(acct)}`}>×</button>
+                      </div>
                     )}
-                  </span>
-                </label>
+                  </div>
+                </div>
                 {editingManualAccountId === acct.id && (
-                  <form onSubmit={updateManualAccount} style={{ display: 'grid', gap: 6, marginTop: 6, padding: 8, border: '1px solid var(--rule)', borderRadius: 10 }}>
+                  <form onSubmit={updateManualAccount} className="sv-manual-form">
                     <input className="form-input" placeholder="Institution" value={editingManualAccountForm.institutionName} onChange={e => setEditingManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
                     <input className="form-input" placeholder="Account name" value={editingManualAccountForm.accountName} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
                     <input className="form-input" placeholder="Account type" value={editingManualAccountForm.accountType} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
                     <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={editingManualAccountForm.currentBalance} onChange={e => setEditingManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} autoFocus />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="btn btn-primary" type="submit" style={{ fontSize: 12, padding: '5px 12px' }}>Save account</button>
-                      <button className="btn ghost" type="button" style={{ fontSize: 12, padding: '5px 12px' }} onClick={cancelEditingManualAccount}>Cancel</button>
+                    <div className="sv-manual-actions">
+                      <button className="btn btn-primary" type="submit">Save account</button>
+                      <button className="btn ghost" type="button" onClick={cancelEditingManualAccount}>Cancel</button>
                     </div>
                   </form>
                 )}
               </div>
-            ))}
-            {showManualAccountForm ? (
-              <form onSubmit={addManualAccount} style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-                <input className="form-input" placeholder="Institution" value={manualAccountForm.institutionName} onChange={e => setManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
-                <input className="form-input" placeholder="Account name" value={manualAccountForm.accountName} onChange={e => setManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
-                <input className="form-input" placeholder="Account type" value={manualAccountForm.accountType} onChange={e => setManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
-                <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={manualAccountForm.currentBalance} onChange={e => setManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-primary" type="submit" style={{ fontSize: 12, padding: '5px 12px' }}>Add manual account</button>
-                  <button className="btn ghost" type="button" style={{ fontSize: 12, padding: '5px 12px' }} onClick={() => setShowManualAccountForm(false)}>Cancel</button>
-                </div>
-              </form>
-            ) : (
-              <button type="button" className="btn ghost" style={{ fontSize: 12, padding: '4px 10px', marginTop: 4 }} onClick={() => setShowManualAccountForm(true)}>+ Add manual account</button>
-            )}
-          </div>
+            );
+          })}
+          {showManualAccountForm && (
+            <form onSubmit={addManualAccount} className="sv-manual-form add">
+              <input className="form-input" placeholder="Institution" value={manualAccountForm.institutionName} onChange={e => setManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
+              <input className="form-input" placeholder="Account name" value={manualAccountForm.accountName} onChange={e => setManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
+              <input className="form-input" placeholder="Account type" value={manualAccountForm.accountType} onChange={e => setManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
+              <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={manualAccountForm.currentBalance} onChange={e => setManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} />
+              <div className="sv-manual-actions">
+                <button className="btn btn-primary" type="submit">Add manual account</button>
+                <button className="btn ghost" type="button" onClick={() => setShowManualAccountForm(false)}>Cancel</button>
+              </div>
+            </form>
+          )}
         </div>
         {goals.filter(g => !g.completed_at).length > 0 ? (
           <div className="sv-balance-badges">
@@ -870,6 +912,11 @@ export default function Savings() {
               <span className="sv-chip">
                 <span className="sv-chip-lbl">per month</span>{fmt$2(perDay * 30.44)}
               </span>
+              {actualSavingsBalance > 0 && (
+                <span className="sv-chip sv-chip-positive">
+                  <span className="sv-chip-lbl">vs saved now</span>{projectedVsActual.toFixed(1)}× current balance
+                </span>
+              )}
             </div>
             {data?.byVice?.length > 0 && (
               <div className="sv-chips" style={{ marginTop: 12 }}>
@@ -891,7 +938,7 @@ export default function Savings() {
             <span className="sv-section-title">If you bought assets instead</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span className="sv-section-sub">
-                Investing {fmt$2(perDay)}/day for {horizon} days instead of spending it
+                Investing {fmt$2(perDay)}/day for {selectedHorizon.label.toLowerCase()} instead of spending it
               </span>
               <button className="sv-add-asset-btn" onClick={() => setAssetModalOpen(true)} title="Add custom asset">
                 + Add asset
@@ -900,13 +947,14 @@ export default function Savings() {
           </div>
           <div className="sv-invest-grid">
             {investmentCards.map(asset => (
-              <div key={asset.key} className="sv-invest-card" data-asset={asset.key} style={asset.custom ? { borderColor: 'rgba(212,175,55,0.3)' } : {}}>
+              <div key={asset.key} className={`sv-invest-card${topInvestmentCard?.key === asset.key ? ' top' : ''}`} data-asset={asset.key} style={asset.custom ? { '--asset-c': asset.color, borderColor: 'rgba(212,175,55,0.3)' } : {}}>
                 <div className="sv-invest-top">
                   <span className="sv-invest-icon">{asset.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div className="sv-invest-name">{asset.cardLabel}</div>
                     <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
                   </div>
+                  {topInvestmentCard?.key === asset.key && <span className="sv-invest-rank">Highest projection</span>}
                   {asset.custom && (
                     <button
                       className="sv-asset-delete"
@@ -1015,7 +1063,14 @@ export default function Savings() {
       {!loading && perDay > 0 && (
         <div className="sv-section">
           <div className="sv-section-head">
-            <span className="sv-section-title">Investment growth comparison</span>
+            <div>
+              <span className="sv-section-title">Investment growth comparison</span>
+              {topInvestmentCard && (
+                <p className="sv-chart-takeaway">
+                  {topInvestmentCard.cardLabel} projects to {fmt$0(topInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
+                </p>
+              )}
+            </div>
             <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
           </div>
           <div className="sv-chart-wrap">
