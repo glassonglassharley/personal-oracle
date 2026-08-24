@@ -704,36 +704,35 @@ export default function Dashboard() {
             ))}
           </div>
 
+          <div className="panel db-savings-hero">
+            <div className="db-kicker">Saved so far</div>
+            <div className="db-savings-main">{fmt$0(actualSavings)}</div>
+            <div className="db-savings-sub">
+              {savingsVsSpendGap >= 0
+                ? `${fmt$0(savingsVsSpendGap)} ahead of this year's vice spend`
+                : `${fmt$0(Math.abs(savingsVsSpendGap))} behind this year's vice spend`}
+            </div>
+            <div className="db-savings-actions">
+              <Link to="/savings" className="btn btn-sm" style={{ textDecoration: 'none' }}>Edit accounts</Link>
+              <span className="db-mini-stat">{cleanDaysThisWeek}/7 clean days this week</span>
+            </div>
+          </div>
+
           <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top" />
 
-          <div className="db-action-grid">
-            <div className="panel db-savings-hero">
-              <div className="db-kicker">Saved so far</div>
-              <div className="db-savings-main">{fmt$0(actualSavings)}</div>
-              <div className="db-savings-sub">
-                {savingsVsSpendGap >= 0
-                  ? `${fmt$0(savingsVsSpendGap)} ahead of this year's vice spend`
-                  : `${fmt$0(Math.abs(savingsVsSpendGap))} behind this year's vice spend`}
-              </div>
-              <div className="db-savings-actions">
-                <Link to="/savings" className="btn btn-sm" style={{ textDecoration: 'none' }}>Edit accounts</Link>
-                <span className="db-mini-stat">{cleanDaysThisWeek}/7 clean days this week</span>
-              </div>
+          <div className="panel db-mission-card">
+            <div className="db-kicker">Today's mission</div>
+            <div className="db-mission-title">
+              {Number(stats.today?.spend || 0) > 0 ? 'Stop the streak here' : 'Keep today clean'}
             </div>
-            <div className="panel db-mission-card">
-              <div className="db-kicker">Today's mission</div>
-              <div className="db-mission-title">
-                {Number(stats.today?.spend || 0) > 0 ? 'Stop the streak here' : 'Keep today clean'}
-              </div>
-              <p>
-                {Number(stats.today?.spend || 0) > 0
-                  ? `You logged ${fmt$(stats.today.spend)} today. One clean evening still protects tomorrow.`
-                  : `Potential saved today: ${fmt$(todayPotentialSaved)} if you stay clean.`}
-              </p>
-              <div className="db-mission-actions">
-                <Link className="btn btn-sm" to="/log" style={{ textDecoration: 'none' }}>Log spending</Link>
-                <Link className="btn ghost btn-sm" to="/log" style={{ textDecoration: 'none' }}>Mark clean</Link>
-              </div>
+            <p>
+              {Number(stats.today?.spend || 0) > 0
+                ? `You logged ${fmt$(stats.today.spend)} today. One clean evening still protects tomorrow.`
+                : `Potential saved today: ${fmt$(todayPotentialSaved)} if you stay clean.`}
+            </p>
+            <div className="db-mission-actions">
+              <Link className="btn btn-sm" to="/log" style={{ textDecoration: 'none' }}>Log spending</Link>
+              <Link className="btn ghost btn-sm" to="/log" style={{ textDecoration: 'none' }}>Mark clean</Link>
             </div>
           </div>
 
