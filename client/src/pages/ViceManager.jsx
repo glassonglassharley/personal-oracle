@@ -3,6 +3,7 @@ import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { formatQuantityWithUnit, getUnitLabel } from '../formatUnits';
 import PlaidConnect from './PlaidConnect';
+import TrackedVicesQuitProjection from '../components/TrackedVicesQuitProjection';
 
 const PLAID_CATEGORY_OPTIONS = [
   { key: 'FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR', label: '🍺 Alcohol / Beer / Wine' },
@@ -436,6 +437,8 @@ export default function ViceManager() {
         </button>
       </div>
       {updateError && <div className="inline-error" style={{ marginBottom: 16 }}>{updateError}</div>}
+
+      <TrackedVicesQuitProjection />
 
       {showAdd && (
         <div className="card add-panel">
