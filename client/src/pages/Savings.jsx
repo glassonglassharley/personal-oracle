@@ -191,6 +191,7 @@ export default function Savings() {
   const [assetForm, setAssetForm] = useState({ name: '', emoji: '📦', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
   const [assetFormError, setAssetFormError] = useState('');
   const [assetSaving, setAssetSaving] = useState(false);
+  const [viewedInvestmentKey, setViewedInvestmentKey] = useState('SP500');
 
   // Goals state
   const [goals, setGoals] = useState([]);
@@ -689,6 +690,7 @@ export default function Savings() {
   const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
+  const viewedInvestmentCard = investmentCards.find(card => card.key === viewedInvestmentKey) || investmentCards[0] || topInvestmentCard;
 
   return (
     <main className="main sv-page">
@@ -913,9 +915,9 @@ export default function Savings() {
           <div className="sv-section-head">
             <div>
               <span className="sv-section-title">Investment growth comparison</span>
-              {topInvestmentCard && (
+              {viewedInvestmentCard && (
                 <p className="sv-chart-takeaway">
-                  {topInvestmentCard.cardLabel} projects to {fmt$0(topInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
+                  {viewedInvestmentCard.cardLabel} projects to {fmt$0(viewedInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
                 </p>
               )}
             </div>
@@ -943,7 +945,24 @@ export default function Savings() {
           </div>
           <div className="sv-invest-grid">
             {investmentCards.map(asset => (
-              <div key={asset.key} className={`sv-invest-card${topInvestmentCard?.key === asset.key ? ' top' : ''}`} data-asset={asset.key} style={asset.custom ? { '--asset-c': asset.color, borderColor: 'rgba(212,175,55,0.3)' } : {}}>
+              <div
+                key={asset.key}
+                className={`sv-invest-card${topInvestmentCard?.key === asset.key ? ' top' : ''}${viewedInvestmentCard?.key === asset.key ? ' active' : ''}`}
+                data-asset={asset.key}
+                style={asset.custom ? { '--asset-c': asset.color, borderColor: 'rgba(212,175,55,0.3)' } : {}}
+                role="button"
+                tabIndex={0}
+                aria-pressed={viewedInvestmentCard?.key === asset.key}
+                onMouseEnter={() => setViewedInvestmentKey(asset.key)}
+                onFocus={() => setViewedInvestmentKey(asset.key)}
+                onClick={() => setViewedInvestmentKey(asset.key)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setViewedInvestmentKey(asset.key);
+                  }
+                }}
+              >
                 <div className="sv-invest-top">
                   <span className="sv-invest-icon">{asset.icon}</span>
                   <div style={{ flex: 1 }}>

@@ -1778,6 +1778,14 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   box-shadow: 0 16px 38px color-mix(in srgb, var(--asset-c) 18%, rgba(0,0,0,0.22));
   border-color: color-mix(in srgb, var(--asset-c) 54%, var(--rule));
 }
+.sv-invest-card.active {
+  border-color: color-mix(in srgb, var(--asset-c) 68%, var(--rule));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--asset-c) 48%, transparent), 0 16px 38px color-mix(in srgb, var(--asset-c) 18%, rgba(0,0,0,0.24));
+}
+.sv-invest-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--asset-c) 72%, transparent);
+  outline-offset: 3px;
+}
 .sv-invest-top { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .sv-invest-icon {
   width: 42px; height: 42px; border-radius: 12px;
