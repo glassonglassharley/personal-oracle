@@ -918,6 +918,26 @@ export default function Savings() {
         )}
       </div>
 
+      {/* ── Investment projection chart ── */}
+      {!loading && perDay > 0 && (
+        <div className="sv-section">
+          <div className="sv-section-head">
+            <div>
+              <span className="sv-section-title">Investment growth comparison</span>
+              {topInvestmentCard && (
+                <p className="sv-chart-takeaway">
+                  {topInvestmentCard.cardLabel} projects to {fmt$0(topInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
+                </p>
+              )}
+            </div>
+            <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
+          </div>
+          <div className="sv-chart-wrap">
+            <Line key={theme} data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
+          </div>
+        </div>
+      )}
+
       {/* ── Investment projection cards ── */}
       {!loading && perDay > 0 && (
         <div className="sv-section">
@@ -1042,26 +1062,6 @@ export default function Savings() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Investment projection chart ── */}
-      {!loading && perDay > 0 && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <div>
-              <span className="sv-section-title">Investment growth comparison</span>
-              {topInvestmentCard && (
-                <p className="sv-chart-takeaway">
-                  {topInvestmentCard.cardLabel} projects to {fmt$0(topInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
-                </p>
-              )}
-            </div>
-            <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
-          </div>
-          <div className="sv-chart-wrap">
-            <Line key={theme} data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
           </div>
         </div>
       )}
