@@ -127,8 +127,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
     <section style={{ ...s.wrap, ...(isTopPlacement ? s.topWrap : null) }} className="merged-insights-card">
       <div style={s.header}>
         <span style={s.sparkle}>✦</span>
-        <span style={s.title}>{weeklyInsight ? 'Weekly + Coach Insights' : 'Coach Insight'}</span>
-        {weeklyInsight && <span style={s.topBadge}>Dashboard focus</span>}
+        <span style={s.title}>{weeklyInsight ? 'Insights' : 'Coach Insight'}</span>
         {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
         {hasConversation && !loading && (
           <button style={s.clearBtn} onClick={startNewChat}>
@@ -139,10 +138,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
 
       {weeklyInsight && (
         <div style={s.weeklyPanel}>
-          <div style={s.weeklyMeta}>
-            <span style={s.weeklyIcon}>✨</span>
-            <span>Weekly insight</span>
-          </div>
+          <div style={s.weeklyMeta}>Weekly</div>
           <p style={s.weeklyText}>{weeklyInsight}</p>
         </div>
       )}
@@ -151,7 +147,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
         <p style={s.hint}>Add vices and log some entries to start talking with your coach.</p>
       )}
 
-      {hasData && !hasConversation && (
+      {hasData && !hasConversation && !isTopPlacement && (
         <>
           <p style={{ ...s.hint, ...(weeklyInsight ? s.coachIntro : null) }}>Your personal financial accountability coach — ask anything.</p>
           <div style={s.presets}>
@@ -193,7 +189,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
 
       {hasData && (
         <div style={s.inputArea}>
-          {hasConversation && (
+          {hasConversation && !isTopPlacement && (
             <div style={{ ...s.presets, marginBottom: 10 }}>
               {PRESETS.map(p => (
                 <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
@@ -266,7 +262,7 @@ const s = {
   topWrap: {
     marginTop: 0,
     marginBottom: 24,
-    padding: '22px 24px 24px',
+    padding: '16px 18px 18px',
     borderColor: 'color-mix(in srgb, var(--money, #d4af37) 34%, var(--rule, rgba(232,239,224,0.08)))',
     background: 'linear-gradient(145deg, color-mix(in srgb, var(--paper-2, #122615) 88%, var(--money, #d4af37) 6%), var(--paper-2, #122615))',
     boxShadow: '0 18px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -275,7 +271,7 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   sparkle: {
     color: '#d4af37',
@@ -288,18 +284,6 @@ const s = {
     color: 'var(--ink, #f0f7ec)',
     letterSpacing: '-0.01em',
     flex: 1,
-  },
-  topBadge: {
-    color: 'var(--money, #d4af37)',
-    background: 'var(--money-soft, rgba(94,196,138,0.14))',
-    border: '1px solid color-mix(in srgb, var(--money, #d4af37) 26%, transparent)',
-    borderRadius: 999,
-    padding: '4px 9px',
-    fontFamily: 'var(--mono, monospace)',
-    fontSize: 10.5,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap',
   },
   pulseMark: {
     width: 22,
@@ -326,31 +310,26 @@ const s = {
   },
   weeklyPanel: {
     display: 'grid',
-    gap: 10,
-    padding: '16px 18px',
-    borderRadius: 14,
-    border: '1px solid color-mix(in srgb, var(--money, #d4af37) 30%, var(--rule, rgba(232,239,224,0.08)))',
-    background: 'linear-gradient(135deg, color-mix(in srgb, var(--paper, #0a1f17) 62%, transparent), color-mix(in srgb, var(--paper-3, #1a3328) 68%, transparent))',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+    gap: 6,
+    padding: '0 0 12px',
+    marginBottom: 12,
+    borderBottom: '1px solid color-mix(in srgb, var(--money, #d4af37) 22%, var(--rule, rgba(232,239,224,0.08)))',
   },
   weeklyMeta: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     color: 'var(--money, #d4af37)',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 800,
-    letterSpacing: '0.13em',
+    letterSpacing: '0.12em',
     textTransform: 'uppercase',
-  },
-  weeklyIcon: {
-    filter: 'drop-shadow(0 0 8px color-mix(in srgb, var(--money, #d4af37) 45%, transparent))',
   },
   weeklyText: {
     margin: 0,
     color: 'var(--ink, #f0f7ec)',
-    fontSize: 15.5,
-    lineHeight: 1.7,
+    fontSize: 14.5,
+    lineHeight: 1.45,
     letterSpacing: '-0.01em',
     whiteSpace: 'pre-wrap',
   },
@@ -370,12 +349,12 @@ const s = {
     transition: 'border-color 0.12s, color 0.12s',
   },
   thread: {
-    maxHeight: 420,
+    maxHeight: 180,
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
-    marginBottom: 16,
+    gap: 10,
+    marginBottom: 10,
     paddingRight: 4,
   },
   userBubble: {
@@ -388,7 +367,7 @@ const s = {
   },
   coachBubble: {
     alignSelf: 'flex-start',
-    maxWidth: '88%',
+    maxWidth: '100%',
   },
   coachLabel: {
     fontSize: 10,
@@ -396,7 +375,7 @@ const s = {
     color: '#d4af37',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   userText: {
     fontSize: 13.5,
@@ -406,9 +385,9 @@ const s = {
     whiteSpace: 'pre-wrap',
   },
   coachText: {
-    fontSize: 14.5,
+    fontSize: 13.5,
     color: 'var(--ink, #f0f7ec)',
-    lineHeight: 1.75,
+    lineHeight: 1.5,
     margin: 0,
     whiteSpace: 'pre-wrap',
   },
@@ -440,8 +419,8 @@ const s = {
     background: 'var(--paper-3, #1a3328)',
     border: '1px solid rgba(212,175,55,0.25)',
     borderRadius: 10,
-    padding: '10px 14px',
-    fontSize: 14,
+    padding: '8px 12px',
+    fontSize: 13.5,
     color: 'var(--ink, #f0f7ec)',
     outline: 'none',
   },
@@ -450,8 +429,8 @@ const s = {
     color: '#040c06',
     border: 'none',
     borderRadius: 10,
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     fontSize: 18,
     fontWeight: 700,
     cursor: 'pointer',
