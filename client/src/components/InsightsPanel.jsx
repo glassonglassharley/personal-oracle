@@ -17,11 +17,13 @@ const OPENER_KEY = 'vtv-coach-opener';
 export default function InsightsPanel({ stats, xpData, weeklyInsight = null, placement = 'default' }) {
   const api = useApi();
   const { vices, viceStats } = useViceContext();
+  const isTopPlacement = placement === 'top';
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [collapsed, setCollapsed] = useState(() => isTopPlacement);
   const threadRef = useRef(null);
   const inputRef = useRef(null);
   const openerRef = useRef(false);
@@ -75,8 +77,8 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
   }, [api, buildPayload]);
 
   useEffect(() => {
-    if (vices.length > 0) loadOpener();
-  }, [vices.length, loadOpener]);
+    if (vices.length > 0 && !collapsed) loadOpener();
+  }, [vices.length, loadOpener, collapsed]);
 
   const startNewChat = useCallback(() => {
     try { sessionStorage.removeItem(OPENER_KEY); } catch { /* non-fatal */ }
@@ -120,21 +122,35 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
 
   const hasData = vices.length > 0;
   const hasConversation = messages.length > 0;
-  const isTopPlacement = placement === 'top';
 
 
   return (
     <section style={{ ...s.wrap, ...(isTopPlacement ? s.topWrap : null) }} className="merged-insights-card">
-      <div style={s.header}>
+      <div style={{ ...s.header, ...(collapsed ? s.collapsedHeader : null) }}>
         <span style={s.sparkle}>✦</span>
         <span style={s.title}>{weeklyInsight ? 'Insights' : 'Coach Insight'}</span>
+        {isTopPlacement && (
+          <button
+            type="button"
+            style={s.toggleBtn}
+            onClick={() => setCollapsed(value => !value)}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? 'Open' : 'Hide'}
+          </button>
+        )}
         {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
-        {hasConversation && !loading && (
+        {hasConversation && !loading && !collapsed && (
           <button style={s.clearBtn} onClick={startNewChat}>
             New chat
           </button>
         )}
       </div>
+
+      {collapsed && null}
+
+      {!collapsed && (
+        <>
 
       {weeklyInsight && (
         <div style={s.weeklyPanel}>
@@ -219,6 +235,9 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
         </div>
       )}
 
+        </>
+      )}
+
       <style>{`
         @keyframes insights-pulse {
           0%, 100% { opacity: 1; transform: scale(1); }
@@ -273,6 +292,9 @@ const s = {
     gap: 10,
     marginBottom: 10,
   },
+  collapsedHeader: {
+    marginBottom: 0,
+  },
   sparkle: {
     color: '#d4af37',
     fontSize: 18,
@@ -288,6 +310,15 @@ const s = {
   pulseMark: {
     width: 22,
     height: 22,
+  },
+  toggleBtn: {
+    background: 'transparent',
+    border: '1px solid rgba(212,175,55,0.35)',
+    borderRadius: 20,
+    padding: '4px 12px',
+    fontSize: 12,
+    color: 'rgba(212,175,55,0.82)',
+    cursor: 'pointer',
   },
   clearBtn: {
     background: 'transparent',
