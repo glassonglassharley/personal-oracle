@@ -477,8 +477,12 @@ export default function Dashboard() {
       return latestSavings === null ? null : Math.round(latestSavings);
     });
     const savingsPointCount = savingsLine.filter(v => v !== null).length;
-    return { labels, spendLine, savingsLine, savingsPointCount, hasData: labels.length > 0 };
+    const spendPointCount = spendLine.filter(v => Number(v || 0) > 0).length;
+    const hasComparableHistory = labels.length > 1 && (savingsPointCount > 1 || spendPointCount > 1);
+    return { labels, spendLine, savingsLine, savingsPointCount, spendPointCount, hasComparableHistory, hasData: labels.length > 0 };
   }, [trendLoaded, spendDays, savingsHist, balance]);
+
+  const warnColor  = cssVar('--warn', '#d9583a');
 
   const chartData = {
     labels: last7.map(({ date }) => {
@@ -490,7 +494,8 @@ export default function Dashboard() {
     datasets: [{
       label: 'Combined spend',
       data: last7.map(({ spend }) => Number(spend || 0)),
-      backgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? successColor : inkColor),
+      backgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? withAlpha(successColor, 0.52) : warnColor),
+      hoverBackgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? successColor : withAlpha(warnColor, 0.86)),
       borderRadius: 4,
     }]
   };
@@ -527,7 +532,6 @@ export default function Dashboard() {
 
   // Trend chart — matches the Savings page "Investment growth comparison" style:
   // theme CSS vars resolved at render, light area fills, index-mode tooltip.
-  const warnColor  = cssVar('--warn', '#d9583a');
   const ruleColor  = cssVar('--rule', 'rgba(232,239,224,0.08)');
   const rule2Color = cssVar('--rule-2', 'rgba(232,239,224,0.20)');
   const paper2Color = cssVar('--paper-2', '#1a1a1a');
@@ -713,28 +717,27 @@ export default function Dashboard() {
                 : `${fmt$0(Math.abs(savingsVsSpendGap))} behind this year's vice spend`}
             </div>
             <div className="db-savings-actions">
-              <Link to="/savings" className="btn btn-sm" style={{ textDecoration: 'none' }}>Edit accounts</Link>
               <span className="db-mini-stat">{cleanDaysThisWeek}/7 clean days this week</span>
             </div>
           </div>
 
-          <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top" />
-
-          <div className="panel db-mission-card">
-            <div className="db-kicker">Today's mission</div>
-            <div className="db-mission-title">
-              {Number(stats.today?.spend || 0) > 0 ? 'Stop the streak here' : 'Keep today clean'}
+          <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top">
+            <div className="db-mission-card">
+              <div className="db-kicker">Today's mission</div>
+              <div className="db-mission-title">
+                {Number(stats.today?.spend || 0) > 0 ? 'Stop the streak here' : 'Keep today clean'}
+              </div>
+              <p>
+                {Number(stats.today?.spend || 0) > 0
+                  ? `You logged ${fmt$(stats.today.spend)} today. One clean evening still protects tomorrow.`
+                  : `Potential saved today: ${fmt$(todayPotentialSaved)} if you stay clean.`}
+              </p>
+              <div className="db-mission-actions">
+                <Link className="btn btn-sm" to="/log" style={{ textDecoration: 'none' }}>Log spending</Link>
+                <Link className="btn ghost btn-sm" to="/log" style={{ textDecoration: 'none' }}>Mark clean</Link>
+              </div>
             </div>
-            <p>
-              {Number(stats.today?.spend || 0) > 0
-                ? `You logged ${fmt$(stats.today.spend)} today. One clean evening still protects tomorrow.`
-                : `Potential saved today: ${fmt$(todayPotentialSaved)} if you stay clean.`}
-            </p>
-            <div className="db-mission-actions">
-              <Link className="btn btn-sm" to="/log" style={{ textDecoration: 'none' }}>Log spending</Link>
-              <Link className="btn ghost btn-sm" to="/log" style={{ textDecoration: 'none' }}>Mark clean</Link>
-            </div>
-          </div>
+          </InsightsPanel>
 
           <div className="panel">
             <div className="panel-head">
@@ -753,7 +756,7 @@ export default function Dashboard() {
             </div>
             {!trendLoaded ? (
               <p className="text-muted">Loading…</p>
-            ) : trend?.hasData ? (
+            ) : trend?.hasData && trend.hasComparableHistory ? (
               <>
                 <div className="dashboard-chart-wrap">
                   <Line key={theme} data={trendData} options={trendOptions} />
@@ -765,7 +768,13 @@ export default function Dashboard() {
                 )}
               </>
             ) : (
-              <p className="text-muted">Log an entry or update your savings balance to start this chart.</p>
+              <div className="dashboard-empty-chart">
+                <div className="dashboard-empty-chart-icon">↗</div>
+                <div>
+                  <strong>More history will unlock the trend line.</strong>
+                  <p>Log another day or update your savings balance again to compare movement over time.</p>
+                </div>
+              </div>
             )}
           </div>
 

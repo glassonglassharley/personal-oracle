@@ -14,7 +14,7 @@ const PRESETS = [
 // regenerate the greeting.
 const OPENER_KEY = 'vtv-coach-opener';
 
-export default function InsightsPanel({ stats, xpData, weeklyInsight = null, placement = 'default' }) {
+export default function InsightsPanel({ stats, xpData, weeklyInsight = null, placement = 'default', children = null }) {
   const api = useApi();
   const { vices, viceStats } = useViceContext();
   const isTopPlacement = placement === 'top';
@@ -146,6 +146,8 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
           </button>
         )}
       </div>
+
+      {children && <div style={s.childrenWrap}>{children}</div>}
 
       {collapsed && null}
 
@@ -328,6 +330,11 @@ const s = {
     fontSize: 12,
     color: 'rgba(212,175,55,0.7)',
     cursor: 'pointer',
+  },
+  childrenWrap: {
+    paddingTop: 14,
+    marginTop: 4,
+    borderTop: '1px solid color-mix(in srgb, var(--money, #d4af37) 22%, var(--rule, rgba(232,239,224,0.08)))',
   },
   hint: {
     fontSize: 14,
