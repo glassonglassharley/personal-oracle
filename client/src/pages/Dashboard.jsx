@@ -647,14 +647,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {weeklyInsight && (
-        <div className="insight-card insight-card-top">
-          <div className="insight-card-head">
-            <span className="insight-sparkle">✨</span>
-            <span className="insight-title">Weekly insight</span>
-          </div>
-          <p className="insight-body">{weeklyInsight}</p>
-        </div>
+      {!loading && stats && (
+        <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top" />
       )}
 
       {challenges.map(c => (
@@ -777,8 +771,6 @@ export default function Dashboard() {
               <p className="text-muted">Log an entry or update your savings balance to start this chart.</p>
             )}
           </div>
-
-          <InsightsPanel stats={stats} xpData={xpData} />
 
       {companion?.companion_type && (
         <div className={`companion-dashboard-card ${companion.companion_type === 'character' ? 'is-character' : 'is-tree'}`}>

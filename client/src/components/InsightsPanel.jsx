@@ -10,7 +10,11 @@ const PRESETS = [
   'How am I doing this week?',
 ];
 
-export default function InsightsPanel({ stats, xpData }) {
+// Caches the opener for the browser session so revisiting the dashboard doesn't
+// regenerate the greeting.
+const OPENER_KEY = 'vtv-coach-opener';
+
+export default function InsightsPanel({ stats, xpData, weeklyInsight = null, placement = 'default' }) {
   const api = useApi();
   const { vices, viceStats } = useViceContext();
 
@@ -20,6 +24,7 @@ export default function InsightsPanel({ stats, xpData }) {
   const [error, setError] = useState('');
   const threadRef = useRef(null);
   const inputRef = useRef(null);
+  const openerRef = useRef(false);
 
   useEffect(() => {
     if (threadRef.current) {
@@ -27,48 +32,61 @@ export default function InsightsPanel({ stats, xpData }) {
     }
   }, [messages, loading]);
 
-  const buildDataContext = useCallback(() => {
-    const lines = ['Current vice spending data:'];
-    vices.forEach(v => {
-      const s = viceStats[v.id];
-      if (!s) { lines.push(`- ${v.emoji} ${v.name}: no entries yet`); return; }
-      lines.push(`- ${v.emoji} ${v.name}`);
-      lines.push(`  All-time total: $${(s.all_time?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  First entry: ${s.first_entry_date ? String(s.first_entry_date).split('T')[0] : 'n/a'}`);
-      lines.push(`  Total days logged: ${s.total_logged_days ?? 0}`);
-      lines.push(`  Today: $${(s.today?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This week: $${(s.week?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This month: $${(s.month?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This year: $${(s.year?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  Avg daily spend (on vice days): $${(s.avg_daily_spend ?? 0).toFixed(2)}`);
-      lines.push(`  Projected monthly at current rate: $${(s.averages?.month?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  Projected annual at current rate: $${(s.averages?.year?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  Clean days: ${s.clean_days ?? 0}`);
-      lines.push(`  Current streak: ${s.current_streak ?? 0} days`);
-      lines.push(`  Best streak: ${s.best_streak ?? 0} days`);
-      lines.push(`  Saved from clean days: $${(s.savings_from_clean_days ?? 0).toFixed(2)}`);
-    });
-    if (stats) {
-      lines.push('\nCombined totals (all vices):');
-      lines.push(`  Today: $${(stats.today?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This week: $${(stats.week?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This month: $${(stats.month?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  This year: $${(stats.year?.spend ?? 0).toFixed(2)}`);
-      lines.push(`  Overall clean days: ${stats.clean_days ?? 0}`);
-      lines.push(`  Current combined streak: ${stats.current_streak ?? 0} days`);
-      lines.push(`  Best combined streak: ${stats.best_streak ?? 0} days`);
-      lines.push('  Clean-day definition: a day only counts clean if there were no positive entries in any vice. If chips, coffee, alcohol, or any other vice was logged, that date is not clean.');
-      lines.push(`  Saved from clean days: $${(stats.savings_from_clean_days ?? 0).toFixed(2)}`);
-      lines.push(`  Avg daily spend across all vices: $${(stats.avg_daily_spend ?? 0).toFixed(2)}`);
-    }
-    if (xpData) {
-      lines.push('\nProgress:');
-      lines.push(`  Level: ${xpData.level} — ${xpData.level_name} ${xpData.level_icon}`);
-      lines.push(`  Total XP: ${xpData.total_xp}`);
-    }
-    return lines.join('\n');
-  }, [vices, viceStats, stats, xpData]);
+  // Stats travel in the request body and are rendered into the system prompt server-side,
+  // so they never enter the messages array or show up in a chat bubble.
+  const buildPayload = useCallback(() => ({
+    vices: vices.map(v => ({ id: v.id, name: v.name, emoji: v.emoji })),
+    stats: viceStats,
+    combined_stats: stats,
+    xp: xpData || null,
+  }), [vices, viceStats, stats, xpData]);
 
+  // OPENER — the stats-driven greeting. Fires once per chat (session start or "New chat"),
+  // never on a reply. Cached for the browser session so remounting the dashboard doesn't
+  // regenerate it.
+  const loadOpener = useCallback(async ({ force = false } = {}) => {
+    if (openerRef.current && !force) return;
+    openerRef.current = true;
+
+    if (!force) {
+      try {
+        const cached = sessionStorage.getItem(OPENER_KEY);
+        if (cached) { setMessages([{ role: 'assistant', content: cached }]); return; }
+      } catch { /* sessionStorage unavailable — just fetch */ }
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const { text: opener } = await api('/api/insights', {
+        method: 'POST',
+        body: JSON.stringify({ ...buildPayload(), mode: 'opener' }),
+      });
+      if (opener) {
+        setMessages([{ role: 'assistant', content: opener }]);
+        try { sessionStorage.setItem(OPENER_KEY, opener); } catch { /* non-fatal */ }
+      }
+    } catch {
+      // No opener is fine — the user can still start the conversation themselves.
+      openerRef.current = false;
+    } finally {
+      setLoading(false);
+    }
+  }, [api, buildPayload]);
+
+  useEffect(() => {
+    if (vices.length > 0) loadOpener();
+  }, [vices.length, loadOpener]);
+
+  const startNewChat = useCallback(() => {
+    try { sessionStorage.removeItem(OPENER_KEY); } catch { /* non-fatal */ }
+    setMessages([]);
+    setError('');
+    loadOpener({ force: true });
+  }, [loadOpener]);
+
+  // TURN — every user message. Sends the full history (all prior user AND assistant turns
+  // in this session) so the model can see what it already said and what the user just said.
   const send = useCallback(async (text) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
@@ -76,10 +94,7 @@ export default function InsightsPanel({ stats, xpData }) {
     setError('');
     setInput('');
 
-    // Attach data context to first user message so Claude always has full picture
-    const isFirst = messages.length === 0;
-    const userContent = isFirst ? `${trimmed}\n\n${buildDataContext()}` : trimmed;
-    const next = [...messages, { role: 'user', content: userContent }];
+    const next = [...messages, { role: 'user', content: trimmed }];
     setMessages(next);
     setLoading(true);
 
@@ -87,9 +102,8 @@ export default function InsightsPanel({ stats, xpData }) {
       const { text: reply } = await api('/api/insights', {
         method: 'POST',
         body: JSON.stringify({
-          vices: vices.map(v => ({ id: v.id, name: v.name, emoji: v.emoji })),
-          stats: viceStats,
-          combined_stats: stats,
+          ...buildPayload(),
+          mode: 'turn',
           messages: next,
         }),
       });
@@ -100,34 +114,38 @@ export default function InsightsPanel({ stats, xpData }) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50);
     }
-  }, [messages, loading, vices, viceStats, stats, buildDataContext, api]);
+  }, [messages, loading, buildPayload, api]);
 
   const handleSubmit = (e) => { e.preventDefault(); send(input); };
 
   const hasData = vices.length > 0;
   const hasConversation = messages.length > 0;
+  const isTopPlacement = placement === 'top';
 
-  // Displayed messages hide the injected data context from the user bubble
-  const displayMessages = messages.map((m, i) => {
-    if (m.role === 'user' && i === 0) {
-      const firstLine = m.content.split('\n\nCurrent vice spending data:')[0];
-      return { ...m, display: firstLine };
-    }
-    return { ...m, display: m.content };
-  });
 
   return (
-    <section style={s.wrap}>
+    <section style={{ ...s.wrap, ...(isTopPlacement ? s.topWrap : null) }} className="merged-insights-card">
       <div style={s.header}>
         <span style={s.sparkle}>✦</span>
-        <span style={s.title}>Coach Insight</span>
+        <span style={s.title}>{weeklyInsight ? 'Weekly + Coach Insights' : 'Coach Insight'}</span>
+        {weeklyInsight && <span style={s.topBadge}>Dashboard focus</span>}
         {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
         {hasConversation && !loading && (
-          <button style={s.clearBtn} onClick={() => { setMessages([]); setError(''); }}>
+          <button style={s.clearBtn} onClick={startNewChat}>
             New chat
           </button>
         )}
       </div>
+
+      {weeklyInsight && (
+        <div style={s.weeklyPanel}>
+          <div style={s.weeklyMeta}>
+            <span style={s.weeklyIcon}>✨</span>
+            <span>Weekly insight</span>
+          </div>
+          <p style={s.weeklyText}>{weeklyInsight}</p>
+        </div>
+      )}
 
       {!hasData && (
         <p style={s.hint}>Add vices and log some entries to start talking with your coach.</p>
@@ -135,7 +153,7 @@ export default function InsightsPanel({ stats, xpData }) {
 
       {hasData && !hasConversation && (
         <>
-          <p style={s.hint}>Your personal financial accountability coach — ask anything.</p>
+          <p style={{ ...s.hint, ...(weeklyInsight ? s.coachIntro : null) }}>Your personal financial accountability coach — ask anything.</p>
           <div style={s.presets}>
             {PRESETS.map(p => (
               <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
@@ -148,11 +166,11 @@ export default function InsightsPanel({ stats, xpData }) {
 
       {hasConversation && (
         <div ref={threadRef} style={s.thread}>
-          {displayMessages.map((m, i) => (
+          {messages.map((m, i) => (
             <div key={i} style={m.role === 'user' ? s.userBubble : s.coachBubble}>
               {m.role === 'assistant' && <div style={s.coachLabel}>Coach</div>}
               <p style={m.role === 'user' ? s.userText : s.coachText}>
-                {m.display}
+                {m.content}
               </p>
             </div>
           ))}
@@ -216,6 +234,22 @@ export default function InsightsPanel({ stats, xpData }) {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
+
+        .merged-insights-card {
+          position: relative;
+          overflow: hidden;
+        }
+        .merged-insights-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--money, #d4af37) 18%, transparent), transparent 38%),
+            radial-gradient(circle at 100% 14%, color-mix(in srgb, var(--success, #5ec48a) 14%, transparent), transparent 42%);
+          opacity: 0.9;
+        }
+        .merged-insights-card > * { position: relative; z-index: 1; }
       `}</style>
     </section>
   );
@@ -228,6 +262,14 @@ const s = {
     borderRadius: 14,
     padding: '24px 28px',
     marginTop: 24,
+  },
+  topWrap: {
+    marginTop: 0,
+    marginBottom: 24,
+    padding: '22px 24px 24px',
+    borderColor: 'color-mix(in srgb, var(--money, #d4af37) 34%, var(--rule, rgba(232,239,224,0.08)))',
+    background: 'linear-gradient(145deg, color-mix(in srgb, var(--paper-2, #122615) 88%, var(--money, #d4af37) 6%), var(--paper-2, #122615))',
+    boxShadow: '0 18px 48px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
   },
   header: {
     display: 'flex',
@@ -247,6 +289,18 @@ const s = {
     letterSpacing: '-0.01em',
     flex: 1,
   },
+  topBadge: {
+    color: 'var(--money, #d4af37)',
+    background: 'var(--money-soft, rgba(94,196,138,0.14))',
+    border: '1px solid color-mix(in srgb, var(--money, #d4af37) 26%, transparent)',
+    borderRadius: 999,
+    padding: '4px 9px',
+    fontFamily: 'var(--mono, monospace)',
+    fontSize: 10.5,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+  },
   pulseMark: {
     width: 22,
     height: 22,
@@ -265,6 +319,40 @@ const s = {
     color: 'var(--ink-3, #8e9a85)',
     marginBottom: 16,
     lineHeight: 1.5,
+  },
+  coachIntro: {
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  weeklyPanel: {
+    display: 'grid',
+    gap: 10,
+    padding: '16px 18px',
+    borderRadius: 14,
+    border: '1px solid color-mix(in srgb, var(--money, #d4af37) 30%, var(--rule, rgba(232,239,224,0.08)))',
+    background: 'linear-gradient(135deg, color-mix(in srgb, var(--paper, #0a1f17) 62%, transparent), color-mix(in srgb, var(--paper-3, #1a3328) 68%, transparent))',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+  },
+  weeklyMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    color: 'var(--money, #d4af37)',
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: '0.13em',
+    textTransform: 'uppercase',
+  },
+  weeklyIcon: {
+    filter: 'drop-shadow(0 0 8px color-mix(in srgb, var(--money, #d4af37) 45%, transparent))',
+  },
+  weeklyText: {
+    margin: 0,
+    color: 'var(--ink, #f0f7ec)',
+    fontSize: 15.5,
+    lineHeight: 1.7,
+    letterSpacing: '-0.01em',
+    whiteSpace: 'pre-wrap',
   },
   presets: {
     display: 'flex',
