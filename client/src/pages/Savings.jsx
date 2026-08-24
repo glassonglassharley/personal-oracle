@@ -675,10 +675,6 @@ export default function Savings() {
   const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
   const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
   const connectedAccounts = combinedAccounts.filter(a => !a.disconnected);
-  const manualAccounts = connectedAccounts.filter(a => a.source === 'manual');
-  const syncedAccounts = connectedAccounts.filter(a => a.source !== 'manual');
-  const selectedManualAccounts = selectedCombinedAccounts.filter(a => a.source === 'manual');
-  const selectedSyncedAccounts = selectedCombinedAccounts.filter(a => a.source !== 'manual');
   const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
@@ -731,16 +727,6 @@ export default function Savings() {
             <span className="sv-kpi-label">Actual savings balance</span>
             <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
             <span className="sv-kpi-sub">{selectedCombinedAccounts.length} of {connectedAccounts.length} connected account{connectedAccounts.length === 1 ? '' : 's'} included</span>
-          </div>
-          <div className="sv-balance-kpi-card">
-            <span className="sv-kpi-label">Synced included</span>
-            <strong>{selectedSyncedAccounts.length}</strong>
-            <span className="sv-kpi-sub">of {syncedAccounts.length} bank/provider accounts</span>
-          </div>
-          <div className="sv-balance-kpi-card">
-            <span className="sv-kpi-label">Manual included</span>
-            <strong>{selectedManualAccounts.length}</strong>
-            <span className="sv-kpi-sub">of {manualAccounts.length} editable accounts</span>
           </div>
           <form className="sv-balance-form sv-balance-update-card" onSubmit={handleBalanceSave}>
             <span className="sv-kpi-label">Manual balance override</span>

@@ -1482,7 +1482,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-balance-title { font-size: 16px; letter-spacing: -0.01em; }
 .sv-balance-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
 .sv-balance-kpi-grid {
-  display: grid; grid-template-columns: minmax(240px, 1.35fr) repeat(2, minmax(130px, 0.65fr)) minmax(260px, 1fr);
+  display: grid; grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr);
   gap: 12px; align-items: stretch; margin-bottom: 18px;
 }
 .sv-balance-kpi-card,
