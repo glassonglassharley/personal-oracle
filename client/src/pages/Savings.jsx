@@ -723,28 +723,26 @@ export default function Savings() {
         </div>
 
         <div className="sv-balance-kpi-grid">
-          <div className="sv-balance-kpi-card primary">
+          <form className="sv-balance-form sv-balance-kpi-card primary sv-balance-edit-card" onSubmit={handleBalanceSave}>
             <span className="sv-kpi-label">Actual savings balance</span>
-            <div className="sv-balance-amount">{fmt$2(actualSavingsBalance)}</div>
-            <span className="sv-kpi-sub">{selectedCombinedAccounts.length} of {connectedAccounts.length} connected account{connectedAccounts.length === 1 ? '' : 's'} included</span>
-          </div>
-          <form className="sv-balance-form sv-balance-update-card" onSubmit={handleBalanceSave}>
-            <span className="sv-kpi-label">Manual balance override</span>
             <div className="sv-balance-update-row">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="sv-balance-input"
-                value={balanceInput}
-                onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
-                placeholder="0.00"
-              />
+              <label className="sv-balance-value-field" aria-label="Actual savings balance">
+                <span>$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="sv-balance-input sv-balance-value-input"
+                  value={balanceInput}
+                  onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
+                  placeholder="0.00"
+                />
+              </label>
               <button className="btn btn-primary" type="submit" disabled={balanceSaving} style={{ flexShrink: 0, fontSize: 12, padding: '6px 12px' }}>
                 {balanceSaving ? 'Saving…' : balanceSaved ? '✓ Saved' : 'Update'}
               </button>
             </div>
-            <span className="sv-kpi-sub">Use only when you want to track a non-synced total.</span>
+            <span className="sv-kpi-sub">{selectedCombinedAccounts.length} of {connectedAccounts.length} connected account{connectedAccounts.length === 1 ? '' : 's'} included · edit this value only when you need a manual total.</span>
           </form>
         </div>
 

@@ -1482,7 +1482,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-balance-title { font-size: 16px; letter-spacing: -0.01em; }
 .sv-balance-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
 .sv-balance-kpi-grid {
-  display: grid; grid-template-columns: minmax(240px, 1fr) minmax(260px, 1fr);
+  display: grid; grid-template-columns: 1fr;
   gap: 12px; align-items: stretch; margin-bottom: 18px;
 }
 .sv-balance-kpi-card,
@@ -1512,6 +1512,50 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   color: var(--money); min-width: 0;
 }
 .sv-balance-update-row { display: flex; gap: 8px; align-items: center; }
+.sv-balance-edit-card {
+  gap: 10px;
+  padding: 18px 20px;
+}
+.sv-balance-edit-card .sv-balance-update-row {
+  gap: 14px;
+  align-items: stretch;
+}
+.sv-balance-value-field {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 4px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--money) 38%, var(--rule));
+}
+.sv-balance-value-field span {
+  color: var(--money);
+  font-family: var(--serif);
+  font-size: clamp(34px, 4vw, 50px);
+  line-height: 1;
+}
+.sv-balance-value-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--money);
+  font-family: var(--serif);
+  font-size: clamp(34px, 4vw, 50px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+}
+.sv-balance-value-input:focus {
+  outline: none;
+}
+.sv-balance-edit-card .btn-primary {
+  min-height: 44px;
+  align-self: center;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--money) 22%, transparent);
+}
 .sv-balance-update-card .sv-balance-input { min-height: 36px; }
 .sv-balance-errors { margin-bottom: 14px; }
 .sv-balance-errors .form-error { margin: 6px 0 0; }
