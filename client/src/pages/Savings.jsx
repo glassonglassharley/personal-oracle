@@ -178,6 +178,8 @@ export default function Savings() {
   const [syncingPlaid, setSyncingPlaid] = useState(false);
   const [linkingPlaid, setLinkingPlaid] = useState(false);
   const [plaidSyncError, setPlaidSyncError] = useState('');
+  const [balancePanelCollapsed, setBalancePanelCollapsed] = useState(true);
+  const [accountsCollapsed, setAccountsCollapsed] = useState(true);
   const [showManualAccountForm, setShowManualAccountForm] = useState(false);
   const [manualAccountForm, setManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
   const [editingManualAccountId, setEditingManualAccountId] = useState(null);
@@ -400,10 +402,11 @@ export default function Savings() {
     goals.filter(g => !g.completed_at).forEach(g => {
       if (saved >= Number(g.target_amount) && !celebratedRef.current.has(g.id)) {
         celebratedRef.current.add(g.id);
+        markGoalDone(g.id, saved);
         setCelebGoal(g);
       }
     });
-  }, [balance.balance, combinedBalance, combinedLoaded, goals]);
+  }, [balance.balance, combinedBalance, combinedLoaded, goals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBalanceSave = async (e) => {
     e.preventDefault();
@@ -505,11 +508,19 @@ export default function Savings() {
     }
   };
 
-  const markGoalDone = async (id) => {
+  const markGoalDone = async (id, currentSavings = actualSavingsBalance) => {
     try {
-      await api(`/api/goals/${id}/complete`, { method: 'PUT' });
-      setGoals(gs => gs.map(g => g.id === id ? { ...g, completed_at: new Date().toISOString() } : g));
-      setCelebGoal(null);
+      const result = await api(`/api/goals/${id}/complete`, {
+        method: 'PUT',
+        body: JSON.stringify({ current_savings: currentSavings }),
+      });
+      setGoals(gs => {
+        const completed = result.completed || { id, completed_at: new Date().toISOString() };
+        const nextGoal = result.next_goal;
+        const withoutNextDuplicate = nextGoal ? gs.filter(g => g.id !== nextGoal.id) : gs;
+        const updated = withoutNextDuplicate.map(g => g.id === id ? { ...g, ...completed } : g);
+        return nextGoal ? [nextGoal, ...updated] : updated;
+      });
     } catch (err) { console.error('markGoalDone failed:', err); }
   };
 
@@ -678,7 +689,6 @@ export default function Savings() {
   const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
-  const projectedVsActual = actualSavingsBalance > 0 ? projected / actualSavingsBalance : 0;
 
   return (
     <main className="main sv-page">
@@ -694,12 +704,31 @@ export default function Savings() {
 
 
       {/* ── Actual Savings Balance ── */}
-      <div className="panel sv-balance-panel sv-balance-panel-polished">
-        <div className="sv-balance-head">
+      <div className={`panel sv-balance-panel sv-balance-panel-polished${balancePanelCollapsed ? ' collapsed' : ''}`}>
+        <div className="sv-balance-head sv-balance-head-collapsible">
           <div>
             <span className="panel-title sv-balance-title">Combined Savings</span>
-            <p className="sv-balance-note">Choose exactly which synced and manual accounts count toward your real saved-so-far number.</p>
+            <p className="sv-balance-note">
+              {selectedCombinedAccounts.length} of {connectedAccounts.length} connected account{connectedAccounts.length === 1 ? '' : 's'} included
+            </p>
           </div>
+          <div className="sv-balance-summary-actions">
+            <span className="sv-balance-summary-value">{fmt$2(actualSavingsBalance)}</span>
+            <button
+              type="button"
+              className="sv-account-toggle sv-balance-toggle"
+              onClick={() => setBalancePanelCollapsed(value => !value)}
+              aria-expanded={!balancePanelCollapsed}
+              aria-controls="combined-savings-panel-body"
+            >
+              {balancePanelCollapsed ? 'Open' : 'Hide'}
+              <span aria-hidden="true">{balancePanelCollapsed ? '⌄' : '⌃'}</span>
+            </button>
+          </div>
+        </div>
+
+        {!balancePanelCollapsed && (
+          <div id="combined-savings-panel-body" className="sv-balance-collapse-body">
           <div className="sv-balance-actions">
             <button
               type="button"
@@ -720,7 +749,6 @@ export default function Savings() {
               {syncingPlaid ? 'Syncing…' : '↻ Sync balances'}
             </button>
           </div>
-        </div>
 
         <div className="sv-balance-kpi-grid">
           <form className="sv-balance-form sv-balance-kpi-card primary sv-balance-edit-card" onSubmit={handleBalanceSave}>
@@ -729,9 +757,8 @@ export default function Savings() {
               <label className="sv-balance-value-field" aria-label="Actual savings balance">
                 <span>$</span>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   className="sv-balance-input sv-balance-value-input"
                   value={balanceInput}
                   onChange={e => { setBalanceInput(e.target.value); setBalanceSource('manual'); }}
@@ -759,75 +786,97 @@ export default function Savings() {
               <span className="sv-account-title">Accounts included in Combined Savings</span>
               <p>Only checked accounts are shown here{negativeAccounts.length ? ` · ${negativeAccounts.length} selected negative balance${negativeAccounts.length === 1 ? '' : 's'}` : ''}</p>
             </div>
-            <button type="button" className="sv-add-asset-btn" onClick={() => setShowManualAccountForm(true)}>+ Add manual account</button>
+            <div className="sv-account-head-actions">
+              <button
+                type="button"
+                className="sv-add-asset-btn"
+                onClick={() => { setAccountsCollapsed(false); setShowManualAccountForm(true); }}
+              >
+                + Add manual account
+              </button>
+              <button
+                type="button"
+                className="sv-account-toggle"
+                onClick={() => setAccountsCollapsed(open => !open)}
+                aria-expanded={!accountsCollapsed}
+                aria-controls="combined-savings-accounts"
+              >
+                {accountsCollapsed ? 'Show' : 'Hide'} accounts
+                <span aria-hidden="true">{accountsCollapsed ? '⌄' : '⌃'}</span>
+              </button>
+            </div>
           </div>
-          {combinedAccounts.length === 0 ? (
-            <p className="sv-empty-copy">
-              No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
-            </p>
-          ) : selectedCombinedAccounts.length === 0 ? (
-            <p className="sv-empty-copy">
-              No checked accounts are currently included in Combined Savings. Use Connect bank or Sync balances if you need to choose accounts again.
-            </p>
-          ) : selectedCombinedAccounts.map(acct => {
-            const isManual = acct.source === 'manual';
-            const isIncluded = !!acct.includedInCombinedSavings && !acct.disconnected;
-            const isNegative = Number(acct.currentBalance || 0) < 0;
-            return (
-              <div key={acct.id} className={`sv-account-wrap${editingManualAccountId === acct.id ? ' editing' : ''}`}>
-                <div className={`sv-account-row${isIncluded ? ' included' : ''}${isManual ? ' manual' : ''}${acct.disconnected ? ' disconnected' : ''}`}>
-                  <label className="sv-account-check">
-                    <input
-                      type="checkbox"
-                      checked={isIncluded}
-                      disabled={acct.disconnected}
-                      onChange={e => toggleCombinedAccount(acct, e.target.checked)}
-                    />
-                    <span className="sv-check-copy">
-                      <strong>{accountDisplayName(acct)}</strong>
-                      <span>
-                        <b>{plaidAccountKind(acct)}</b>
-                        {isManual && <em>Manual</em>}
-                        {acct.disconnected && <em>Disconnected</em>}
-                      </span>
-                    </span>
-                  </label>
-                  <div className="sv-account-right">
-                    <span className={`sv-account-balance${isNegative ? ' negative' : ''}`}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
-                    {isManual && (
-                      <div className="sv-account-actions">
-                        <button type="button" className="btn ghost" onClick={() => startEditingManualAccount(acct)}>Edit</button>
-                        <button type="button" className="btn ghost sv-row-delete" onClick={() => deleteManualAccount(acct)} aria-label={`Delete ${accountDisplayName(acct)}`}>×</button>
+          {!accountsCollapsed && (
+            <div id="combined-savings-accounts" className="sv-account-collapse-body">
+              {combinedAccounts.length === 0 ? (
+                <p className="sv-empty-copy">
+                  No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
+                </p>
+              ) : selectedCombinedAccounts.length === 0 ? (
+                <p className="sv-empty-copy">
+                  No checked accounts are currently included in Combined Savings. Use Connect bank or Sync balances if you need to choose accounts again.
+                </p>
+              ) : selectedCombinedAccounts.map(acct => {
+                const isManual = acct.source === 'manual';
+                const isIncluded = !!acct.includedInCombinedSavings && !acct.disconnected;
+                const isNegative = Number(acct.currentBalance || 0) < 0;
+                return (
+                  <div key={acct.id} className={`sv-account-wrap${editingManualAccountId === acct.id ? ' editing' : ''}`}>
+                    <div className={`sv-account-row${isIncluded ? ' included' : ''}${isManual ? ' manual' : ''}${acct.disconnected ? ' disconnected' : ''}`}>
+                      <label className="sv-account-check">
+                        <input
+                          type="checkbox"
+                          checked={isIncluded}
+                          disabled={acct.disconnected}
+                          onChange={e => toggleCombinedAccount(acct, e.target.checked)}
+                        />
+                        <span className="sv-check-copy">
+                          <strong>{accountDisplayName(acct)}</strong>
+                          <span>
+                            <b>{plaidAccountKind(acct)}</b>
+                            {isManual && <em>Manual</em>}
+                            {acct.disconnected && <em>Disconnected</em>}
+                          </span>
+                        </span>
+                      </label>
+                      <div className="sv-account-right">
+                        <span className={`sv-account-balance${isNegative ? ' negative' : ''}`}>{acct.currentBalance == null ? '—' : fmt$2(acct.currentBalance)}</span>
+                        {isManual && (
+                          <div className="sv-account-actions">
+                            <button type="button" className="btn ghost" onClick={() => startEditingManualAccount(acct)}>Edit</button>
+                            <button type="button" className="btn ghost sv-row-delete" onClick={() => deleteManualAccount(acct)} aria-label={`Delete ${accountDisplayName(acct)}`}>×</button>
+                          </div>
+                        )}
                       </div>
+                    </div>
+                    {editingManualAccountId === acct.id && (
+                      <form onSubmit={updateManualAccount} className="sv-manual-form">
+                        <input className="form-input" placeholder="Institution" value={editingManualAccountForm.institutionName} onChange={e => setEditingManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
+                        <input className="form-input" placeholder="Account name" value={editingManualAccountForm.accountName} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
+                        <input className="form-input" placeholder="Account type" value={editingManualAccountForm.accountType} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
+                        <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={editingManualAccountForm.currentBalance} onChange={e => setEditingManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} autoFocus />
+                        <div className="sv-manual-actions">
+                          <button className="btn btn-primary" type="submit">Save account</button>
+                          <button className="btn ghost" type="button" onClick={cancelEditingManualAccount}>Cancel</button>
+                        </div>
+                      </form>
                     )}
                   </div>
-                </div>
-                {editingManualAccountId === acct.id && (
-                  <form onSubmit={updateManualAccount} className="sv-manual-form">
-                    <input className="form-input" placeholder="Institution" value={editingManualAccountForm.institutionName} onChange={e => setEditingManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
-                    <input className="form-input" placeholder="Account name" value={editingManualAccountForm.accountName} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
-                    <input className="form-input" placeholder="Account type" value={editingManualAccountForm.accountType} onChange={e => setEditingManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
-                    <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={editingManualAccountForm.currentBalance} onChange={e => setEditingManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} autoFocus />
-                    <div className="sv-manual-actions">
-                      <button className="btn btn-primary" type="submit">Save account</button>
-                      <button className="btn ghost" type="button" onClick={cancelEditingManualAccount}>Cancel</button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            );
-          })}
-          {showManualAccountForm && (
-            <form onSubmit={addManualAccount} className="sv-manual-form add">
-              <input className="form-input" placeholder="Institution" value={manualAccountForm.institutionName} onChange={e => setManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
-              <input className="form-input" placeholder="Account name" value={manualAccountForm.accountName} onChange={e => setManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
-              <input className="form-input" placeholder="Account type" value={manualAccountForm.accountType} onChange={e => setManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
-              <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={manualAccountForm.currentBalance} onChange={e => setManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} />
-              <div className="sv-manual-actions">
-                <button className="btn btn-primary" type="submit">Add manual account</button>
-                <button className="btn ghost" type="button" onClick={() => setShowManualAccountForm(false)}>Cancel</button>
-              </div>
-            </form>
+                );
+              })}
+              {showManualAccountForm && (
+                <form onSubmit={addManualAccount} className="sv-manual-form add">
+                  <input className="form-input" placeholder="Institution" value={manualAccountForm.institutionName} onChange={e => setManualAccountForm(f => ({ ...f, institutionName: e.target.value }))} />
+                  <input className="form-input" placeholder="Account name" value={manualAccountForm.accountName} onChange={e => setManualAccountForm(f => ({ ...f, accountName: e.target.value }))} />
+                  <input className="form-input" placeholder="Account type" value={manualAccountForm.accountType} onChange={e => setManualAccountForm(f => ({ ...f, accountType: e.target.value }))} />
+                  <input className="form-input" type="number" step="0.01" placeholder="Current balance" value={manualAccountForm.currentBalance} onChange={e => setManualAccountForm(f => ({ ...f, currentBalance: e.target.value }))} />
+                  <div className="sv-manual-actions">
+                    <button className="btn btn-primary" type="submit">Add manual account</button>
+                    <button className="btn ghost" type="button" onClick={() => setShowManualAccountForm(false)}>Cancel</button>
+                  </div>
+                </form>
+              )}
+            </div>
           )}
         </div>
         {goals.filter(g => !g.completed_at).length > 0 ? (
@@ -854,67 +903,7 @@ export default function Savings() {
             Set a savings goal below to track progress here.
           </p>
         )}
-      </div>
-
-      {/* ── Hero ── */}
-      <div className="sv-hero">
-        <div className="sv-hero-eyebrow">
-          If you quit <em>all tracked vices</em> for
-        </div>
-        <div className="sv-horizon-row">
-          {MILESTONES.map(m => (
-            <button
-              key={m.days}
-              className={`sv-horizon-btn${horizon === m.days ? ' on' : ''}`}
-              onClick={() => setHorizon(m.days)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        {loading ? (
-          <div style={{ padding: '12px 0' }}>
-            <div className="skeleton" style={{ height: 90, width: 300, borderRadius: 8, marginBottom: 16 }} />
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div className="skeleton" style={{ height: 34, width: 100, borderRadius: 999 }} />
-              <div className="skeleton" style={{ height: 34, width: 100, borderRadius: 999 }} />
-              <div className="skeleton" style={{ height: 34, width: 100, borderRadius: 999 }} />
-            </div>
           </div>
-        ) : (
-          <>
-            <div className="sv-amount-row">
-              <span className="sv-dollar">$</span>
-              <span className="sv-big-num">
-                {Number(projected).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-              </span>
-            </div>
-            <div className="sv-chips">
-              <span className="sv-chip">
-                <span className="sv-chip-lbl">per day</span>{fmt$2(perDay)}
-              </span>
-              <span className="sv-chip">
-                <span className="sv-chip-lbl">per week</span>{fmt$2(perDay * 7)}
-              </span>
-              <span className="sv-chip">
-                <span className="sv-chip-lbl">per month</span>{fmt$2(perDay * 30.44)}
-              </span>
-              {actualSavingsBalance > 0 && (
-                <span className="sv-chip sv-chip-positive">
-                  <span className="sv-chip-lbl">vs saved now</span>{projectedVsActual.toFixed(1)}× current balance
-                </span>
-              )}
-            </div>
-            {data?.byVice?.length > 0 && (
-              <div className="sv-chips" style={{ marginTop: 12 }}>
-                {data.byVice.map(({ vice, savings }) => (
-                  <span key={vice.id} className="sv-chip">
-                    <span className="sv-chip-lbl">{vice.emoji} {vice.name}</span>{fmt$2(savings.per_day)}/day
-                  </span>
-                ))}
-              </div>
-            )}
-          </>
         )}
       </div>
 

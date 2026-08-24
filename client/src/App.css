@@ -1475,12 +1475,26 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--money) 13%, transparent), transparent 42%),
     linear-gradient(135deg, color-mix(in srgb, var(--paper-2) 94%, var(--money) 6%), var(--paper-2));
 }
+.sv-balance-panel-polished.collapsed { padding-bottom: 20px; }
 .sv-balance-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 18px; margin-bottom: 18px;
 }
+.sv-balance-head-collapsible { margin-bottom: 0; }
+.sv-balance-collapse-body { margin-top: 18px; }
 .sv-balance-title { font-size: 16px; letter-spacing: -0.01em; }
-.sv-balance-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+.sv-balance-summary-actions { display: flex; align-items: center; gap: 12px; justify-content: flex-end; flex-shrink: 0; }
+.sv-balance-summary-value {
+  color: var(--money);
+  font-family: var(--serif);
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sv-balance-toggle { flex-shrink: 0; }
+.sv-balance-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; margin-bottom: 14px; }
 .sv-balance-kpi-grid {
   display: grid; grid-template-columns: 1fr;
   gap: 12px; align-items: stretch; margin-bottom: 18px;
@@ -1551,6 +1565,12 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-balance-value-input:focus {
   outline: none;
 }
+.sv-balance-value-input::-webkit-outer-spin-button,
+.sv-balance-value-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.sv-balance-value-input[type="number"] { -moz-appearance: textfield; }
 .sv-balance-edit-card .btn-primary {
   min-height: 44px;
   align-self: center;
@@ -1567,6 +1587,16 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 14px; margin-bottom: 10px;
 }
+.sv-account-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sv-account-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--rule-2); background: transparent;
+  color: var(--ink-2); font-size: 12px; cursor: pointer;
+}
+.sv-account-toggle:hover { border-color: var(--money); color: var(--money); }
+.sv-account-toggle span { font-size: 13px; line-height: 1; }
+.sv-account-collapse-body { margin-top: 10px; }
 .sv-account-title { display: block; color: var(--ink); font-size: 13px; font-weight: 700; }
 .sv-account-head p { margin: 3px 0 0; color: var(--ink-4); font-size: 11.5px; }
 .sv-empty-copy { margin: 0 0 10px; color: var(--ink-4); font-size: 12px; line-height: 1.5; }
