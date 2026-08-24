@@ -1215,11 +1215,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   border-radius: 999px;
   background: var(--success-soft);
 }
-.db-mission-card {
-  background:
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--money) 13%, transparent), transparent 52%),
-    var(--paper-2);
-}
+.merged-insights-card .db-kicker { color: var(--money); }
 .db-mission-title {
   color: var(--ink);
   font-size: 18px;

@@ -23,7 +23,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [collapsed, setCollapsed] = useState(() => isTopPlacement);
+  const [collapsed, setCollapsed] = useState(false);
   const threadRef = useRef(null);
   const inputRef = useRef(null);
   const openerRef = useRef(false);
@@ -128,7 +128,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
     <section style={{ ...s.wrap, ...(isTopPlacement ? s.topWrap : null) }} className="merged-insights-card">
       <div style={{ ...s.header, ...(collapsed ? s.collapsedHeader : null) }}>
         <span style={s.sparkle}>✦</span>
-        <span style={s.title}>{weeklyInsight ? 'Insights' : 'Coach Insight'}</span>
+        <span style={s.title}>Insights</span>
         {isTopPlacement && (
           <button
             type="button"
@@ -136,7 +136,7 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
             onClick={() => setCollapsed(value => !value)}
             aria-expanded={!collapsed}
           >
-            {collapsed ? 'Open' : 'Hide'}
+            {collapsed ? 'Show' : 'Hide'}
           </button>
         )}
         {loading && <VtvMark style={s.pulseMark} className="insights-pulse-mark" />}
@@ -147,95 +147,96 @@ export default function InsightsPanel({ stats, xpData, weeklyInsight = null, pla
         )}
       </div>
 
-      {children && <div style={s.childrenWrap}>{children}</div>}
-
-      {collapsed && null}
-
       {!collapsed && (
         <>
 
+      {children && <div style={s.section}>{children}</div>}
+
       {weeklyInsight && (
-        <div style={s.weeklyPanel}>
-          <div style={s.weeklyMeta}>Weekly</div>
+        <div style={s.section}>
+          <div style={s.eyebrow}>AI insight</div>
           <p style={s.weeklyText}>{weeklyInsight}</p>
         </div>
       )}
 
-      {!hasData && (
-        <p style={s.hint}>Add vices and log some entries to start talking with your coach.</p>
-      )}
+      <div style={s.section}>
+        <div style={s.eyebrow}>Coach</div>
 
-      {hasData && !hasConversation && !isTopPlacement && (
-        <>
-          <p style={{ ...s.hint, ...(weeklyInsight ? s.coachIntro : null) }}>Your personal financial accountability coach — ask anything.</p>
-          <div style={s.presets}>
-            {PRESETS.map(p => (
-              <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
-                {p}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+        {!hasData && (
+          <p style={s.hint}>Add vices and log some entries to start talking with your coach.</p>
+        )}
 
-      {hasConversation && (
-        <div ref={threadRef} style={s.thread}>
-          {messages.map((m, i) => (
-            <div key={i} style={m.role === 'user' ? s.userBubble : s.coachBubble}>
-              {m.role === 'assistant' && <div style={s.coachLabel}>Coach</div>}
-              <p style={m.role === 'user' ? s.userText : s.coachText}>
-                {m.content}
-              </p>
-            </div>
-          ))}
-
-          {loading && (
-            <div style={s.coachBubble}>
-              <div style={s.coachLabel}>Coach</div>
-              <div style={s.skelWrap}>
-                <div style={{ ...s.skelLine, width: '82%' }} />
-                <div style={{ ...s.skelLine, width: '67%', marginTop: 8 }} />
-                <div style={{ ...s.skelLine, width: '48%', marginTop: 8 }} />
-              </div>
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {error && <p style={s.errorText}>{error}</p>}
-
-      {hasData && (
-        <div style={s.inputArea}>
-          {hasConversation && !isTopPlacement && (
-            <div style={{ ...s.presets, marginBottom: 10 }}>
+        {hasData && !hasConversation && (
+          <>
+            <p style={s.hint}>Your personal financial accountability coach — ask anything.</p>
+            <div style={s.presets}>
               {PRESETS.map(p => (
                 <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
                   {p}
                 </button>
               ))}
             </div>
-          )}
-          <form style={s.inputRow} onSubmit={handleSubmit}>
-            <input
-              ref={inputRef}
-              style={s.input}
-              placeholder="Ask your coach anything…"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              disabled={loading}
-              autoComplete="off"
-            />
-            <button
-              type="submit"
-              style={{ ...s.sendBtn, opacity: (!input.trim() || loading) ? 0.45 : 1 }}
-              disabled={!input.trim() || loading}
-            >
-              ↑
-            </button>
-          </form>
-        </div>
-      )}
+          </>
+        )}
+
+        {hasConversation && (
+          <div ref={threadRef} style={s.thread}>
+            {messages.map((m, i) => (
+              <div key={i} style={m.role === 'user' ? s.userBubble : s.coachBubble}>
+                {m.role === 'assistant' && <div style={s.coachLabel}>Coach</div>}
+                <p style={m.role === 'user' ? s.userText : s.coachText}>
+                  {m.content}
+                </p>
+              </div>
+            ))}
+
+            {loading && (
+              <div style={s.coachBubble}>
+                <div style={s.coachLabel}>Coach</div>
+                <div style={s.skelWrap}>
+                  <div style={{ ...s.skelLine, width: '82%' }} />
+                  <div style={{ ...s.skelLine, width: '67%', marginTop: 8 }} />
+                  <div style={{ ...s.skelLine, width: '48%', marginTop: 8 }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && <p style={s.errorText}>{error}</p>}
+
+        {hasData && (
+          <div style={s.inputArea}>
+            {hasConversation && (
+              <div style={{ ...s.presets, marginBottom: 10 }}>
+                {PRESETS.map(p => (
+                  <button key={p} style={s.presetBtn} onClick={() => send(p)} disabled={loading}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            )}
+            <form style={s.inputRow} onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                style={s.input}
+                placeholder="Ask your coach anything…"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                disabled={loading}
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                style={{ ...s.sendBtn, opacity: (!input.trim() || loading) ? 0.45 : 1 }}
+                disabled={!input.trim() || loading}
+              >
+                ↑
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
 
         </>
       )}
@@ -331,37 +332,24 @@ const s = {
     color: 'rgba(212,175,55,0.7)',
     cursor: 'pointer',
   },
-  childrenWrap: {
-    paddingTop: 14,
-    marginTop: 4,
-    borderTop: '1px solid color-mix(in srgb, var(--money, #d4af37) 22%, var(--rule, rgba(232,239,224,0.08)))',
+  section: {
+    paddingTop: 16,
+    marginTop: 16,
+    borderTop: '1px solid color-mix(in srgb, var(--money, #d4af37) 20%, var(--rule, rgba(232,239,224,0.08)))',
+  },
+  eyebrow: {
+    color: 'var(--money, #d4af37)',
+    fontSize: 10.5,
+    fontWeight: 800,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   hint: {
     fontSize: 14,
     color: 'var(--ink-3, #8e9a85)',
     marginBottom: 16,
     lineHeight: 1.5,
-  },
-  coachIntro: {
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  weeklyPanel: {
-    display: 'grid',
-    gap: 6,
-    padding: '0 0 12px',
-    marginBottom: 12,
-    borderBottom: '1px solid color-mix(in srgb, var(--money, #d4af37) 22%, var(--rule, rgba(232,239,224,0.08)))',
-  },
-  weeklyMeta: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    color: 'var(--money, #d4af37)',
-    fontSize: 10.5,
-    fontWeight: 800,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase',
   },
   weeklyText: {
     margin: 0,
