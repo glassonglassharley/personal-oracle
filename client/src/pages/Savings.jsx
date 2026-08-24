@@ -677,7 +677,6 @@ export default function Savings() {
   const connectedAccounts = combinedAccounts.filter(a => !a.disconnected);
   const manualAccounts = connectedAccounts.filter(a => a.source === 'manual');
   const syncedAccounts = connectedAccounts.filter(a => a.source !== 'manual');
-  const excludedAccounts = connectedAccounts.filter(a => !a.includedInCombinedSavings);
   const selectedManualAccounts = selectedCombinedAccounts.filter(a => a.source === 'manual');
   const selectedSyncedAccounts = selectedCombinedAccounts.filter(a => a.source !== 'manual');
   const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
@@ -774,7 +773,7 @@ export default function Savings() {
           <div className="sv-account-head">
             <div>
               <span className="sv-account-title">Accounts included in Combined Savings</span>
-              <p>{excludedAccounts.length} excluded · {negativeAccounts.length} selected negative balance{negativeAccounts.length === 1 ? '' : 's'}</p>
+              <p>Only checked accounts are shown here{negativeAccounts.length ? ` · ${negativeAccounts.length} selected negative balance${negativeAccounts.length === 1 ? '' : 's'}` : ''}</p>
             </div>
             <button type="button" className="sv-add-asset-btn" onClick={() => setShowManualAccountForm(true)}>+ Add manual account</button>
           </div>
@@ -782,7 +781,11 @@ export default function Savings() {
             <p className="sv-empty-copy">
               No synced accounts loaded yet. Connect one or more Plaid institutions, then choose which accounts count toward Combined Savings.
             </p>
-          ) : combinedAccounts.map(acct => {
+          ) : selectedCombinedAccounts.length === 0 ? (
+            <p className="sv-empty-copy">
+              No checked accounts are currently included in Combined Savings. Use Connect bank or Sync balances if you need to choose accounts again.
+            </p>
+          ) : selectedCombinedAccounts.map(acct => {
             const isManual = acct.source === 'manual';
             const isIncluded = !!acct.includedInCombinedSavings && !acct.disconnected;
             const isNegative = Number(acct.currentBalance || 0) < 0;
