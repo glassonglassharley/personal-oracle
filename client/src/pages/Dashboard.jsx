@@ -647,10 +647,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {!loading && stats && (
-        <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top" />
-      )}
-
       {challenges.map(c => (
         <div key={c.id} className="challenge-banner">
           <span className="challenge-icon">⚔️</span>
@@ -707,6 +703,8 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+
+          <InsightsPanel stats={stats} xpData={xpData} weeklyInsight={weeklyInsight} placement="top" />
 
           <div className="db-action-grid">
             <div className="panel db-savings-hero">
