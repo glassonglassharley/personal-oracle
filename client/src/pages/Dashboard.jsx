@@ -248,6 +248,44 @@ function QuantityBreakdown({ period }) {
   );
 }
 
+function shortQuantityBreakdown(period) {
+  const items = (period?.byVice || [])
+    .filter(item => item.quantity > 0)
+    .sort((a, b) => b.spend - a.spend);
+  if (items.length === 0) return 'Clean so far';
+  const top = items.slice(0, 2).map(({ vice, quantity }) => formatQuantityWithUnit(quantity, vice)).join(' · ');
+  return items.length > 2 ? `${top} · +${items.length - 2} more` : top;
+}
+
+function periodNote(key, period) {
+  const spend = Number(period?.spend || 0);
+  const items = (period?.byVice || []).filter(item => item.spend > 0).sort((a, b) => b.spend - a.spend);
+  if (spend <= 0) return key === 'Today' ? 'No spend logged today' : 'No spend in this window';
+  const top = items[0];
+  return top ? `Mostly ${top.vice.name}` : 'Tracked across all vices';
+}
+
+function buildRecentRows(entries, avgDailySpend) {
+  const rows = [];
+  const cleanByDate = new Map();
+  entries.forEach(entry => {
+    if (Number(entry.quantity) === 0) {
+      const key = dateKey(entry.date);
+      const group = cleanByDate.get(key) || { type: 'clean-group', date: key, count: 0, saved: 0, vices: [] };
+      group.count += 1;
+      group.saved += Number(avgDailySpend || 0);
+      group.vices.push(entry.vice);
+      cleanByDate.set(key, group);
+    } else {
+      rows.push({ type: 'spend', entry, date: dateKey(entry.date) });
+    }
+  });
+  cleanByDate.forEach(group => rows.push(group));
+  return rows
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10);
+}
+
 export default function Dashboard() {
   const api = useApi();
   const apiRef = useRef(api);
@@ -282,6 +320,7 @@ export default function Dashboard() {
   const [spendDays, setSpendDays] = useState(null);      // [{ date, spend }] per-day totals, oldest first
   const [savingsHist, setSavingsHist] = useState(null);  // [{ balance, recorded_at, source }] newest first
 
+  const successColor = cssVar('--success', '#5ec48a');
   const moneyColor = typeof document !== 'undefined'
     ? (getComputedStyle(document.body).getPropertyValue('--money').trim() || '#5ec48a')
     : '#5ec48a';
@@ -451,10 +490,20 @@ export default function Dashboard() {
     datasets: [{
       label: 'Combined spend',
       data: last7.map(({ spend }) => Number(spend || 0)),
-      backgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? moneyColor : inkColor),
+      backgroundColor: last7.map(({ spend }) => Number(spend || 0) === 0 ? successColor : inkColor),
       borderRadius: 4,
     }]
   };
+
+  const cleanDaysThisWeek = last7.filter(({ spend }) => Number(spend || 0) === 0).length;
+  const todayPotentialSaved = stats ? Number(stats.avg_daily_spend || 0) : 0;
+  const yearSpend = stats ? Number(stats.year?.spend || 0) : 0;
+  const actualSavings = Number(balance?.balance || 0);
+  const savingsVsSpendGap = actualSavings - yearSpend;
+  const treeNextAmount = companion?.growth?.treeGrowthState && companion.growth.treeGrowthState < 5
+    ? Math.max(0, [0, 50, 150, 500, 1500, Infinity][companion.growth.treeGrowthState] - Number(companion.growth.totalSaved || 0))
+    : null;
+  const recentRows = buildRecentRows(recentEntries, stats?.avg_daily_spend || 0);
 
   const chartOptions = {
     responsive: true,
@@ -496,8 +545,8 @@ export default function Dashboard() {
       {
         label: 'Savings balance',
         data: trend.savingsLine,
-        borderColor: moneyColor,
-        backgroundColor: withAlpha(moneyColor, 0.1),
+        borderColor: successColor,
+        backgroundColor: withAlpha(successColor, 0.12),
         borderWidth: 2.5,
         pointRadius: 3,
         tension: 0.3,
@@ -659,24 +708,57 @@ export default function Dashboard() {
                   {'$' + Number(p.spend || 0).toFixed(0)}
                   <span className="small">.{Number(p.spend || 0).toFixed(2).split('.')[1]}</span>
                 </div>
-                <div className="stat-delta"><QuantityBreakdown period={p} /></div>
+                <div className="stat-note">{periodNote(key, p)}</div>
+                <div className="stat-delta">{shortQuantityBreakdown(p)}</div>
               </div>
             ))}
           </div>
 
-          <div className="panel sv-balance-panel" style={{ padding: '10px 14px' }}>
-            <div className="panel-head" style={{ marginBottom: 6 }}>
-              <span className="panel-title" style={{ fontSize: 13 }}>Actual savings balance</span>
-              <Link to="/savings" className="text-muted" style={{ fontSize: 12, textDecoration: 'none' }}>
-                Update on Savings →
-              </Link>
+          <div className="db-action-grid">
+            <div className="panel db-savings-hero">
+              <div className="db-kicker">Saved so far</div>
+              <div className="db-savings-main">{fmt$0(actualSavings)}</div>
+              <div className="db-savings-sub">
+                {savingsVsSpendGap >= 0
+                  ? `${fmt$0(savingsVsSpendGap)} ahead of this year's vice spend`
+                  : `${fmt$0(Math.abs(savingsVsSpendGap))} behind this year's vice spend`}
+              </div>
+              <div className="db-savings-actions">
+                <Link to="/savings" className="btn btn-sm" style={{ textDecoration: 'none' }}>Edit accounts</Link>
+                <span className="db-mini-stat">{cleanDaysThisWeek}/7 clean days this week</span>
+              </div>
             </div>
-            <div className="sv-balance-amount">{fmt$0(balance.balance)}</div>
+            <div className="panel db-mission-card">
+              <div className="db-kicker">Today's mission</div>
+              <div className="db-mission-title">
+                {Number(stats.today?.spend || 0) > 0 ? 'Stop the streak here' : 'Keep today clean'}
+              </div>
+              <p>
+                {Number(stats.today?.spend || 0) > 0
+                  ? `You logged ${fmt$(stats.today.spend)} today. One clean evening still protects tomorrow.`
+                  : `Potential saved today: ${fmt$(todayPotentialSaved)} if you stay clean.`}
+              </p>
+              <div className="db-mission-actions">
+                <Link className="btn btn-sm" to="/log" style={{ textDecoration: 'none' }}>Log spending</Link>
+                <Link className="btn ghost btn-sm" to="/log" style={{ textDecoration: 'none' }}>Mark clean</Link>
+              </div>
+            </div>
           </div>
 
           <div className="panel">
             <div className="panel-head">
-              <span className="panel-title">Savings vs. vice spending over time</span>
+              <div>
+                <span className="panel-title">Savings vs. vice spending over time</span>
+                <p className="panel-sub db-chart-takeaway">
+                  {savingsVsSpendGap >= 0
+                    ? `Savings are ${fmt$0(savingsVsSpendGap)} ahead of cumulative vice spending.`
+                    : `Close the ${fmt$0(Math.abs(savingsVsSpendGap))} gap by protecting clean days.`}
+                </p>
+              </div>
+              <div className="db-line-legend">
+                <span className="db-line-pill save">{fmt$0(actualSavings)} savings</span>
+                <span className="db-line-pill spend">{fmt$0(yearSpend)} spent</span>
+              </div>
             </div>
             {!trendLoaded ? (
               <p className="text-muted">Loading…</p>
@@ -696,6 +778,8 @@ export default function Dashboard() {
             )}
           </div>
 
+          <InsightsPanel stats={stats} xpData={xpData} />
+
       {companion?.companion_type && (
         <div className={`companion-dashboard-card ${companion.companion_type === 'character' ? 'is-character' : 'is-tree'}`}>
           {levelUpMsg && <div className="xp-levelup-toast">{levelUpMsg}</div>}
@@ -705,19 +789,37 @@ export default function Dashboard() {
             onEditCompanion={() => setShowOnboarding(true)}
             xpData={xpData}
           />
+          <div className="db-companion-stats">
+            {treeNextAmount !== null && <span>Next stage: {fmt$0(treeNextAmount)} away</span>}
+            <span>Best streak: {stats.best_streak || 0} days</span>
+            <span>Clean this week: {cleanDaysThisWeek}/7</span>
+            <Link to="/log">Grow today →</Link>
+          </div>
         </div>
       )}
 
           <Link className="btn btn-lg mobile-log-cta" to="/log" style={{ textDecoration: 'none' }}>
             <span>＋</span> Log Entry
           </Link>
-
-
-          <InsightsPanel stats={stats} xpData={xpData} />
-
           <div className="panel">
             <div className="panel-head">
-              <span className="panel-title">Last 7 days · combined spend</span>
+              <div>
+                <span className="panel-title">Last 7 days · combined spend</span>
+                <p className="panel-sub">Zero-spend days count as wins, not missing data.</p>
+              </div>
+              <span className="db-clean-pill">{cleanDaysThisWeek} clean days</span>
+            </div>
+            <div className="db-week-markers">
+              {last7.map(({ date, spend }) => {
+                const d = new Date(date + 'T00:00:00');
+                const clean = Number(spend || 0) === 0;
+                return (
+                  <span key={date} className={`db-week-day${clean ? ' clean' : ' spent'}`}>
+                    <b>{d.toLocaleDateString('en-US', { weekday: 'short' })}</b>
+                    {clean ? 'Clean' : fmt$(spend)}
+                  </span>
+                );
+              })}
             </div>
             <div className="dashboard-chart-wrap">
               <Bar data={chartData} options={{ ...chartOptions, maintainAspectRatio: false }} />
@@ -732,13 +834,15 @@ export default function Dashboard() {
               <div className="savings-rows">
                 {(() => {
                   const totalSpend = stats.year?.byVice?.reduce((sum, v) => sum + v.spend, 0) || 0;
-                  return stats.quantityByVice.map(({ vice, avgQuantityPerDay }) => {
-                    const viceSpend = stats.year?.byVice?.find(v => v.vice.id === vice.id)?.spend || 0;
+                  return (stats.year?.byVice || [])
+                    .map(item => ({ vice: item.vice, viceSpend: item.spend || 0 }))
+                    .sort((a, b) => b.viceSpend - a.viceSpend)
+                    .map(({ vice, viceSpend }, index) => {
                     const pct = totalSpend > 0 ? Math.round((viceSpend / totalSpend) * 100) : 0;
                     return (
                       <div key={vice.id} style={{ marginBottom: 10 }}>
                         <div className="savings-row" style={{ marginBottom: 4 }}>
-                          <span>{vice.emoji} {vice.name}</span>
+                          <span>{vice.emoji} {vice.name} {index === 0 && viceSpend > 0 && <em className="db-top-offender">cut first</em>}</span>
                           <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <strong className="text-money">{fmt$(viceSpend)}</strong>
                             <span className="text-muted" style={{ fontSize: 11 }}>{pct}%</span>
@@ -762,22 +866,23 @@ export default function Dashboard() {
               <div className="panel-head">
                 <span className="panel-title">Recent entries · all vices</span>
               </div>
-              {recentEntries.length === 0 ? (
+              {recentRows.length === 0 ? (
                 <p className="text-muted">No entries yet — go to Log to add one.</p>
               ) : (
                 <div className="entry-list">
-                  {recentEntries.map(e => {
-                    const isClean = Number(e.quantity) === 0;
-                    const d = new Date((e.date + '').split('T')[0] + 'T00:00:00');
+                  {recentRows.map(row => {
+                    const isCleanGroup = row.type === 'clean-group';
+                    const e = row.entry;
+                    const d = new Date((row.date || '').split('T')[0] + 'T00:00:00');
                     return (
-                      <div key={`${e.vice.id}-${e.id}`} className={`entry-item ${isClean ? 'clean' : ''}`}>
+                      <div key={isCleanGroup ? `clean-${row.date}` : `${e.vice.id}-${e.id}`} className={`entry-item ${isCleanGroup ? 'clean clean-group' : ''}`}>
                         <span className="entry-date">
                           {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
-                        {isClean ? (
+                        {isCleanGroup ? (
                           <>
-                            <span className="text-money entry-label">{e.vice.emoji} {e.vice.name} · Zero logged</span>
-                            <span className="text-money entry-saved">saved {fmt$(stats.avg_daily_spend)}</span>
+                            <span className="text-money entry-label">✓ {row.count} clean log{row.count === 1 ? '' : 's'}</span>
+                            <span className="text-money entry-saved">saved {fmt$(row.saved)}</span>
                           </>
                         ) : (
                           <>
@@ -788,9 +893,9 @@ export default function Dashboard() {
                         <Link
                           className="entry-edit-btn"
                           to="/log"
-                          state={{ editEntry: { ...e, vice_id: e.vice_id || e.vice.id } }}
+                          state={isCleanGroup ? undefined : { editEntry: { ...e, vice_id: e.vice_id || e.vice.id } }}
                         >
-                          Edit
+                          {isCleanGroup ? 'View' : 'Edit'}
                         </Link>
                       </div>
                     );

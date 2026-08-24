@@ -122,6 +122,9 @@ const ALLOWED_ORIGINS = (() => {
     'https://vice-tracker-orpin.vercel.app',
     'https://vice-tracker-glassonglassharley-4498s-projects.vercel.app',
     'https://vice-tracker-git-main-glassonglassharley-4498s-projects.vercel.app',
+    // Vercel review deployments for this project need same-origin API access
+    // so demo mode works on non-production review links without moving prod.
+    /^https:\/\/vice-tracker-[a-z0-9-]+-glassonglassharley-4498s-projects\.vercel\.app$/,
     // Dev fallback: allow localhost on common ports.
     /^http:\/\/localhost(:\d+)?$/,
     /^http:\/\/127\.0\.0\.1(:\d+)?$/,
