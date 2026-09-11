@@ -87,7 +87,7 @@ export function GoalsSection({
 
       {active.length === 0 && !showForm && (
         <p style={{ color: 'var(--ink-3)', fontSize: 14, padding: '8px 0' }}>
-          Set a savings goal and your tracked savings will fund it.
+          Set a savings goal and your tracked savings will fund it. Achieved goals archive automatically and upgrade to a bigger target.
         </p>
       )}
 
@@ -152,7 +152,7 @@ export function GoalsSection({
                     <div className="goal-bar-foot">
                       <span className="goal-pct">{pct.toFixed(0)}%</span>
                       {reached
-                        ? <span className="goal-reached-badge">Reached! 🎉</span>
+                        ? <span className="goal-reached-badge">Archiving… 🎉</span>
                         : daysEst !== null
                           ? <span className="goal-days">~{daysEst} days away</span>
                           : null}
@@ -167,7 +167,7 @@ export function GoalsSection({
 
       {done.length > 0 && (
         <>
-          <div className="goals-achieved-head">Achieved</div>
+          <div className="goals-achieved-head">Archived achievements</div>
           <div className="goals-achieved-list">
             {done.map(goal => {
               const d = new Date(goal.completed_at);
@@ -203,13 +203,12 @@ export function CelebOverlay({ goal, onComplete, onDismiss }) {
       {phase === 'card' && (
         <div className="celeb-card" onClick={e => e.stopPropagation()}>
           <div className="celeb-check">✓</div>
-          <div className="celeb-kicker">Goal reached!</div>
+          <div className="celeb-kicker">Goal archived!</div>
           <div className="celeb-title">{goal.title}</div>
           <div className="celeb-amount">${Number(goal.target_amount).toFixed(0)}</div>
-          <div className="celeb-sub">Your tracked savings added up to something real.</div>
+          <div className="celeb-sub">Your tracked savings added up to something real. A bigger goal is ready.</div>
           <div className="celeb-actions">
-            <button className="btn" onClick={onComplete}>Mark achieved</button>
-            <button className="btn ghost" onClick={onDismiss}>Keep tracking</button>
+            <button className="btn" onClick={onDismiss}>Keep tracking</button>
           </div>
         </div>
       )}
