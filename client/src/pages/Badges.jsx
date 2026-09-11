@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../useApi';
+import { BadgeCelebOverlay } from './BadgeCelebOverlay';
 
 function fmtDate(str) {
   if (!str) return '';
@@ -62,6 +63,9 @@ export default function Badges() {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
   const [tick, setTick]   = useState(0);
+  const [checking, setChecking]   = useState(false);
+  const [checkMsg, setCheckMsg]   = useState('');
+  const [newBadges, setNewBadges] = useState([]);
 
   useEffect(() => {
     setError(null);
@@ -69,6 +73,25 @@ export default function Badges() {
       .then(setData)
       .catch(err => setError(err?.message || 'Could not load badges'));
   }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const checkForBadges = async () => {
+    setChecking(true);
+    setCheckMsg('');
+    try {
+      const { newly_earned } = await api('/api/badges/check', { method: 'POST' });
+      if (newly_earned?.length) {
+        setNewBadges(newly_earned);
+        setTick(t => t + 1);
+      } else {
+        setCheckMsg('No new badges yet — keep logging.');
+        setTimeout(() => setCheckMsg(''), 3000);
+      }
+    } catch (err) {
+      setCheckMsg(err?.message || 'Could not check badges. Try again.');
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const earnedCount = data?.badges.filter(b => b.earned).length ?? 0;
   const total       = data?.badges.length ?? 0;
@@ -88,7 +111,22 @@ export default function Badges() {
             {data ? `${earnedCount} of ${total} unlocked` : 'Track your milestones'}
           </p>
         </div>
+        <div style={{ textAlign: 'right' }}>
+          <button
+            className="btn ghost"
+            style={{ fontSize: 12, padding: '6px 12px' }}
+            onClick={checkForBadges}
+            disabled={checking || !data}
+          >{checking ? 'Checking…' : '+ Add badges'}</button>
+          {checkMsg && (
+            <div style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 6 }}>{checkMsg}</div>
+          )}
+        </div>
       </div>
+
+      {newBadges.length > 0 && (
+        <BadgeCelebOverlay badges={newBadges} onDismiss={() => setNewBadges([])} />
+      )}
 
       {/* Stats strip */}
       {data && (
