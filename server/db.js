@@ -118,6 +118,20 @@ const MIGRATIONS = `
     UNIQUE(user_id, badge_id)
   );
 
+  -- User-authored badges. metric is one of the keys in badges.js CUSTOM_METRICS;
+  -- the badge unlocks when that stat reaches threshold.
+  CREATE TABLE IF NOT EXISTS custom_badges (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    emoji TEXT NOT NULL DEFAULT '🏅',
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    threshold NUMERIC NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    earned_at TIMESTAMPTZ
+  );
+
   CREATE TABLE IF NOT EXISTS plaid_connections (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

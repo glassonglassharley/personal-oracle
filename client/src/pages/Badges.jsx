@@ -29,14 +29,22 @@ function SkeletonCard() {
   );
 }
 
-function BadgeCard({ badge }) {
+function BadgeCard({ badge, onRemove }) {
   const pct = badge.progress
     ? Math.min(100, (badge.progress.value / badge.progress.max) * 100)
     : 0;
   const label = fmtProgress(badge.progress);
 
   return (
-    <div className={`bdg-card${badge.earned ? ' bdg-earned' : ' bdg-locked'}`}>
+    <div className={`bdg-card${badge.earned ? ' bdg-earned' : ' bdg-locked'}`} style={{ position: 'relative' }}>
+      {badge.custom && onRemove && (
+        <button
+          className="goal-delete"
+          style={{ position: 'absolute', top: 8, right: 8 }}
+          onClick={() => onRemove(badge)}
+          title="Remove custom badge"
+        >×</button>
+      )}
       <div className="bdg-emoji">{badge.emoji}</div>
       <div className="bdg-name">{badge.name}</div>
       <div className="bdg-desc">{badge.description}</div>
@@ -93,6 +101,38 @@ export default function Badges() {
     }
   };
 
+  const [showForm, setShowForm]   = useState(false);
+  const [prompt, setPrompt]       = useState('');
+  const [creating, setCreating]   = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const createBadge = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setCreating(true);
+    try {
+      const { badge, newly_earned } = await api('/api/badges/custom', {
+        method: 'POST',
+        body: JSON.stringify({ prompt: prompt.trim() }),
+      });
+      setData(d => d ? { ...d, badges: [...d.badges, badge] } : d);
+      if (newly_earned?.length) setNewBadges(newly_earned);
+      setPrompt('');
+      setShowForm(false);
+    } catch (err) {
+      setFormError(err?.message || 'Could not create that badge. Try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const removeBadge = async (badge) => {
+    try {
+      await api(`/api/badges/custom/${badge.custom_id}`, { method: 'DELETE' });
+      setData(d => d ? { ...d, badges: d.badges.filter(b => b.id !== badge.id) } : d);
+    } catch (err) { console.error('removeBadge failed:', err); }
+  };
+
   const earnedCount = data?.badges.filter(b => b.earned).length ?? 0;
   const total       = data?.badges.length ?? 0;
 
@@ -112,17 +152,60 @@ export default function Badges() {
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <button
-            className="btn ghost"
-            style={{ fontSize: 12, padding: '6px 12px' }}
-            onClick={checkForBadges}
-            disabled={checking || !data}
-          >{checking ? 'Checking…' : '+ Add badges'}</button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button
+              className="btn ghost"
+              style={{ fontSize: 12, padding: '6px 12px' }}
+              onClick={checkForBadges}
+              disabled={checking || !data}
+            >{checking ? 'Checking…' : 'Check for new'}</button>
+            {!showForm && (
+              <button
+                className="btn"
+                style={{ fontSize: 12, padding: '6px 12px' }}
+                onClick={() => { setShowForm(true); setFormError(''); }}
+                disabled={!data}
+              >+ Add badge</button>
+            )}
+          </div>
           {checkMsg && (
             <div style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 6 }}>{checkMsg}</div>
           )}
         </div>
       </div>
+
+      {showForm && (
+        <div className="panel" style={{ marginBottom: 22 }}>
+          <div className="panel-head">
+            <span className="panel-title">Describe your badge</span>
+          </div>
+          <form className="goal-form" onSubmit={createBadge}>
+            <div className="goal-form-row">
+              <input
+                className="form-input"
+                placeholder='e.g. "Save $3,000" or "Two weeks clean in a row" or "Log 50 days"'
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                maxLength={300}
+                required
+                autoFocus
+                disabled={creating}
+                style={{ flex: 1 }}
+              />
+              <button className="btn" type="submit" disabled={creating || prompt.trim().length < 3}>
+                {creating ? 'Building…' : 'Create'}
+              </button>
+              <button className="btn ghost" type="button" onClick={() => { setShowForm(false); setFormError(''); }} disabled={creating}>
+                Cancel
+              </button>
+            </div>
+            <p style={{ color: 'var(--ink-3)', fontSize: 12, margin: '8px 0 0' }}>
+              Badges can track your savings balance, best clean streak, total clean days, days logged, or partners connected. It unlocks automatically when you get there.
+            </p>
+            {formError && <div className="form-error" style={{ marginTop: 6 }}>{formError}</div>}
+          </form>
+        </div>
+      )}
 
       {newBadges.length > 0 && (
         <BadgeCelebOverlay badges={newBadges} onDismiss={() => setNewBadges([])} />
@@ -168,7 +251,7 @@ export default function Badges() {
       ) : data ? (
         <>
           <div className="bdg-grid">
-            {data.badges.map(badge => <BadgeCard key={badge.id} badge={badge} />)}
+            {data.badges.map(badge => <BadgeCard key={badge.id} badge={badge} onRemove={removeBadge} />)}
           </div>
           {earnedCount === 0 && (
             <div className="bdg-empty">
