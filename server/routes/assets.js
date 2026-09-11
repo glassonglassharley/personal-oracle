@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { getInternalUserId } = require('../utils');
+const { requirePro } = require('../lib/entitlements');
+
+// Custom comparison assets only exist to feed the projection engine, which is Pro.
+router.use(requirePro('projections'));
 
 router.get('/', async (req, res, next) => {
   try {

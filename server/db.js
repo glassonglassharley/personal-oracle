@@ -224,6 +224,10 @@ const MIGRATIONS = `
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_balance NUMERIC NOT NULL DEFAULT 0;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS savings_updated_at TIMESTAMPTZ;
+
+  -- Paid tier. 'free' | 'active'. Read only through lib/entitlements.isPro —
+  -- never compare this column inline in a route.
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'free';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_privacy JSONB NOT NULL DEFAULT '{"show_vices":true,"show_spend":true,"show_streak":true,"show_xp":true}'::jsonb;
 
   -- First sync slice: one row per (user, date, exercise), reps is an absolute

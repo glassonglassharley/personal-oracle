@@ -160,7 +160,7 @@ function loadPlaidScript() {
 
 export default function Savings() {
   const api = useApi();
-  const { vices, theme } = useViceContext();
+  const { vices, theme, isPro } = useViceContext();
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [horizon, setHorizon] = useState(1825);
@@ -391,8 +391,9 @@ export default function Savings() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (isPro !== true) return;
     api('/api/assets').then(setUserAssets).catch(() => {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api('/api/goals').then(setGoals).catch(() => {});
@@ -909,8 +910,23 @@ export default function Savings() {
         )}
       </div>
 
+      {/* ── Projections (Pro) ── everything from here to the goals section is
+          "what your cutbacks become over time". isPro is null until /me
+          answers; render nothing rather than flash the lock at a Pro user. */}
+      {!loading && perDay > 0 && isPro === false && (
+        <div className="sv-section sv-pro-locked">
+          <div className="sv-section-head">
+            <span className="sv-section-title">Savings projections</span>
+            <span className="sv-section-sub">Pro feature</span>
+          </div>
+          <p className="sv-disclaimer">
+            Projections and the investment comparison are part of Vice to Value Pro.
+          </p>
+        </div>
+      )}
+
       {/* ── Investment projection chart ── */}
-      {!loading && perDay > 0 && (
+      {!loading && perDay > 0 && isPro === true && (
         <div className="sv-section">
           <div className="sv-section-head">
             <div>
@@ -930,7 +946,7 @@ export default function Savings() {
       )}
 
       {/* ── Investment projection cards ── */}
-      {!loading && perDay > 0 && (
+      {!loading && perDay > 0 && isPro === true && (
         <div className="sv-section">
           <div className="sv-section-head">
             <span className="sv-section-title">If you bought assets instead</span>
@@ -994,7 +1010,7 @@ export default function Savings() {
       )}
 
       {/* ── Add Asset Modal ── */}
-      {assetModalOpen && (
+      {assetModalOpen && isPro === true && (
         <div className="sv-modal-backdrop" onClick={() => setAssetModalOpen(false)}>
           <div className="sv-modal" onClick={e => e.stopPropagation()}>
             <div className="sv-modal-head">
@@ -1075,7 +1091,7 @@ export default function Savings() {
       )}
 
       {/* ── What could you do with that? ── */}
-      {perDay > 0 && (
+      {perDay > 0 && isPro === true && (
         <div className="sv-section sv-opp-section">
           <div className="sv-section-head">
             <span className="sv-section-title">What could you do with that?</span>

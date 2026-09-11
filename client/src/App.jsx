@@ -339,6 +339,9 @@ function AuthenticatedApp() {
   const [companion, setCompanion] = useState(null);
   const [companionLoaded, setCompanionLoaded] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // null until /api/users/me answers, so pages can avoid flashing the paywall
+  // at a Pro user during the first render.
+  const [isPro, setIsPro] = useState(null);
 
   useEffect(() => {
     document.body.className = `theme-${theme}${mobileOpen ? ' mobile-menu-open' : ''}`;
@@ -375,6 +378,12 @@ function AuthenticatedApp() {
 
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    apiRef.current('/api/users/me')
+      .then(user => setIsPro(Boolean(user?.is_pro)))
+      .catch(() => setIsPro(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync the browser's local timezone to the server on every login.
   // Uses Intl (OS-level, no GPS permission needed) — accurate and automatic.
   useEffect(() => {
@@ -399,7 +408,7 @@ function AuthenticatedApp() {
     apiRef.current('/api/companion').then(setCompanion).catch(() => {});
   };
 
-  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, viceFetchError, companion, setCompanion, setShowOnboarding, theme };
+  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, viceFetchError, companion, setCompanion, setShowOnboarding, theme, isPro };
 
   return (
     <ViceContext.Provider value={ctx}>

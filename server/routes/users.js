@@ -4,6 +4,7 @@ const { clerkClient } = require('@clerk/express');
 const router = express.Router();
 const pool = require('../db');
 const { getInternalUserId } = require('../utils');
+const { isPro } = require('../lib/entitlements');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -101,7 +102,7 @@ router.get('/me', async (req, res, next) => {
     const user = r.rows[0];
     if (!user) return res.json(null);
     const { password_hash, username_token_hash, wallet_session_token_hash, ...safe } = user;
-    res.json({ ...safe, has_password: Boolean(password_hash) });
+    res.json({ ...safe, has_password: Boolean(password_hash), is_pro: await isPro(user.id) });
   } catch (err) { next(err); }
 });
 
