@@ -7,6 +7,7 @@ import {
 } from 'chart.js';
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
+import { track } from '../analytics';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -157,6 +158,56 @@ function loadPlaidScript() {
     script.onerror = () => reject(new Error('Failed to load Plaid Link script'));
     document.head.appendChild(script);
   });
+}
+
+const PRO_PRICE_LABEL = '$4.99';
+
+// Free-tier view of the projection engine: the real sections render blurred
+// and inert underneath so the user sees the shape of their own projection,
+// with the upgrade card over the top. The blur is cosmetic — /api/assets
+// returning 403 is the real gate, and nothing Pro-only is fetched here.
+function ProjectionPaywall({ teaser, usingExample, checkoutStatus, checkoutError, checkoutLoading, onGoPro }) {
+  useEffect(() => {
+    track('paywall_viewed', { feature: 'projections' });
+  }, []);
+
+  return (
+    <div className="sv-pro-gate">
+      <div className="sv-pro-teaser" aria-hidden="true" inert="">
+        {teaser}
+      </div>
+      <div className="sv-pro-card-wrap">
+        <div className="sv-pro-card" role="region" aria-label="Upgrade to Vice to Value Pro">
+          <span className="sv-pro-kicker">Vice to Value Pro</span>
+          <h2 className="sv-pro-value">See what your cutbacks become invested over 5 years</h2>
+          <p className="sv-pro-sub">
+            {usingExample
+              ? 'Shown at an example $5.00/day — log a vice and this becomes your own numbers.'
+              : 'Compare the S&P 500, high-yield savings, Bitcoin, gold, or any asset you add.'}
+          </p>
+          <div className="sv-pro-price"><b>{PRO_PRICE_LABEL}</b> / month</div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              track('upgrade_clicked', { feature: 'projections' });
+              onGoPro();
+            }}
+            disabled={checkoutLoading}
+          >
+            {checkoutLoading ? 'Opening checkout…' : 'Go Pro'}
+          </button>
+          {checkoutStatus === 'success' && (
+            <p className="sv-pro-status ok">Payment received. Pro will unlock here shortly — refresh in a moment if it hasn't.</p>
+          )}
+          {checkoutStatus === 'cancel' && (
+            <p className="sv-pro-status">Checkout cancelled — nothing was charged.</p>
+          )}
+          {checkoutError && <p className="form-error" style={{ marginTop: 10 }}>{checkoutError}</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Savings() {
@@ -621,6 +672,12 @@ export default function Savings() {
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
+  // The free-tier teaser still needs something to blur when the user has no
+  // logged spend yet; use their real rate whenever there is one.
+  const TEASER_PER_DAY = 5;
+  const teaserFallback = isPro !== true && perDay <= 0;
+  const chartPerDay    = teaserFallback ? TEASER_PER_DAY : perDay;
+  const chartProjected = chartPerDay * horizon;
   const assetColors = {
     primary:   '#6a92c4',
     secondary: chartColors.money,
@@ -648,7 +705,7 @@ export default function Savings() {
 
   const chartDatasets = themedAssets.map(a => ({
     label: a.label,
-    data: points.map(d => Math.round(dcaFV(perDay, a.rate, d))),
+    data: points.map(d => Math.round(dcaFV(chartPerDay, a.rate, d))),
     borderColor: a.color,
     backgroundColor: withAlpha(a.color, 0.1),
     borderWidth: a.key === 'Cash' ? 1.5 : 2.5,
@@ -691,17 +748,17 @@ export default function Savings() {
   const builtInInvestmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
-      const value = dcaFV(perDay, asset.rate, horizon);
-      const gain = value - projected;
-      const gainPct = projected > 0 ? (gain / projected) * 100 : 0;
+      const value = dcaFV(chartPerDay, asset.rate, horizon);
+      const gain = value - chartProjected;
+      const gainPct = chartProjected > 0 ? (gain / chartProjected) * 100 : 0;
       return { ...asset, value, gain, gainPct, custom: false };
     });
 
   const userAssetCards = userAssets.map(asset => {
     const rate = (asset.annual_return_pct || 0) / 100;
-    const value = dcaFV(perDay, rate, horizon);
-    const gain = value - projected;
-    const gainPct = projected > 0 ? (gain / projected) * 100 : 0;
+    const value = dcaFV(chartPerDay, rate, horizon);
+    const gain = value - chartProjected;
+    const gainPct = chartProjected > 0 ? (gain / chartProjected) * 100 : 0;
     return {
       key: `user-${asset.id}`,
       id: asset.id,
@@ -723,6 +780,90 @@ export default function Savings() {
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
   const viewedInvestmentCard = investmentCards.find(card => card.key === viewedInvestmentKey) || investmentCards[0] || topInvestmentCard;
+
+  const projectionSections = (
+    <>
+      {/* ── Investment projection chart ── */}
+      <div className="sv-section">
+        <div className="sv-section-head">
+          <div>
+            <span className="sv-section-title">Investment growth comparison</span>
+            {viewedInvestmentCard && (
+              <p className="sv-chart-takeaway">
+                {viewedInvestmentCard.cardLabel} projects to {fmt$0(viewedInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(chartProjected)} in cash saved.
+              </p>
+            )}
+          </div>
+          <span className="sv-section-sub">DCA at {fmt$2(chartPerDay)}/day over {horizon} days</span>
+        </div>
+        <div className="sv-chart-wrap">
+          <Line key={theme} data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
+        </div>
+      </div>
+
+      {/* ── Investment projection cards ── */}
+      <div className="sv-section">
+        <div className="sv-section-head">
+          <span className="sv-section-title">If you bought assets instead</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="sv-section-sub">
+              Investing {fmt$2(chartPerDay)}/day for {selectedHorizon.label.toLowerCase()} instead of spending it
+            </span>
+            <button className="sv-add-asset-btn" onClick={() => setAssetModalOpen(true)} title="Add custom asset">
+              + Add asset
+            </button>
+          </div>
+        </div>
+        <div className="sv-invest-grid">
+          {investmentCards.map(asset => (
+            <div
+              key={asset.key}
+              className={`sv-invest-card${topInvestmentCard?.key === asset.key ? ' top' : ''}${viewedInvestmentCard?.key === asset.key ? ' active' : ''}`}
+              data-asset={asset.key}
+              style={asset.custom ? { '--asset-c': asset.color, borderColor: 'rgba(212,175,55,0.3)' } : {}}
+              role="button"
+              tabIndex={0}
+              aria-pressed={viewedInvestmentCard?.key === asset.key}
+              onMouseEnter={() => setViewedInvestmentKey(asset.key)}
+              onFocus={() => setViewedInvestmentKey(asset.key)}
+              onClick={() => setViewedInvestmentKey(asset.key)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setViewedInvestmentKey(asset.key);
+                }
+              }}
+            >
+              <div className="sv-invest-top">
+                <span className="sv-invest-icon">{asset.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div className="sv-invest-name">{asset.cardLabel}</div>
+                  <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
+                </div>
+                {topInvestmentCard?.key === asset.key && <span className="sv-invest-rank">Highest projection</span>}
+                {asset.custom && (
+                  <button
+                    className="sv-asset-delete"
+                    onClick={() => removeUserAsset(asset.id)}
+                    aria-label={`Remove ${asset.cardLabel}`}
+                  >×</button>
+                )}
+              </div>
+              <div className="sv-invest-value">{fmt$0(asset.value)}</div>
+              <div className="sv-invest-gain">
+                <span>{fmt$0(asset.gain)} more than cash saved</span>
+                <b>+{asset.gainPct.toFixed(0)}%</b>
+              </div>
+              <div className="sv-invest-note">{asset.description}</div>
+            </div>
+          ))}
+        </div>
+        <p className="sv-disclaimer">
+          These are illustrative projections using fixed annualized returns — not live prices or financial advice.
+        </p>
+      </div>
+    </>
+  );
 
   return (
     <main className="main sv-page">
@@ -941,120 +1082,99 @@ export default function Savings() {
         )}
       </div>
 
-      {/* ── Projections (Pro) ── everything from here to the goals section is
-          "what your cutbacks become over time". isPro is null until /me
-          answers; render nothing rather than flash the lock at a Pro user. */}
-      {!loading && perDay > 0 && isPro === false && (
-        <div className="sv-section sv-pro-locked">
+      {/* ── What could you do with that? ── */}
+      {perDay > 0 && (
+        <div className="sv-section sv-opp-section">
           <div className="sv-section-head">
-            <span className="sv-section-title">Savings projections</span>
-            <span className="sv-section-sub">Pro feature</span>
+            <span className="sv-section-title">What could you do with that?</span>
           </div>
-          <p className="sv-disclaimer">
-            Projections and the investment comparison are part of Vice to Value Pro.
+          <p className="sv-opp-meta">
+            {fmt$2(perDay)}/day × {horizon} days = <strong style={{ color: 'var(--money)' }}>{fmt$0(projected)}</strong>
           </p>
-          {checkoutStatus === 'success' && (
-            <p className="sv-disclaimer" style={{ color: 'var(--money)' }}>
-              Payment received. Pro will unlock here shortly — refresh in a moment if it hasn't.
-            </p>
-          )}
-          {checkoutStatus === 'cancel' && (
-            <p className="sv-disclaimer">Checkout cancelled — nothing was charged.</p>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={startCheckout}
-            disabled={checkoutLoading}
-          >
-            {checkoutLoading ? 'Opening checkout…' : 'Go Pro'}
-          </button>
-          {checkoutError && <p className="form-error" style={{ marginTop: 8 }}>{checkoutError}</p>}
-        </div>
-      )}
+          <p className="sv-opp-sub">Track your own opportunity cost — add anything you want to compare against your avoided vice spending.</p>
 
-      {/* ── Investment projection chart ── */}
-      {!loading && perDay > 0 && isPro === true && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <div>
-              <span className="sv-section-title">Investment growth comparison</span>
-              {viewedInvestmentCard && (
-                <p className="sv-chart-takeaway">
-                  {viewedInvestmentCard.cardLabel} projects to {fmt$0(viewedInvestmentCard.value)} over {selectedHorizon.label.toLowerCase()}, versus {fmt$0(projected)} in cash saved.
-                </p>
-              )}
-            </div>
-            <span className="sv-section-sub">DCA at {fmt$2(perDay)}/day over {horizon} days</span>
-          </div>
-          <div className="sv-chart-wrap">
-            <Line key={theme} data={{ labels: chartLabels, datasets: chartDatasets }} options={chartOptions} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Investment projection cards ── */}
-      {!loading && perDay > 0 && isPro === true && (
-        <div className="sv-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">If you bought assets instead</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span className="sv-section-sub">
-                Investing {fmt$2(perDay)}/day for {selectedHorizon.label.toLowerCase()} instead of spending it
-              </span>
-              <button className="sv-add-asset-btn" onClick={() => setAssetModalOpen(true)} title="Add custom asset">
-                + Add asset
-              </button>
-            </div>
-          </div>
-          <div className="sv-invest-grid">
-            {investmentCards.map(asset => (
-              <div
-                key={asset.key}
-                className={`sv-invest-card${topInvestmentCard?.key === asset.key ? ' top' : ''}${viewedInvestmentCard?.key === asset.key ? ' active' : ''}`}
-                data-asset={asset.key}
-                style={asset.custom ? { '--asset-c': asset.color, borderColor: 'rgba(212,175,55,0.3)' } : {}}
-                role="button"
-                tabIndex={0}
-                aria-pressed={viewedInvestmentCard?.key === asset.key}
-                onMouseEnter={() => setViewedInvestmentKey(asset.key)}
-                onFocus={() => setViewedInvestmentKey(asset.key)}
-                onClick={() => setViewedInvestmentKey(asset.key)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setViewedInvestmentKey(asset.key);
-                  }
-                }}
-              >
-                <div className="sv-invest-top">
-                  <span className="sv-invest-icon">{asset.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div className="sv-invest-name">{asset.cardLabel}</div>
-                    <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
+          {oppItems.length > 0 && (
+            <div className="sv-opp-grid">
+              {oppItems.map(item => {
+                const cost = Number(item.cost);
+                const pct = cost > 0 ? Math.min(100, (projected / cost) * 100) : 0;
+                const canAfford = projected >= cost;
+                const almostThere = !canAfford && pct >= 75;
+                return (
+                  <div key={item.id} className={`sv-opp-card${canAfford ? ' sv-opp-can' : almostThere ? ' sv-opp-close' : ''}`}>
+                    <button className="sv-opp-del" onClick={() => removeOppItem(item.id)} aria-label="Remove">×</button>
+                    {(canAfford || almostThere) && (
+                      <div className="sv-opp-status">
+                        {canAfford ? '✓ You could afford it!' : 'Almost there…'}
+                      </div>
+                    )}
+                    <div className="sv-opp-name">{item.title}</div>
+                    {item.note && <div className="sv-opp-note">{item.note}</div>}
+                    <div className="sv-opp-cost">{fmt$0(cost)}</div>
+                    <div className="sv-opp-track"><div className="sv-opp-fill" style={{ width: `${pct}%` }} /></div>
                   </div>
-                  {topInvestmentCard?.key === asset.key && <span className="sv-invest-rank">Highest projection</span>}
-                  {asset.custom && (
-                    <button
-                      className="sv-asset-delete"
-                      onClick={() => removeUserAsset(asset.id)}
-                      aria-label={`Remove ${asset.cardLabel}`}
-                    >×</button>
-                  )}
-                </div>
-                <div className="sv-invest-value">{fmt$0(asset.value)}</div>
-                <div className="sv-invest-gain">
-                  <span>{fmt$0(asset.gain)} more than cash saved</span>
-                  <b>+{asset.gainPct.toFixed(0)}%</b>
-                </div>
-                <div className="sv-invest-note">{asset.description}</div>
+                );
+              })}
+            </div>
+          )}
+
+          {showOppForm ? (
+            <form className="sv-opp-form" onSubmit={handleOppSubmit}>
+              <div className="sv-opp-form-row">
+                <input
+                  className="form-input"
+                  placeholder="Thing to save for"
+                  value={oppForm.title}
+                  onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))}
+                  maxLength={80}
+                  autoFocus
+                />
+                <input
+                  className="form-input"
+                  placeholder="Cost"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={oppForm.cost}
+                  onChange={e => setOppForm(f => ({ ...f, cost: e.target.value }))}
+                />
               </div>
-            ))}
-          </div>
-          <p className="sv-disclaimer">
-            These are illustrative projections using fixed annualized returns — not live prices or financial advice.
-          </p>
+              <input
+                className="form-input"
+                placeholder="Description (optional)"
+                value={oppForm.note}
+                onChange={e => setOppForm(f => ({ ...f, note: e.target.value }))}
+                maxLength={120}
+                style={{ width: '100%', boxSizing: 'border-box' }}
+              />
+              {oppFormError && <div className="form-error" style={{ marginTop: 6 }}>{oppFormError}</div>}
+              <div className="sv-opp-form-actions">
+                <button type="button" className="btn ghost" onClick={() => { setShowOppForm(false); setOppFormError(''); }}>Cancel</button>
+                <button type="submit" className="btn">Add</button>
+              </div>
+            </form>
+          ) : (
+            <button className="sv-add-asset-btn" onClick={() => setShowOppForm(true)} style={{ marginTop: oppItems.length > 0 ? 4 : 0 }}>
+              + Add opportunity cost
+            </button>
+          )}
         </div>
+      )}
+
+      {/* ── Projections (Pro) ── the compounding engine. Pro users get it live;
+          free users get the same sections blurred and inert under the upgrade
+          card. isPro is null until /me answers; render nothing rather than
+          flash the paywall at a Pro user. */}
+      {!loading && isPro === true && perDay > 0 && projectionSections}
+      {!loading && isPro === false && (
+        <ProjectionPaywall
+          teaser={projectionSections}
+          usingExample={teaserFallback}
+          checkoutStatus={checkoutStatus}
+          checkoutError={checkoutError}
+          checkoutLoading={checkoutLoading}
+          onGoPro={startCheckout}
+        />
       )}
 
       {/* ── Add Asset Modal ── */}
@@ -1135,85 +1255,6 @@ export default function Savings() {
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {/* ── What could you do with that? ── */}
-      {perDay > 0 && isPro === true && (
-        <div className="sv-section sv-opp-section">
-          <div className="sv-section-head">
-            <span className="sv-section-title">What could you do with that?</span>
-          </div>
-          <p className="sv-opp-meta">
-            {fmt$2(perDay)}/day × {horizon} days = <strong style={{ color: 'var(--money)' }}>{fmt$0(projected)}</strong>
-          </p>
-          <p className="sv-opp-sub">Track your own opportunity cost — add anything you want to compare against your avoided vice spending.</p>
-
-          {oppItems.length > 0 && (
-            <div className="sv-opp-grid">
-              {oppItems.map(item => {
-                const cost = Number(item.cost);
-                const pct = cost > 0 ? Math.min(100, (projected / cost) * 100) : 0;
-                const canAfford = projected >= cost;
-                const almostThere = !canAfford && pct >= 75;
-                return (
-                  <div key={item.id} className={`sv-opp-card${canAfford ? ' sv-opp-can' : almostThere ? ' sv-opp-close' : ''}`}>
-                    <button className="sv-opp-del" onClick={() => removeOppItem(item.id)} aria-label="Remove">×</button>
-                    {(canAfford || almostThere) && (
-                      <div className="sv-opp-status">
-                        {canAfford ? '✓ You could afford it!' : 'Almost there…'}
-                      </div>
-                    )}
-                    <div className="sv-opp-name">{item.title}</div>
-                    {item.note && <div className="sv-opp-note">{item.note}</div>}
-                    <div className="sv-opp-cost">{fmt$0(cost)}</div>
-                    <div className="sv-opp-track"><div className="sv-opp-fill" style={{ width: `${pct}%` }} /></div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {showOppForm ? (
-            <form className="sv-opp-form" onSubmit={handleOppSubmit}>
-              <div className="sv-opp-form-row">
-                <input
-                  className="form-input"
-                  placeholder="Thing to save for"
-                  value={oppForm.title}
-                  onChange={e => setOppForm(f => ({ ...f, title: e.target.value }))}
-                  maxLength={80}
-                  autoFocus
-                />
-                <input
-                  className="form-input"
-                  placeholder="Cost"
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={oppForm.cost}
-                  onChange={e => setOppForm(f => ({ ...f, cost: e.target.value }))}
-                />
-              </div>
-              <input
-                className="form-input"
-                placeholder="Description (optional)"
-                value={oppForm.note}
-                onChange={e => setOppForm(f => ({ ...f, note: e.target.value }))}
-                maxLength={120}
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-              {oppFormError && <div className="form-error" style={{ marginTop: 6 }}>{oppFormError}</div>}
-              <div className="sv-opp-form-actions">
-                <button type="button" className="btn ghost" onClick={() => { setShowOppForm(false); setOppFormError(''); }}>Cancel</button>
-                <button type="submit" className="btn">Add</button>
-              </div>
-            </form>
-          ) : (
-            <button className="sv-add-asset-btn" onClick={() => setShowOppForm(true)} style={{ marginTop: oppItems.length > 0 ? 4 : 0 }}>
-              + Add opportunity cost
-            </button>
-          )}
         </div>
       )}
 
