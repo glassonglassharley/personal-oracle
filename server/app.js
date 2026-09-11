@@ -10,6 +10,7 @@ const OPTIONAL_ENV = [
   'VITE_CLERK_PUBLISHABLE_KEY', 'PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV',
   'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'ANTHROPIC_API_KEY', 'CRON_SECRET', 'ADMIN_SECRET',
   'JWT_SECRET', 'APP_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM',
+  'STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID',
 ];
 const missingOptional = OPTIONAL_ENV.filter(k => !process.env[k]);
 if (missingOptional.length) {
@@ -235,6 +236,7 @@ app.use('/api/insights',      require('./routes/insights'));
 app.use('/api/assets',        require('./routes/assets'));
 app.use('/api/voice-tokens',  require('./routes/voice').tokenRouter);
 app.use('/api/account',       require('./routes/account'));
+app.use('/api/checkout',      require('./routes/checkout'));
 app.use('/api/oracle',        require('./routes/oracle'));
 app.use('/api/training',      require('./routes/training'));
 app.use('/api/debt',          require('./routes/debt'));

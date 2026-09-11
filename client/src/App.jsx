@@ -378,11 +378,13 @@ function AuthenticatedApp() {
 
   useEffect(() => { loadVices(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    apiRef.current('/api/users/me')
+  const refreshPro = useCallback(() => {
+    return apiRef.current('/api/users/me')
       .then(user => setIsPro(Boolean(user?.is_pro)))
       .catch(() => setIsPro(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { refreshPro(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync the browser's local timezone to the server on every login.
   // Uses Intl (OS-level, no GPS permission needed) — accurate and automatic.
@@ -408,7 +410,7 @@ function AuthenticatedApp() {
     apiRef.current('/api/companion').then(setCompanion).catch(() => {});
   };
 
-  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, viceFetchError, companion, setCompanion, setShowOnboarding, theme, isPro };
+  const ctx = { vices, viceStats, activeViceId, setActiveViceId, loadVices, viceFetchError, companion, setCompanion, setShowOnboarding, theme, isPro, refreshPro };
 
   return (
     <ViceContext.Provider value={ctx}>

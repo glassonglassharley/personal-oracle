@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -160,7 +161,11 @@ function loadPlaidScript() {
 
 export default function Savings() {
   const api = useApi();
-  const { vices, theme, isPro } = useViceContext();
+  const { vices, theme, isPro, refreshPro } = useViceContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [checkoutStatus, setCheckoutStatus] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [horizon, setHorizon] = useState(1825);
@@ -394,6 +399,32 @@ export default function Savings() {
     if (isPro !== true) return;
     api('/api/assets').then(setUserAssets).catch(() => {});
   }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stripe Checkout sends the user back here with ?checkout=success|cancel.
+  // Strip it from the URL so a reload doesn't replay the banner.
+  useEffect(() => {
+    const status = searchParams.get('checkout');
+    if (!status) return;
+    setCheckoutStatus(status);
+    if (status === 'success') refreshPro();
+    const next = new URLSearchParams(searchParams);
+    next.delete('checkout');
+    next.delete('session_id');
+    setSearchParams(next, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startCheckout = async () => {
+    setCheckoutError('');
+    setCheckoutLoading(true);
+    try {
+      const { url } = await api('/api/checkout', { method: 'POST' });
+      if (!url) throw new Error('No checkout URL returned.');
+      window.location.assign(url);
+    } catch (err) {
+      setCheckoutError(err.message === 'already_pro' ? 'You already have Pro.' : (err.message || 'Could not start checkout.'));
+      setCheckoutLoading(false);
+    }
+  };
 
   useEffect(() => {
     api('/api/goals').then(setGoals).catch(() => {});
@@ -922,6 +953,23 @@ export default function Savings() {
           <p className="sv-disclaimer">
             Projections and the investment comparison are part of Vice to Value Pro.
           </p>
+          {checkoutStatus === 'success' && (
+            <p className="sv-disclaimer" style={{ color: 'var(--money)' }}>
+              Payment received. Pro will unlock here shortly — refresh in a moment if it hasn't.
+            </p>
+          )}
+          {checkoutStatus === 'cancel' && (
+            <p className="sv-disclaimer">Checkout cancelled — nothing was charged.</p>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={startCheckout}
+            disabled={checkoutLoading}
+          >
+            {checkoutLoading ? 'Opening checkout…' : 'Go Pro'}
+          </button>
+          {checkoutError && <p className="form-error" style={{ marginTop: 8 }}>{checkoutError}</p>}
         </div>
       )}
 
