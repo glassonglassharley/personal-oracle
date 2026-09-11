@@ -67,7 +67,7 @@ const TRUST_POINTS = [
 
 const NOTIF_OPTIONS = [
   { key: 'notif_streak_risk',      label: 'Streak at risk',      desc: '8pm reminder if you haven\'t logged and your streak is ≥ 3 days' },
-  { key: 'notif_streak_milestone', label: 'Streak milestones',   desc: 'Celebrate hitting 3, 7, 30, or 100 clean days' },
+  { key: 'notif_streak_milestone', label: 'Streak milestones',   desc: 'Celebrate hitting 3, 7, 14, 30, 100, or 365 clean days' },
   { key: 'notif_badge_earned',     label: 'Badge unlocked',      desc: 'Notify when you earn a new badge' },
   { key: 'notif_level_up',         label: 'Level up',            desc: 'Notify when you reach a new XP level' },
   { key: 'notif_weekly_summary',   label: 'Weekly summary',      desc: 'Sunday morning recap: clean days, savings, streak' },

@@ -3,27 +3,53 @@ const router = express.Router();
 const pool = require('../db');
 const { awardXP, sendPushToUser, getInternalUserId } = require('../utils');
 
+// Streak badges are keyed to the best-ever streak, so a broken streak never
+// takes an earned badge away.
+const STREAK_BADGE_DAYS = {
+  streak_3: 3,
+  streak_7: 7,
+  streak_14: 14,
+  streak_30: 30,
+  streak_100: 100,
+  streak_365: 365,
+};
 // Bonus XP for streak milestone badges on top of the base badge XP
-const STREAK_MILESTONE_XP = { streak_3: 50, streak_7: 100, streak_30: 250, streak_100: 500 };
+const STREAK_MILESTONE_XP = { streak_3: 50, streak_7: 100, streak_14: 150, streak_30: 250, streak_100: 500, streak_365: 1000 };
 const BASE_BADGE_XP = 75;
 
 const SAVINGS_BADGE_THRESHOLDS = {
   saved_100: 100,
   saved_500: 500,
   saved_1000: 1000,
+  saved_2500: 2500,
+  saved_5000: 5000,
+  saved_10000: 10000,
 };
 const SAVINGS_BADGE_IDS = Object.keys(SAVINGS_BADGE_THRESHOLDS);
+
+const LOGGED_DAYS_THRESHOLDS = {
+  logged_30_days: 30,
+  logged_100_days: 100,
+  logged_365_days: 365,
+};
 
 const BADGE_DEFS = [
   { id: 'first_log',       emoji: '✨', name: 'First Log',        description: 'Logged your first entry ever' },
   { id: 'streak_3',        emoji: '🔥', name: '3-Day Streak',     description: '3 consecutive clean days' },
   { id: 'streak_7',        emoji: '⚡', name: '7-Day Streak',     description: '7 consecutive clean days' },
+  { id: 'streak_14',       emoji: '🌙', name: '14-Day Streak',    description: '14 consecutive clean days' },
   { id: 'streak_30',       emoji: '🌱', name: '30-Day Streak',    description: '30 consecutive clean days' },
   { id: 'streak_100',      emoji: '👑', name: '100-Day Streak',   description: '100 consecutive clean days' },
+  { id: 'streak_365',      emoji: '🎖️', name: 'One Year Clean',   description: '365 consecutive clean days' },
   { id: 'saved_100',       emoji: '💰', name: '$100 Saved',       description: 'Record $100 in your connected or manually-entered savings balance' },
   { id: 'saved_500',       emoji: '💵', name: '$500 Saved',       description: 'Record $500 in your connected or manually-entered savings balance' },
   { id: 'saved_1000',      emoji: '🏆', name: '$1,000 Saved',     description: 'Record $1,000 in your connected or manually-entered savings balance' },
+  { id: 'saved_2500',      emoji: '💎', name: '$2,500 Saved',     description: 'Record $2,500 in your connected or manually-entered savings balance' },
+  { id: 'saved_5000',      emoji: '🚀', name: '$5,000 Saved',     description: 'Record $5,000 in your connected or manually-entered savings balance' },
+  { id: 'saved_10000',     emoji: '🏰', name: '$10,000 Saved',    description: 'Record $10,000 in your connected or manually-entered savings balance' },
   { id: 'logged_30_days',  emoji: '📅', name: '30 Days Logged',   description: 'Logged entries on 30 distinct days' },
+  { id: 'logged_100_days', emoji: '📖', name: '100 Days Logged',  description: 'Logged entries on 100 distinct days' },
+  { id: 'logged_365_days', emoji: '📚', name: '365 Days Logged',  description: 'Logged entries on 365 distinct days' },
   { id: 'plaid_connected', emoji: '🏦', name: 'Bank Connected',      description: 'Connected a bank account via Plaid' },
   { id: 'partner_1',      emoji: '🤝', name: 'First Friend',        description: 'Connected 1 accountability partner' },
   { id: 'partner_5',      emoji: '👥', name: 'Squad Goals',          description: 'Connected 5 accountability partners' },
@@ -110,14 +136,15 @@ async function computeUserStats(userId) {
 function earnedBadgeIds(stats) {
   const ids = new Set();
   if (stats.hasAnyEntry)          ids.add('first_log');
-  if (stats.currentStreak >= 3)   ids.add('streak_3');
-  if (stats.currentStreak >= 7)   ids.add('streak_7');
-  if (stats.currentStreak >= 30)  ids.add('streak_30');
-  if (stats.currentStreak >= 100) ids.add('streak_100');
-  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_100)  ids.add('saved_100');
-  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_500)  ids.add('saved_500');
-  if (stats.actualSavings >= SAVINGS_BADGE_THRESHOLDS.saved_1000) ids.add('saved_1000');
-  if (stats.totalLoggedDays >= 30) ids.add('logged_30_days');
+  for (const [id, days] of Object.entries(STREAK_BADGE_DAYS)) {
+    if (stats.longestStreak >= days) ids.add(id);
+  }
+  for (const [id, amount] of Object.entries(SAVINGS_BADGE_THRESHOLDS)) {
+    if (stats.actualSavings >= amount) ids.add(id);
+  }
+  for (const [id, days] of Object.entries(LOGGED_DAYS_THRESHOLDS)) {
+    if (stats.totalLoggedDays >= days) ids.add(id);
+  }
   if (stats.plaidConnected)       ids.add('plaid_connected');
   if (stats.partnerCount >= 1)    ids.add('partner_1');
   if (stats.partnerCount >= 5)    ids.add('partner_5');
@@ -126,15 +153,16 @@ function earnedBadgeIds(stats) {
 }
 
 function badgeProgress(badgeId, stats) {
+  if (badgeId in STREAK_BADGE_DAYS) {
+    return { value: stats.longestStreak, max: STREAK_BADGE_DAYS[badgeId], unit: 'days' };
+  }
+  if (badgeId in SAVINGS_BADGE_THRESHOLDS) {
+    return { value: stats.actualSavings, max: SAVINGS_BADGE_THRESHOLDS[badgeId] };
+  }
+  if (badgeId in LOGGED_DAYS_THRESHOLDS) {
+    return { value: stats.totalLoggedDays, max: LOGGED_DAYS_THRESHOLDS[badgeId], unit: 'days' };
+  }
   switch (badgeId) {
-    case 'streak_3':        return { value: stats.currentStreak, max: 3 };
-    case 'streak_7':        return { value: stats.currentStreak, max: 7 };
-    case 'streak_30':       return { value: stats.currentStreak, max: 30 };
-    case 'streak_100':      return { value: stats.currentStreak, max: 100 };
-    case 'saved_100':       return { value: stats.actualSavings, max: 100 };
-    case 'saved_500':       return { value: stats.actualSavings, max: 500 };
-    case 'saved_1000':      return { value: stats.actualSavings, max: 1000 };
-    case 'logged_30_days':  return { value: stats.totalLoggedDays, max: 30 };
     case 'partner_1':       return { value: stats.partnerCount, max: 1,  unit: 'friends' };
     case 'partner_5':       return { value: stats.partnerCount, max: 5,  unit: 'friends' };
     case 'partner_10':      return { value: stats.partnerCount, max: 10, unit: 'friends' };
@@ -197,9 +225,8 @@ router.post('/check', async (req, res, next) => {
 
         // Streak milestone notifications — separate preference, separate message
         if (prefs.notif_streak_milestone !== false) {
-          const STREAK_DAYS = { streak_3: 3, streak_7: 7, streak_30: 30, streak_100: 100 };
           for (const badge of newly_earned) {
-            const days = STREAK_DAYS[badge.id];
+            const days = STREAK_BADGE_DAYS[badge.id];
             if (days) {
               sendPushToUser(userId, {
                 title: `🔥 ${days}-day streak!`,

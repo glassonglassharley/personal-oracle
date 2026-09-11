@@ -5,8 +5,9 @@ import { useApi } from '../useApi';
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const BADGE_EMOJI_MAP = {
-  first_log:'✨', streak_3:'🔥', streak_7:'⚡', streak_30:'🌱', streak_100:'👑',
-  saved_100:'💰', saved_500:'💵', saved_1000:'🏆', logged_30_days:'📅', plaid_connected:'🏦',
+  first_log:'✨', streak_3:'🔥', streak_7:'⚡', streak_14:'🌙', streak_30:'🌱', streak_100:'👑', streak_365:'🎖️',
+  saved_100:'💰', saved_500:'💵', saved_1000:'🏆', saved_2500:'💎', saved_5000:'🚀', saved_10000:'🏰',
+  logged_30_days:'📅', logged_100_days:'📖', logged_365_days:'📚', plaid_connected:'🏦',
 };
 const getBadgeEmoji = id => BADGE_EMOJI_MAP[id] || '🏅';
 

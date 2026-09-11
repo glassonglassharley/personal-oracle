@@ -125,7 +125,7 @@ export default function Badges() {
       {/* Badge grid */}
       {!data && !error ? (
         <div className="bdg-grid">
-          {Array.from({ length: 13 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : data ? (
         <>
