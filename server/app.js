@@ -10,7 +10,7 @@ const OPTIONAL_ENV = [
   'VITE_CLERK_PUBLISHABLE_KEY', 'PLAID_CLIENT_ID', 'PLAID_SECRET', 'PLAID_ENV',
   'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'ANTHROPIC_API_KEY', 'CRON_SECRET', 'ADMIN_SECRET',
   'JWT_SECRET', 'APP_URL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM',
-  'STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID',
+  'STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'STRIPE_WEBHOOK_SECRET',
 ];
 const missingOptional = OPTIONAL_ENV.filter(k => !process.env[k]);
 if (missingOptional.length) {
@@ -198,6 +198,12 @@ app.use(cors((req, callback) => {
   );
   callback(allowed ? null : new Error('Not allowed by CORS'), { origin: allowed, credentials: true });
 }));
+
+// Stripe webhook must see the raw body for signature verification, so it is
+// mounted BEFORE the global express.json() below and before the /api session
+// auth — the Stripe signature is its authentication.
+app.use('/api/stripe/webhook', require('./routes/stripeWebhook'));
+
 app.use(express.json());
 app.use(clerkMiddleware());
 

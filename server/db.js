@@ -231,6 +231,15 @@ const MIGRATIONS = `
   -- Set on first checkout; webhooks map Stripe events back to a user through it.
   ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
   CREATE UNIQUE INDEX IF NOT EXISTS users_stripe_customer_id_unique ON users (stripe_customer_id) WHERE stripe_customer_id IS NOT NULL;
+
+  -- Webhook idempotency: Stripe retries and can deliver an event more than
+  -- once. The event id is inserted in the same transaction as the status
+  -- write, so a failed write leaves no marker and the retry is reprocessed.
+  CREATE TABLE IF NOT EXISTS processed_stripe_events (
+    id TEXT PRIMARY KEY,
+    type TEXT,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
   ALTER TABLE users ADD COLUMN IF NOT EXISTS partner_privacy JSONB NOT NULL DEFAULT '{"show_vices":true,"show_spend":true,"show_streak":true,"show_xp":true}'::jsonb;
 
   -- First sync slice: one row per (user, date, exercise), reps is an absolute
