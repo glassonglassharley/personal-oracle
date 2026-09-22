@@ -43,6 +43,7 @@ export default function History() {
   const [entries, setEntries]     = useState([]);
   const [total, setTotal]         = useState(0);
   const [spendTotal, setSpendTotal] = useState(0);
+  const [savings, setSavings]     = useState(null);
   const [page, setPage]           = useState(0);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
@@ -81,6 +82,16 @@ export default function History() {
 
   useEffect(() => { load(0, filterVice, filterFrom, filterTo, filterSearch); },
     [filterVice, filterFrom, filterTo, filterSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Total savings — the same actual balance the Dashboard and Savings pages
+  // show. Independent of the entry filters, so it is loaded once.
+  useEffect(() => {
+    let cancelled = false;
+    api('/api/savings/balance')
+      .then(data => { if (!cancelled) setSavings(Number(data?.balance || 0)); })
+      .catch(() => { if (!cancelled) setSavings(null); });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce search input → filterSearch
   const handleSearchChange = e => {
@@ -193,6 +204,12 @@ export default function History() {
              quickFilter === 'all'   ? 'All-time' : 'Period'} total
           </span>
           <strong style={{ color: 'var(--warn)' }}>{fmt$(spendTotal)}</strong>
+        </span>
+        <span className="hist-summary-item">
+          <span className="hist-summary-label">Total savings</span>
+          <strong style={{ color: 'var(--money)' }}>
+            {savings === null ? '—' : fmt$(savings)}
+          </strong>
         </span>
       </div>
 
