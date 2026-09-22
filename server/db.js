@@ -467,19 +467,28 @@ const MIGRATIONS = `
   CREATE INDEX IF NOT EXISTS combined_savings_accounts_user_idx
     ON combined_savings_accounts (user_id, included_in_combined_savings, disconnected);
 
-  -- Append-only, like debt_payments/score_history: each row is an immutable
-  -- snapshot of the user's savings balance at the moment it was saved (manual
-  -- edit or bank sync). Never backfilled or simulated — history only grows
-  -- forward from real saves.
+  -- Daily snapshots. The cron writes one row per included account plus one
+  -- combined-total row for each Pacific calendar date. Same-day reruns upsert;
+  -- rows from prior dates are never deleted or reset.
   CREATE TABLE IF NOT EXISTS savings_balance_history (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id TEXT,
     balance NUMERIC NOT NULL,
+    snapshot_date DATE,
+    captured_at TIMESTAMPTZ,
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    source TEXT NOT NULL DEFAULT 'manual',
+    source TEXT NOT NULL DEFAULT 'daily_combined',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+  ALTER TABLE savings_balance_history ADD COLUMN IF NOT EXISTS account_id TEXT;
+  ALTER TABLE savings_balance_history ADD COLUMN IF NOT EXISTS snapshot_date DATE;
+  ALTER TABLE savings_balance_history ADD COLUMN IF NOT EXISTS captured_at TIMESTAMPTZ;
+  ALTER TABLE savings_balance_history ALTER COLUMN source SET DEFAULT 'daily_combined';
   CREATE INDEX IF NOT EXISTS savings_balance_history_user_id_idx ON savings_balance_history (user_id, recorded_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS savings_balance_history_user_account_date_unique
+    ON savings_balance_history (user_id, account_id, snapshot_date)
+    WHERE account_id IS NOT NULL AND snapshot_date IS NOT NULL;
 `;
 
 const { backupEntries } = require('./backup');

@@ -2,7 +2,8 @@
   "buildCommand": "cd server && npm install && cd ../client && npm install && npm run build",
   "outputDirectory": "client/dist",
   "crons": [
-    { "path": "/api/cron/nightly", "schedule": "0 2 * * *" }
+    { "path": "/api/cron/nightly", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/savings-snapshot", "schedule": "0 8 * * *" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index" },

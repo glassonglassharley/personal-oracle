@@ -1437,6 +1437,17 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 
 /* ── Savings dark page ───────────────────────────── */
 .sv-page { background: var(--paper); }
+.sv-dashboard-head { margin-bottom: 14px; }
+.sv-dashboard-head .page-title { margin-bottom: 16px; }
+.sv-dashboard-strip {
+  margin-bottom: 26px;
+  box-shadow: var(--shadow);
+}
+.sv-dashboard-strip .stat-delta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Savings balance panel ───────────────────────── */
 .sv-balance-panel { margin-bottom: 18px; }

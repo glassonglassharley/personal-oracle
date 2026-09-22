@@ -8,6 +8,7 @@ import {
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { track } from '../analytics';
+import { buildSavingsPeriodSummary } from '../savingsPeriodMetrics';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -82,6 +83,7 @@ function dcaFV(dailyPMT, annualRate, days) {
 
 const fmt$0 = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 const fmt$2 = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtSigned$2 = n => `${Number(n) < 0 ? '-' : ''}${fmt$2(Math.abs(Number(n || 0)))}`;
 const fmtInput2 = n => {
   const value = Number(n || 0);
   return Number.isFinite(value) && value > 0 ? value.toFixed(2) : '';
@@ -222,6 +224,7 @@ export default function Savings() {
   const [horizon, setHorizon] = useState(1825);
   // Actual savings balance
   const [balance, setBalance] = useState({ balance: 0, updated_at: null });
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
   const [balanceInput, setBalanceInput] = useState('');
   const [balanceSource, setBalanceSource] = useState('manual');
   const [balanceSaving, setBalanceSaving] = useState(false);
@@ -234,6 +237,9 @@ export default function Savings() {
   const [syncingPlaid, setSyncingPlaid] = useState(false);
   const [linkingPlaid, setLinkingPlaid] = useState(false);
   const [plaidSyncError, setPlaidSyncError] = useState('');
+  const [savingsHistory, setSavingsHistory] = useState([]);
+  const [spendDays, setSpendDays] = useState([]);
+  const [periodComparisonLoaded, setPeriodComparisonLoaded] = useState(false);
   const [balancePanelCollapsed, setBalancePanelCollapsed] = useState(true);
   const [accountsCollapsed, setAccountsCollapsed] = useState(true);
   const [showManualAccountForm, setShowManualAccountForm] = useState(false);
@@ -300,9 +306,26 @@ export default function Savings() {
     }
   };
 
+  const loadPeriodComparison = async () => {
+    setPeriodComparisonLoaded(false);
+    try {
+      const [historyPayload, spendPayload] = await Promise.all([
+        api('/api/savings/history'),
+        api('/api/entries/spend-by-date'),
+      ]);
+      setSavingsHistory(historyPayload.history || []);
+      setSpendDays(spendPayload.days || []);
+    } catch {
+      // Keep the last verified values if a refresh is temporarily unavailable.
+    } finally {
+      setPeriodComparisonLoaded(true);
+    }
+  };
+
   const loadCombinedAccounts = async ({ refresh = true } = {}) => {
     const payload = await api(`/api/savings/combined-accounts${refresh ? '' : '?refresh=0'}`);
     applyCombinedSavings(payload);
+    await loadPeriodComparison();
     return payload;
   };
 
@@ -314,6 +337,7 @@ export default function Savings() {
         body: JSON.stringify({ account_key: account.id, included }),
       });
       applyCombinedSavings(payload);
+      await loadPeriodComparison();
     } catch (err) {
       setPlaidSyncError(err.message || 'Could not update account selection.');
     }
@@ -328,6 +352,7 @@ export default function Savings() {
         body: JSON.stringify(manualAccountForm),
       });
       applyCombinedSavings(payload);
+      await loadPeriodComparison();
       setManualAccountForm({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
       setShowManualAccountForm(false);
     } catch (err) {
@@ -362,6 +387,7 @@ export default function Savings() {
         body: JSON.stringify({ account_key: editingManualAccountId, ...editingManualAccountForm }),
       });
       applyCombinedSavings(payload);
+      await loadPeriodComparison();
       cancelEditingManualAccount();
     } catch (err) {
       setPlaidSyncError(err.message || 'Could not update manual account.');
@@ -376,6 +402,7 @@ export default function Savings() {
         body: JSON.stringify({ account_key: account.id }),
       });
       applyCombinedSavings(payload);
+      await loadPeriodComparison();
     } catch (err) {
       setPlaidSyncError(err.message || 'Could not delete manual account.');
     }
@@ -435,15 +462,19 @@ export default function Savings() {
       .then(data => {
         setBalance(data);
         setBalanceInput(fmtInput2(data.balance));
+        setBalanceLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => setBalanceLoaded(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     api('/api/plaid/status')
       .then(d => setPlaidConnected(!!d.connected))
       .catch(() => {});
-    loadCombinedAccounts({ refresh: true }).catch(() => setCombinedLoaded(true));
+    loadCombinedAccounts({ refresh: true }).catch(() => {
+      setCombinedLoaded(true);
+      loadPeriodComparison();
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -504,9 +535,9 @@ export default function Savings() {
         body: JSON.stringify({ balance: val, source: balanceSource }),
       });
       setBalance(data);
-      if (balanceSource === 'manual') {
-        setCombinedLoaded(false);
-      }
+      setBalanceLoaded(true);
+      setCombinedLoaded(true);
+      await loadPeriodComparison();
       setBalanceSaved(true);
       setTimeout(() => setBalanceSaved(false), 2500);
     } catch (err) {
@@ -780,6 +811,30 @@ export default function Savings() {
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
   const viewedInvestmentCard = investmentCards.find(card => card.key === viewedInvestmentKey) || investmentCards[0] || topInvestmentCard;
+  const periodComparisonReady = periodComparisonLoaded && balanceLoaded && combinedLoaded;
+  const periodSummary = buildSavingsPeriodSummary({
+    currentBalance: actualSavingsBalance,
+    history: savingsHistory,
+    spendDays,
+  });
+  const savingsDashboardStats = [
+    ['Today saved', periodSummary.today],
+    ['This week saved', periodSummary.week],
+    ['This month saved', periodSummary.month],
+    ['This year saved', periodSummary.year],
+  ].map(([key, period]) => ({
+    key,
+    value: periodComparisonReady && period.hasBaseline ? fmtSigned$2(period.saved) : '—',
+    note: `Vice spend: ${fmt$2(period.spent)}`,
+    delta: !periodComparisonReady
+      ? 'Loading actual balances…'
+      : !period.hasBaseline
+        ? 'Needs an earlier balance snapshot'
+        : period.net < 0
+          ? `${fmt$2(Math.abs(period.net))} more spent than saved`
+          : `${fmt$2(period.net)} more saved than spent`,
+    down: period.hasBaseline && period.net < 0,
+  }));
 
   const projectionSections = (
     <>
@@ -875,6 +930,26 @@ export default function Savings() {
           <span className="dot" />
           All vices
         </span>
+      </div>
+
+      <div className="dashboard-head sv-dashboard-head">
+        <div>
+          <div className="page-title">Savings Dashboard</div>
+          <p className="page-subtitle">
+            Actual Combined Savings changes compared with logged vice spending for the same period.
+          </p>
+        </div>
+      </div>
+
+      <div className="stats-strip sv-dashboard-strip" aria-label="Savings dashboard summary">
+        {savingsDashboardStats.map(({ key, value, note, delta, down }) => (
+          <div key={key} className="stat">
+            <div className="stat-key">{key}</div>
+            <div className="stat-val">{value}</div>
+            <div className="stat-note">{note}</div>
+            <div className={`stat-delta${down ? ' down' : ''}`}>{delta}</div>
+          </div>
+        ))}
       </div>
 
 

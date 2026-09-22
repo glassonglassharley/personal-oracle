@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { writeDailySavingsSnapshots } = require('../lib/savingsSnapshots');
 
 const REMINDER_HOUR = Number(process.env.NIGHTLY_REMINDER_HOUR || 21);
 
@@ -50,6 +51,19 @@ function previousDateString(dateString) {
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
+
+// ── /api/cron/savings-snapshot — daily at 08:00 UTC ─────────────────────
+// Vercel invokes this with GET; POST is also supported for a reviewed manual
+// seed. The writer is idempotent for each America/Los_Angeles calendar date.
+router.all('/savings-snapshot', authCron, async (req, res, next) => {
+  try {
+    // Ensure the additive history migration has completed on a cold start
+    // before the first snapshot attempts to use the new columns/index.
+    await pool.initDb();
+    const result = await writeDailySavingsSnapshots(pool);
+    res.json({ ok: true, ...result });
+  } catch (err) { next(err); }
+});
 
 async function zeroFillUserDay(userId, dateString) {
   const result = await pool.query(
