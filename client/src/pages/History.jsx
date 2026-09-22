@@ -5,6 +5,7 @@ import { useViceContext } from '../ViceContext';
 const PAGE_SIZE = 50;
 
 const fmt$ = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtSigned$ = n => (Number(n) < 0 ? '-' : '+') + fmt$(Math.abs(Number(n || 0)));
 const fmtDate = s => {
   if (!s) return '';
   const [y, m, d] = s.split('-');
@@ -44,6 +45,7 @@ export default function History() {
   const [total, setTotal]         = useState(0);
   const [spendTotal, setSpendTotal] = useState(0);
   const [savings, setSavings]     = useState(null);
+  const [savingsRows, setSavingsRows] = useState([]);
   const [page, setPage]           = useState(0);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
@@ -83,13 +85,33 @@ export default function History() {
   useEffect(() => { load(0, filterVice, filterFrom, filterTo, filterSearch); },
     [filterVice, filterFrom, filterTo, filterSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Total savings — the same actual balance the Dashboard and Savings pages
-  // show. Independent of the entry filters, so it is loaded once.
+  // Savings is not a vice, so it comes from its own endpoints rather than the
+  // entry feed: the running balance for the summary bar, and the dated
+  // snapshots that become rows in the log. Neither varies with the filters.
   useEffect(() => {
     let cancelled = false;
-    api('/api/savings/balance')
-      .then(data => { if (!cancelled) setSavings(Number(data?.balance || 0)); })
-      .catch(() => { if (!cancelled) setSavings(null); });
+    Promise.all([
+      api('/api/savings/balance').catch(() => null),
+      api('/api/savings/history').catch(() => null),
+    ]).then(([balancePayload, historyPayload]) => {
+      if (cancelled) return;
+      setSavings(balancePayload ? Number(balancePayload.balance || 0) : null);
+      const snaps = (historyPayload?.history || [])
+        .map(row => ({
+          date: String(row.snapshot_date || row.recorded_at || '').slice(0, 10),
+          balance: Number(row.balance),
+        }))
+        .filter(row => /^\d{4}-\d{2}-\d{2}$/.test(row.date) && Number.isFinite(row.balance))
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      // Newest first, so each row's change is measured against the next
+      // older snapshot. The oldest has nothing to compare against.
+      setSavingsRows(snaps.map((row, i) => ({
+        id: `savings-${row.date}-${i}`,
+        date: row.date,
+        balance: row.balance,
+        delta: i + 1 < snaps.length ? row.balance - snaps[i + 1].balance : null,
+      })));
+    });
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -114,6 +136,16 @@ export default function History() {
 
   const totalPages  = Math.ceil(total / PAGE_SIZE);
   const visibleEntries = entries.filter(e => !deleted.has(e.id));
+
+  // Savings rows ignore the vice filter — savings is not a vice — but they
+  // still honour the date window, and drop out of a text search they have no
+  // note to match.
+  const savingsInRange = filterSearch ? [] : savingsRows.filter(row =>
+    (!filterFrom || row.date >= filterFrom) && (!filterTo || row.date <= filterTo));
+  const logRows = [
+    ...visibleEntries.map(entry => ({ kind: 'entry', key: entry.id, date: entry.date, entry })),
+    ...savingsInRange.map(row => ({ kind: 'savings', key: row.id, date: row.date, row })),
+  ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   return (
     <main className="main hist-page">
@@ -222,7 +254,7 @@ export default function History() {
             <div key={i} className="skeleton" style={{ height: 52, borderRadius: 8, marginBottom: 6 }} />
           ))}
         </div>
-      ) : visibleEntries.length === 0 ? (
+      ) : logRows.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📋</div>
           <h2>No entries found</h2>
@@ -230,11 +262,32 @@ export default function History() {
         </div>
       ) : (
         <div className="hist-list">
-          {visibleEntries.map(entry => {
+          {logRows.map(logRow => {
+            if (logRow.kind === 'savings') {
+              const { row } = logRow;
+              return (
+                <div key={logRow.key} className="hist-row hist-row-clean">
+                  <div className="hist-row-date">{fmtDate(row.date)}</div>
+                  <div className="hist-row-vice">
+                    <span className="hist-row-emoji">💰</span>
+                    <span className="hist-row-vice-name">Savings</span>
+                  </div>
+                  <div className="hist-row-amount clean">
+                    {row.delta === null ? fmt$(row.balance) : fmtSigned$(row.delta)}
+                  </div>
+                  <div className="hist-row-detail">
+                    {row.delta === null
+                      ? 'First recorded balance'
+                      : `Balance ${fmt$(row.balance)}`}
+                  </div>
+                </div>
+              );
+            }
+            const entry = logRow.entry;
             const amount = entry.quantity * entry.price_per_unit;
             const isDel  = deleting.has(entry.id);
             return (
-              <div key={entry.id} className="hist-row">
+              <div key={logRow.key} className="hist-row">
                 <div className="hist-row-date">{fmtDate(entry.date)}</div>
                 <div className="hist-row-vice">
                   <span className="hist-row-emoji">{entry.vice_emoji}</span>
