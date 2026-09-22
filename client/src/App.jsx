@@ -7,6 +7,7 @@ const Savings           = lazy(() => import('./pages/Savings'));
 const ViceManager       = lazy(() => import('./pages/ViceManager'));
 const Partners          = lazy(() => import('./pages/Partners'));
 const Support           = lazy(() => import('./pages/Support'));
+const GetHelp           = lazy(() => import('./pages/GetHelp'));
 const Wrapped           = lazy(() => import('./pages/Wrapped'));
 const CompanionOnboarding = lazy(() => import('./pages/CompanionOnboarding'));
 const Badges              = lazy(() => import('./pages/Badges'));
@@ -28,6 +29,7 @@ const NAV = [
   { to: '/badges', label: '🏅 Badges' },
   { to: '/partners', label: 'Partners' },
   { to: '/history', label: 'History' },
+  { to: '/help', label: 'Get Help' },
   { to: '/support', label: 'FAQ' },
   { to: '/settings', label: 'Settings' },
 ];
@@ -433,6 +435,7 @@ function AuthenticatedApp() {
             <Route path="/savings" element={<Savings />} />
             <Route path="/vices" element={<ViceManager />} />
             <Route path="/partners" element={<Partners />} />
+            <Route path="/help" element={<GetHelp />} />
             <Route path="/support" element={<Support />} />
             <Route path="/badges" element={<Badges />} />
             <Route path="/wrapped/:year" element={<Wrapped />} />
