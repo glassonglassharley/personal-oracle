@@ -29,7 +29,6 @@ const NAV = [
   { to: '/badges', label: '🏅 Badges' },
   { to: '/partners', label: 'Partners' },
   { to: '/history', label: 'History' },
-  { to: '/help', label: 'Get Help' },
   { to: '/support', label: 'FAQ' },
   { to: '/settings', label: 'Settings' },
 ];

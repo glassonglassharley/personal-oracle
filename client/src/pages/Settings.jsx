@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useApi, useDemoAuth } from '../useApi';
 
 function loadPlaidScript() {
@@ -489,6 +490,19 @@ export default function Settings() {
             Add an email above to enable passwordless login links.
           </p>
         )}
+      </div>
+
+      {/* Get help */}
+      <div className="panel">
+        <div className="panel-head">
+          <span className="panel-title">Get Help</span>
+        </div>
+        <p style={{ color: 'var(--ink-3)', fontSize: 13, lineHeight: 1.6, marginBottom: 12 }}>
+          Online recovery meetings, crisis lines, and AA, treatment, and peer-support
+          searches near a ZIP code. This app is a tracker — these connect you with
+          people and services built for real support.
+        </p>
+        <Link className="btn" to="/help">Open Get Help</Link>
       </div>
 
       {/* Admin */}
