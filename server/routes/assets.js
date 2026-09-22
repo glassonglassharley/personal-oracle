@@ -19,6 +19,33 @@ router.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/quote', async (req, res, next) => {
+  try {
+    const symbol = String(req.query.symbol || '').trim().toUpperCase().replace(/[^A-Z0-9.^=-]/g, '').slice(0, 18);
+    if (!symbol) return res.status(400).json({ error: 'Ticker symbol is required.' });
+
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 ViceTracker/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error(`Quote lookup failed (${response.status})`);
+    const payload = await response.json();
+    const meta = payload?.chart?.result?.[0]?.meta;
+    if (!meta) return res.status(404).json({ error: `No free quote found for ${symbol}.` });
+
+    res.json({
+      symbol: meta.symbol || symbol,
+      name: meta.longName || meta.shortName || meta.symbol || symbol,
+      price: Number.isFinite(Number(meta.regularMarketPrice)) ? Number(meta.regularMarketPrice) : null,
+      currency: meta.currency || 'USD',
+      exchange: meta.exchangeName || meta.fullExchangeName || '',
+      source: 'Yahoo Finance chart API',
+      updatedAt: meta.regularMarketTime ? new Date(Number(meta.regularMarketTime) * 1000).toISOString() : new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 router.post('/', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);

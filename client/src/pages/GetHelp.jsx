@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 
+const MEETUP_URL = 'https://www.meetup.com/?msockid=0de875cbbc9b63f43fae6306bdfb6254';
+
 const DIGITAL_HELP = [
   {
     title: 'AA online meetings',
@@ -108,6 +110,21 @@ export default function GetHelp() {
         <div className="help-urgent-card">
           <strong>If you are in immediate danger:</strong> call emergency services now. In the U.S., call or text <a href="tel:988">988</a> for the Suicide & Crisis Lifeline.
         </div>
+      </section>
+
+      <section className="panel help-meetup-panel">
+        <div className="help-meetup-copy">
+          <span className="help-pill">Meetups</span>
+          <strong>Find real-world groups and sober social options</strong>
+          <p>
+            Open Meetup to look for recovery-friendly activities, fitness groups, finance circles,
+            hobby clubs, and local events that can replace vice time with people and structure.
+          </p>
+        </div>
+        <a className="help-meetup-cta" href={MEETUP_URL} target="_blank" rel="noreferrer">
+          Open Meetup
+          <span aria-hidden="true">↗</span>
+        </a>
       </section>
 
       <section className="panel">

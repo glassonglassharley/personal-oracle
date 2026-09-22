@@ -39,6 +39,139 @@ function verifySession(token) {
   }
 }
 
+function isoDateDaysAgo(daysAgo) {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
+function isoTimestampDaysAgo(daysAgo) {
+  const d = new Date(`${isoDateDaysAgo(daysAgo)}T12:00:00.000Z`);
+  return d.toISOString();
+}
+
+async function seedRichDemoAccount(client, userId) {
+  const demoVices = [
+    { name: 'Smoking',       emoji: '🚬', unit: 'cigarette', defaultPrice: 0.72, category: 'Nicotine', monthlyBudget: 95, baseQty: 8,   endQty: 1.2 },
+    { name: 'Vaping',        emoji: '💨', unit: 'session',   defaultPrice: 1.35, category: 'Nicotine', monthlyBudget: 60, baseQty: 4,   endQty: 0.8 },
+    { name: 'Alcohol',       emoji: '🍺', unit: 'drink',     defaultPrice: 7.50, category: 'Alcohol',  monthlyBudget: 120, baseQty: 2.4, endQty: 0.5 },
+    { name: 'Weed',          emoji: '🌿', unit: 'session',   defaultPrice: 8.00, category: 'Cannabis', monthlyBudget: 85, baseQty: 1.4, endQty: 0.3 },
+    { name: 'Gambling',      emoji: '🎰', unit: 'session',   defaultPrice: 35.00, category: 'Money',   monthlyBudget: 75, baseQty: 0.55,endQty: 0.08 },
+    { name: 'Fast Food',     emoji: '🍔', unit: 'meal',      defaultPrice: 14.00, category: 'Food',    monthlyBudget: 130, baseQty: 1.2, endQty: 0.35 },
+    { name: 'Energy Drinks', emoji: '⚡', unit: 'can',       defaultPrice: 3.75, category: 'Caffeine', monthlyBudget: 50, baseQty: 2.1, endQty: 0.45 },
+  ];
+
+  const viceRows = [];
+  for (const vice of demoVices) {
+    const inserted = await client.query(
+      `INSERT INTO vices (user_id, name, unit_label, default_price, emoji, category, monthly_budget, plaid_categories)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'[]') RETURNING id`,
+      [userId, vice.name, vice.unit, vice.defaultPrice, vice.emoji, vice.category, vice.monthlyBudget]
+    );
+    viceRows.push({ ...vice, id: inserted.rows[0].id });
+  }
+
+  const startBalance = 460;
+  let savingsBalance = startBalance;
+  const savingsHistory = [];
+  const entryValues = [];
+  const entryParams = [];
+  let p = 1;
+  const totalDays = 183;
+
+  for (let daysAgo = totalDays - 1; daysAgo >= 0; daysAgo--) {
+    const elapsed = totalDays - 1 - daysAgo;
+    const progress = elapsed / (totalDays - 1);
+    const date = isoDateDaysAgo(daysAgo);
+    const weeklyCleanReset = elapsed % 17 === 4 || elapsed % 29 === 11;
+    const recentCleanStreak = daysAgo <= 7;
+    const isAllCleanDay = recentCleanStreak || weeklyCleanReset;
+    let dailySpend = 0;
+
+    for (const vice of viceRows) {
+      const targetQty = vice.baseQty * (1 - progress) + vice.endQty * progress;
+      const rhythm = Math.sin((elapsed + vice.id) * 1.7) * 0.18 + Math.cos((elapsed + vice.id) * 0.41) * 0.14;
+      const skippedVice = !isAllCleanDay && progress > 0.45 && ((elapsed + vice.id) % 9 === 0);
+      let quantity = isAllCleanDay || skippedVice ? 0 : Math.max(0, targetQty * (1 + rhythm));
+      if (quantity > 0) {
+        if (vice.unit === 'cigarette' || vice.unit === 'can') quantity = Math.round(quantity);
+        else quantity = Math.round(quantity * 10) / 10;
+        quantity = Math.max(quantity, vice.unit === 'cigarette' || vice.unit === 'can' ? 1 : 0.1);
+      }
+      dailySpend += quantity * vice.defaultPrice;
+      entryValues.push(`($${p++}, $${p++}, $${p++}, $${p++}, $${p++})`);
+      entryParams.push(vice.id, date, quantity, vice.defaultPrice, quantity === 0 ? 'Demo clean-day log' : 'Demo six-month habit log');
+    }
+
+    const plannedInvestment = isAllCleanDay ? 42 : Math.max(8, 46 - dailySpend * 0.45);
+    const marketDrift = 3.5 + Math.sin(elapsed / 11) * 6;
+    savingsBalance += plannedInvestment + marketDrift;
+    if (elapsed % 10 === 0 || daysAgo === 0) {
+      savingsHistory.push({ balance: Math.round(savingsBalance * 100) / 100, recordedAt: isoTimestampDaysAgo(daysAgo) });
+    }
+  }
+
+  if (entryValues.length) {
+    await client.query(
+      `INSERT INTO entries (vice_id, date, quantity, price_per_unit, note) VALUES ${entryValues.join(',')}`,
+      entryParams
+    );
+  }
+
+  const finalBalance = savingsHistory[savingsHistory.length - 1]?.balance || Math.round(savingsBalance * 100) / 100;
+  await client.query(
+    `UPDATE users
+     SET savings_balance = $1,
+         savings_updated_at = NOW(),
+         companion_type = 'tree',
+         companion_state = $2
+     WHERE id = $3`,
+    [
+      finalBalance,
+      JSON.stringify({ species: 'rainbow_eucalyptus', potStyle: 'ceramic', decoration: 'fairy_lights', background: 'mystical_forest', name: 'Momentum Tree' }),
+      userId,
+    ]
+  );
+
+  await client.query(
+    `INSERT INTO combined_savings_accounts (
+       user_id, account_key, source, institution_name, account_name, account_type,
+       account_subtype, mask, current_balance, currency, included_in_combined_savings,
+       disconnected, last_synced_at, updated_at
+     ) VALUES
+       ($1,'demo:hysa','manual','Demo Capital','High-Yield Savings','depository','savings','2042',$2,'USD',TRUE,FALSE,NOW(),NOW()),
+       ($1,'demo:brokerage','manual','Demo Brokerage','Index Fund Portfolio','investment','brokerage','8891',$3,'USD',TRUE,FALSE,NOW(),NOW()),
+       ($1,'demo:roth','manual','Demo Retirement','Roth IRA','investment','roth','7784',$4,'USD',TRUE,FALSE,NOW(),NOW())`,
+    [userId, Math.round(finalBalance * 0.32), Math.round(finalBalance * 0.48), Math.round(finalBalance * 0.20)]
+  );
+
+  await client.query(
+    `INSERT INTO user_assets (user_id, name, emoji, category, annual_return_pct, description)
+     VALUES
+       ($1,'S&P 500 Index Fund','📈','investment',8.0,'Demo projection for broad-market investing'),
+       ($1,'High-Yield Savings','🏦','cash',4.4,'Demo emergency fund yield'),
+       ($1,'Bitcoin DCA','₿','crypto',12.0,'Small hypothetical satellite allocation')`,
+    [userId]
+  );
+
+  await client.query(
+    `INSERT INTO goals (user_id, title, target_amount, created_at)
+     VALUES
+       ($1,'Emergency fund',5000,NOW() - INTERVAL '5 months'),
+       ($1,'Invested vice money',12000,NOW() - INTERVAL '4 months'),
+       ($1,'Debt-free buffer',2500,NOW() - INTERVAL '3 months')`,
+    [userId]
+  );
+
+  await client.query(
+    `INSERT INTO user_xp (user_id, total_xp, level, updated_at)
+     VALUES ($1, 6200, 8, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET total_xp = 6200, level = 8, updated_at = NOW()`,
+    [userId]
+  );
+}
+
 function hashMagicToken(raw) {
   return crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 }
@@ -323,12 +456,24 @@ router.post('/demo', demoLimiter, async (req, res, next) => {
       return res.status(409).json({ error: 'Username taken.' });
     }
 
-    const result = await pool.query(
-      `INSERT INTO users (clerk_user_id, name, auth_username) VALUES ($1, $2, $3) RETURNING id, auth_username`,
-      [`username:${username}`, username, username]
-    );
+    const client = await pool.connect();
+    let user;
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `INSERT INTO users (clerk_user_id, name, auth_username) VALUES ($1, $2, $3) RETURNING id, auth_username`,
+        [`username:${username}`, 'Demo Investor', username]
+      );
+      user = result.rows[0];
+      await seedRichDemoAccount(client, user.id);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
 
-    const user = result.rows[0];
     res.status(201).json({
       jwt: signSession(user.id, user.auth_username),
       username: user.auth_username,

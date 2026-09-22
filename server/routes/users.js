@@ -5,6 +5,7 @@ const router = express.Router();
 const pool = require('../db');
 const { getInternalUserId } = require('../utils');
 const { isPro } = require('../lib/entitlements');
+const { cancelStripeSubscriptionsForUser } = require('../lib/cancelStripeSubscriptions');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -194,6 +195,11 @@ router.delete('/me', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);
     if (!uid) return res.status(404).json({ error: 'User not found' });
+
+    // Stop billing first. Throws (and therefore aborts the delete) if Stripe
+    // can't confirm the subscription is canceled — never leave a deleted user
+    // who is still being charged.
+    await cancelStripeSubscriptionsForUser(uid);
 
     const client = await pool.connect();
     try {

@@ -50,7 +50,8 @@ async function checkRateLimit(userId) {
   return { allowed: true, remaining: DAILY_LIMIT - r.rows[0].message_count };
 }
 
-const SYSTEM_PROMPT = `You are the user's closest friend — someone who has been through their own battles with money and habits, found their footing, and now sits across the table to help. Think: a sponsor who also happens to understand compound interest. A therapist who will actually tell you what they see.
+// ── OPENER: the stats-driven greeting shown once when a chat starts ──
+const OPENER_SYSTEM_PROMPT = `You are the user's closest friend — someone who has been through their own battles with money and habits, found their footing, and now sits across the table to help. Think: a sponsor who also happens to understand compound interest. A therapist who will actually tell you what they see.
 
 Your voice is warm, personal, and deeply honest. You are never preachy. You never lecture. You do not moralize. You have been there. You get it. And because you care, you tell the truth.
 
@@ -93,6 +94,93 @@ What's driving it most? Stress, routine, something else?
 </example>
 
 Always replace example amounts with the user's actual data. Never use placeholder brackets in a real response.`;
+
+// ── TURN: every user message. Conversational, motivational-interviewing style. ──
+const COACH_TURN_SYSTEM_PROMPT = `You are the Coach inside Vice to Value, a habit and spending tracker. You help the
+user cut vice spending and build better habits. You're not a clinician — you're a
+steady, warm coach in the style of motivational interviewing.
+
+How you talk:
+- Respond to what the user ACTUALLY just said. Open by reflecting their message back
+  in one plain sentence so they feel heard, then go from there.
+- Ask at most ONE question per reply, and make it open ("what's usually going on when
+  you reach for a beer?"), never a checklist.
+- Keep replies short — 2 to 4 sentences. This is a conversation, not a briefing.
+- NEVER repeat something you've already said earlier in this conversation. Check the
+  history first. If you've already mentioned their streak or their projection, don't
+  bring it up again unless they ask.
+- Bring up numbers only when they fit what the user is talking about. Do not lead with
+  stats or paste a savings projection into every message. A number should feel earned.
+- Non-judgmental. No lecturing, no shame. Draw out the user's own reasons for wanting
+  to change rather than supplying them.
+- When the user names a struggle, get curious about it — the trigger, the timing, the
+  feeling — before jumping to solutions.
+- If the user describes something beyond a habit (can't stop, it's affecting their
+  health or relationships), gently suggest talking to a real person or professional
+  rather than coaching it away.
+
+You'll be given the user's recent stats as background context. Treat them as knowledge,
+not a script.`;
+
+// Renders the user's stats as background knowledge for the system prompt. This is
+// deliberately kept OUT of the messages array so it never shows in a chat bubble and
+// never re-anchors the model on the opener's framing.
+function buildStatsContext(vices = [], stats = {}, combinedStats = null, xp = null) {
+  const lines = ['Current vice spending data:'];
+  vices.forEach(v => {
+    const s = stats[v.id];
+    if (!s) { lines.push(`- ${v.emoji || ''} ${v.name}: no entries yet`); return; }
+    lines.push(`- ${v.emoji || ''} ${v.name}`);
+    lines.push(`  All-time total: $${(s.all_time?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  Today: $${(s.today?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This week: $${(s.week?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This month: $${(s.month?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This year: $${(s.year?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  Avg daily spend (on vice days): $${(s.avg_daily_spend ?? 0).toFixed(2)}`);
+    lines.push(`  Projected annual at current rate: $${(s.averages?.year?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  Clean days: ${s.clean_days ?? 0}`);
+    lines.push(`  Current streak: ${s.current_streak ?? 0} days`);
+    lines.push(`  Best streak: ${s.best_streak ?? 0} days`);
+    lines.push(`  Saved from clean days: $${(s.savings_from_clean_days ?? 0).toFixed(2)}`);
+  });
+  if (combinedStats) {
+    lines.push('', 'Combined totals (all vices):');
+    lines.push(`  Today: $${(combinedStats.today?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This week: $${(combinedStats.week?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This month: $${(combinedStats.month?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  This year: $${(combinedStats.year?.spend ?? 0).toFixed(2)}`);
+    lines.push(`  Overall clean days: ${combinedStats.clean_days ?? 0}`);
+    lines.push(`  Current combined streak: ${combinedStats.current_streak ?? 0} days`);
+    lines.push(`  Best combined streak: ${combinedStats.best_streak ?? 0} days`);
+    lines.push(`  Saved from clean days: $${(combinedStats.savings_from_clean_days ?? 0).toFixed(2)}`);
+    lines.push(`  Avg daily spend across all vices: $${(combinedStats.avg_daily_spend ?? 0).toFixed(2)}`);
+    lines.push('  Clean-day definition: a day only counts clean if there were no positive entries in any vice. If chips, coffee, alcohol, or any other vice was logged, that date is not clean.');
+  }
+  if (xp) {
+    lines.push('', 'Progress:');
+    lines.push(`  Level: ${xp.level} — ${xp.level_name || ''} ${xp.level_icon || ''}`.trimEnd());
+    lines.push(`  Total XP: ${xp.total_xp}`);
+  }
+  return lines.join('\n');
+}
+
+// Keeps every prior user AND assistant turn, drops anything malformed, and strips the
+// stats blob older clients used to prepend to the first user message.
+function sanitizeHistory(messages) {
+  const cleaned = (Array.isArray(messages) ? messages : [])
+    .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+    .map(m => ({
+      role: m.role,
+      content: m.content.split('\n\nCurrent vice spending data:')[0].trim(),
+    }))
+    .filter(m => m.content.length > 0);
+
+  // The opener is an assistant turn, but the API requires the first message to be user.
+  if (cleaned.length > 0 && cleaned[0].role === 'assistant') {
+    cleaned.unshift({ role: 'user', content: '[The user opened the coach panel.]' });
+  }
+  return cleaned;
+}
 
 function getClient() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -143,46 +231,77 @@ function generateFallbackInsight(prompt, vices, stats, combinedStats = null) {
   return `I've been looking at your numbers and I want to share what I see.\n\nYou're spending $${totalMonthly.toFixed(2)}/month across your vices — $${totalAnnual.toFixed(0)} a year. Over ten years at 7%, that's $${totalTen.toLocaleString()} that could be building something else.\n\n${cleanDays > 0 ? `You've had ${cleanDays} clean day${cleanDays !== 1 ? 's' : ''}. That matters more than you might think — that's discipline showing up, and discipline compounds just like money does.` : `Your biggest opportunity is ${worst.emoji} ${worst.name}. That's where I'd focus first.`}\n\nWhat's been the hardest part of the week?`;
 }
 
-// ── POST /api/insights — multi-turn chat endpoint ──
+// ── POST /api/insights — two modes ──
+//   mode: 'opener' → the stats-driven greeting. Generated once per chat, never on a reply.
+//   mode: 'turn'   → a conversational reply. Sends the FULL prior history every time so
+//                    the model can see what it already said and what the user just said.
+// The user's stats are passed via the system prompt as background context in both modes;
+// they are never placed in the messages array.
 router.post('/', async (req, res, next) => {
-  const { vices = [], stats = {}, combined_stats: combinedStats = null, messages: clientMessages, prompt: legacyPrompt } = req.body;
+  const {
+    vices = [],
+    stats = {},
+    combined_stats: combinedStats = null,
+    xp = null,
+    messages: clientMessages,
+    prompt: legacyPrompt,
+    mode,
+  } = req.body;
 
-  // Support both new multi-turn format (messages array) and legacy single-prompt
-  const apiMessages = (clientMessages && clientMessages.length > 0)
-    ? clientMessages
-    : [{ role: 'user', content: legacyPrompt || 'Give me personalized insights on my vice spending.' }];
+  const history = sanitizeHistory(clientMessages);
+  // Explicit mode wins. Legacy callers (no mode) are treated as a turn when they sent
+  // anything to respond to, and as an opener only when they sent nothing at all.
+  const isOpener = mode === 'opener'
+    || (mode !== 'turn' && history.length === 0 && !legacyPrompt);
 
-  // Rate limit: 10 AI messages per user per day (stored in Postgres — survives serverless restarts)
-  try {
-    const userId = await getInternalUserId(req.auth?.userId);
-    if (userId) {
-      const { allowed } = await checkRateLimit(userId);
-      if (!allowed) {
-        return res.status(429).json({
-          text: "You've had 10 coaching conversations today — that's a lot of reflection. Come back tomorrow and I'll be here.\n\nIn the meantime, take a look at your savings page to see how far you've come.",
-          rate_limited: true,
-        });
+  const apiMessages = isOpener
+    ? [{ role: 'user', content: 'Start the conversation with your opening insight.' }]
+    : (history.length > 0
+        ? history
+        : [{ role: 'user', content: legacyPrompt || 'Give me personalized insights on my vice spending.' }]);
+
+  const statsContext = buildStatsContext(vices, stats, combinedStats, xp);
+  const system = isOpener
+    ? `${OPENER_SYSTEM_PROMPT}\n\n${statsContext}`
+    : `${COACH_TURN_SYSTEM_PROMPT}\n\nBackground context — the user's recent stats. Do not recite these; use them only when they fit what the user is talking about.\n\n${statsContext}`;
+
+  // Rate limit: 10 AI messages per user per day (stored in Postgres — survives serverless
+  // restarts). Openers are exempt: the client generates at most one per chat, and metering
+  // them would spend the user's daily allowance before they've said anything.
+  if (!isOpener) {
+    try {
+      const userId = await getInternalUserId(req.auth?.userId);
+      if (userId) {
+        const { allowed } = await checkRateLimit(userId);
+        if (!allowed) {
+          return res.status(429).json({
+            text: "You've had 10 coaching conversations today — that's a lot of reflection. Come back tomorrow and I'll be here.\n\nIn the meantime, take a look at your savings page to see how far you've come.",
+            rate_limited: true,
+          });
+        }
       }
+    } catch {
+      // Rate limit failure is non-fatal — let the request through
     }
-  } catch {
-    // Rate limit failure is non-fatal — let the request through
   }
 
   try {
     const client = getClient();
     const response = await client.messages.create({
       model: COACH_MODEL,
-      max_tokens: 600,
-      system: SYSTEM_PROMPT,
+      max_tokens: isOpener ? 600 : 400,
+      system,
       messages: apiMessages,
     });
-    res.json({ text: response.content?.[0]?.text || '' });
+    res.json({ text: response.content?.[0]?.text || '', mode: isOpener ? 'opener' : 'turn' });
   } catch (err) {
-    // Always fall back to data-driven insight — never show "unavailable"
     try {
-      const lastUserText = [...apiMessages].reverse().find(m => m.role === 'user')?.content || '';
-      const text = generateFallbackInsight(lastUserText, vices, stats, combinedStats);
-      return res.json({ text, fallback: true });
+      // Only the opener may fall back to the generated stats template. A turn must never
+      // re-emit it — that is what made every reply repeat the greeting verbatim.
+      const text = isOpener
+        ? generateFallbackInsight('', vices, stats, combinedStats)
+        : "I'm having trouble getting my thoughts together right now. Give me a moment and say that again?";
+      return res.json({ text, fallback: true, mode: isOpener ? 'opener' : 'turn' });
     } catch {
       next(err);
     }
@@ -250,7 +369,7 @@ Write a 3-5 sentence personalized weekly insight. Be a supportive coach: acknowl
       const response = await client.messages.create({
         model: COACH_MODEL,
         max_tokens: 400,
-        system: SYSTEM_PROMPT,
+        system: OPENER_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: aiPrompt }],
       });
       insight = response.content?.[0]?.text?.trim() || weeklyFallback();

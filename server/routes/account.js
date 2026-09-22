@@ -2,14 +2,19 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { getInternalUserId } = require('../utils');
+const { cancelStripeSubscriptionsForUser } = require('../lib/cancelStripeSubscriptions');
 
-// DELETE /api/account — remove Plaid items, delete all DB rows, delete Clerk user
+// DELETE /api/account — cancel Stripe billing, remove Plaid items, delete all DB rows, delete Clerk user
 router.delete('/', async (req, res, next) => {
   try {
     const uid = await getInternalUserId(req.auth.userId);
     if (!uid) return res.status(404).json({ error: 'User not found' });
 
     const identity = String(req.auth.userId || '');
+
+    // 0. Stop billing. Unlike the Plaid step below this is NOT best-effort: it
+    //    throws and aborts the whole delete if Stripe can't confirm cancellation.
+    await cancelStripeSubscriptionsForUser(uid);
 
     // 1. Remove Plaid connections (best-effort, before DB deletion)
     try {

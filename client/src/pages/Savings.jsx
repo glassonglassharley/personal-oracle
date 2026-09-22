@@ -62,9 +62,59 @@ const ASSETS = [
     colorKey: 'warm',
     dash: [],
     icon: '🥇',
+    ticker: 'GC=F',
     description: 'Illustrative 7% annualized return',
   },
+  {
+    key: 'PIT',
+    label: 'VanEck Commodity Strategy ETF',
+    cardLabel: 'VanEck Commodity Strategy ETF',
+    rate: 0.06,
+    colorKey: 'warm',
+    dash: [],
+    icon: '🌾',
+    ticker: 'PIT',
+    description: 'Ticker PIT · diversified commodity strategy ETF',
+  },
 ];
+
+const INVESTMENT_ASSETS_KEY = 'vt-investment-assets-v2';
+
+function defaultInvestmentAssets() {
+  return ASSETS.filter(asset => asset.key !== 'Cash').map(asset => ({ ...asset, userManaged: false }));
+}
+
+function cleanInvestmentAsset(asset, fallbackIndex = 0) {
+  const rawKey = String(asset.key || asset.ticker || asset.name || `asset-${fallbackIndex}`).trim();
+  const key = rawKey || `asset-${fallbackIndex}`;
+  const cardLabel = String(asset.cardLabel || asset.name || asset.label || 'Custom asset').trim().slice(0, 80);
+  const ticker = String(asset.ticker || '').trim().toUpperCase().slice(0, 18);
+  const rate = Number(asset.rate ?? (Number(asset.annual_return_pct || 0) / 100));
+  return {
+    key,
+    label: String(asset.label || cardLabel).trim().slice(0, 100),
+    cardLabel,
+    rate: Number.isFinite(rate) && rate >= 0 ? rate : 0,
+    colorKey: asset.colorKey || 'secondary',
+    dash: Array.isArray(asset.dash) ? asset.dash : [],
+    icon: String(asset.icon || asset.emoji || '📈').trim().slice(0, 4) || '📈',
+    ticker,
+    description: String(asset.description || (ticker ? `Ticker ${ticker}` : 'Custom projection')).trim().slice(0, 220),
+    userManaged: asset.userManaged !== false,
+    lastPrice: asset.lastPrice == null ? null : Number(asset.lastPrice),
+    priceSource: asset.priceSource || '',
+    quoteUpdatedAt: asset.quoteUpdatedAt || null,
+  };
+}
+
+function loadSavedInvestmentAssets() {
+  if (typeof localStorage === 'undefined') return defaultInvestmentAssets();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(INVESTMENT_ASSETS_KEY) || 'null');
+    if (Array.isArray(parsed) && parsed.length) return parsed.map(cleanInvestmentAsset);
+  } catch {}
+  return defaultInvestmentAssets();
+}
 
 const MILESTONES = [
   { days: 365,   label: '1 Year',   sub: '365 days clean' },
@@ -255,12 +305,15 @@ export default function Savings() {
   const [editingManualAccountId, setEditingManualAccountId] = useState(null);
   const [editingManualAccountForm, setEditingManualAccountForm] = useState({ institutionName: '', accountName: '', accountType: '', currentBalance: '' });
 
-  // Custom assets (server-backed)
-  const [userAssets, setUserAssets] = useState([]);
+  // User-managed investment comparison cards. Stored locally so every built-in
+  // card can be edited, deleted, or replaced by the user's own ticker choices.
+  const [investmentAssets, setInvestmentAssets] = useState(loadSavedInvestmentAssets);
   const [assetModalOpen, setAssetModalOpen] = useState(false);
-  const [assetForm, setAssetForm] = useState({ name: '', emoji: '📦', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
+  const [editingAssetKey, setEditingAssetKey] = useState(null);
+  const [assetForm, setAssetForm] = useState({ name: '', emoji: '📦', ticker: '', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
   const [assetFormError, setAssetFormError] = useState('');
   const [assetSaving, setAssetSaving] = useState(false);
+  const [quoteLookupLoading, setQuoteLookupLoading] = useState(false);
   const [viewedInvestmentKey, setViewedInvestmentKey] = useState('SP500');
 
   // Goals state
@@ -486,9 +539,8 @@ export default function Savings() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (isPro !== true) return;
-    api('/api/assets').then(setUserAssets).catch(() => {});
-  }, [isPro]); // eslint-disable-line react-hooks/exhaustive-deps
+    try { localStorage.setItem(INVESTMENT_ASSETS_KEY, JSON.stringify(investmentAssets)); } catch {}
+  }, [investmentAssets]);
 
   // Stripe Checkout sends the user back here with ?checkout=success|cancel.
   // Strip it from the URL so a reload doesn't replay the banner.
@@ -670,8 +722,65 @@ export default function Savings() {
         category: label,
         emoji: preset.emoji,
         annual_return_pct: String(preset.rate),
-        description: preset.description,
+        description: f.description || preset.description,
       }));
+    }
+  };
+
+  const resetAssetForm = () => {
+    setEditingAssetKey(null);
+    setAssetForm({ name: '', emoji: '📦', ticker: '', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
+    setAssetFormError('');
+  };
+
+  const openAddAssetModal = () => {
+    resetAssetForm();
+    setAssetModalOpen(true);
+  };
+
+  const startEditingAsset = (asset) => {
+    setEditingAssetKey(asset.key);
+    setAssetForm({
+      name: asset.cardLabel || asset.label || '',
+      emoji: asset.icon || '📈',
+      ticker: asset.ticker || '',
+      category: asset.category || asset.label || 'Stocks / ETFs',
+      annual_return_pct: String(((asset.rate || 0) * 100).toFixed(Number.isInteger((asset.rate || 0) * 100) ? 0 : 1)),
+      description: asset.description || '',
+      lastPrice: asset.lastPrice ?? null,
+      priceSource: asset.priceSource || '',
+      quoteUpdatedAt: asset.quoteUpdatedAt || null,
+    });
+    setAssetFormError('');
+    setAssetModalOpen(true);
+  };
+
+  const closeAssetModal = () => {
+    setAssetModalOpen(false);
+    resetAssetForm();
+  };
+
+  const lookupTicker = async () => {
+    const ticker = assetForm.ticker.trim().toUpperCase();
+    if (!ticker) { setAssetFormError('Enter a ticker first.'); return; }
+    setQuoteLookupLoading(true);
+    setAssetFormError('');
+    try {
+      const quote = await api(`/api/assets/quote?symbol=${encodeURIComponent(ticker)}`);
+      const priceText = quote.price ? `${fmt$2(quote.price)} ${quote.currency || 'USD'}` : 'price unavailable';
+      setAssetForm(f => ({
+        ...f,
+        name: f.name || quote.name || ticker,
+        ticker: quote.symbol || ticker,
+        description: `Ticker ${quote.symbol || ticker} · latest quote ${priceText} via ${quote.source || 'free market data'}`,
+        lastPrice: quote.price || null,
+        priceSource: quote.source || '',
+        quoteUpdatedAt: quote.updatedAt || null,
+      }));
+    } catch (err) {
+      setAssetFormError(err.message || 'Could not look up that ticker. You can still save it manually.');
+    } finally {
+      setQuoteLookupLoading(false);
     }
   };
 
@@ -684,19 +793,26 @@ export default function Savings() {
     if (!Number.isFinite(rate) || rate < 0) { setAssetFormError('Enter a valid annual return %.'); return; }
     setAssetSaving(true);
     try {
-      const created = await api('/api/assets', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          emoji: assetForm.emoji || '📦',
-          category: assetForm.category,
-          annual_return_pct: rate,
-          description: assetForm.description.trim(),
-        }),
+      const ticker = assetForm.ticker.trim().toUpperCase();
+      const nextAsset = cleanInvestmentAsset({
+        key: editingAssetKey || `asset-${Date.now()}`,
+        label: name,
+        cardLabel: name,
+        rate: rate / 100,
+        colorKey: assetForm.category?.includes('Crypto') ? 'hot' : assetForm.category?.includes('Gold') ? 'warm' : 'secondary',
+        dash: [],
+        icon: assetForm.emoji || '📦',
+        ticker,
+        description: assetForm.description.trim() || (ticker ? `Ticker ${ticker}` : assetForm.category),
+        userManaged: true,
+        lastPrice: assetForm.lastPrice ?? null,
+        priceSource: assetForm.priceSource || '',
+        quoteUpdatedAt: assetForm.quoteUpdatedAt || null,
       });
-      setUserAssets(prev => [...prev, created]);
-      setAssetForm({ name: '', emoji: '📦', category: 'Stocks / ETFs', annual_return_pct: '10', description: '' });
-      setAssetModalOpen(false);
+      setInvestmentAssets(prev => editingAssetKey
+        ? prev.map(asset => asset.key === editingAssetKey ? nextAsset : asset)
+        : [...prev, nextAsset]);
+      closeAssetModal();
     } catch (err) {
       setAssetFormError(err.message || 'Could not save. Try again.');
     } finally {
@@ -704,9 +820,9 @@ export default function Savings() {
     }
   };
 
-  const removeUserAsset = async (id) => {
-    setUserAssets(prev => prev.filter(a => a.id !== id));
-    await api(`/api/assets/${id}`, { method: 'DELETE' }).catch(() => {});
+  const removeInvestmentAsset = (key) => {
+    setInvestmentAssets(prev => prev.filter(asset => asset.key !== key));
+    if (viewedInvestmentKey === key) setViewedInvestmentKey(investmentAssets.find(asset => asset.key !== key)?.key || 'SP500');
   };
 
   const perDay    = data?.per_day || 0;
@@ -724,7 +840,7 @@ export default function Savings() {
     hot:       chartColors.warn,
     warm:      chartColors.money2,
   };
-  const themedAssets = ASSETS.map(asset => ({
+  const themedAssets = [ASSETS[0], ...investmentAssets].map(asset => ({
     ...asset,
     color: assetColors[asset.colorKey] || chartColors.money,
   }));
@@ -784,34 +900,14 @@ export default function Savings() {
     },
   };
 
-  const builtInInvestmentCards = themedAssets
+  const investmentCards = themedAssets
     .filter(asset => asset.key !== 'Cash')
     .map(asset => {
       const value = dcaFV(chartPerDay, asset.rate, horizon);
       const gain = value - chartProjected;
       const gainPct = chartProjected > 0 ? (gain / chartProjected) * 100 : 0;
-      return { ...asset, value, gain, gainPct, custom: false };
+      return { ...asset, value, gain, gainPct, custom: true };
     });
-
-  const userAssetCards = userAssets.map(asset => {
-    const rate = (asset.annual_return_pct || 0) / 100;
-    const value = dcaFV(chartPerDay, rate, horizon);
-    const gain = value - chartProjected;
-    const gainPct = chartProjected > 0 ? (gain / chartProjected) * 100 : 0;
-    return {
-      key: `user-${asset.id}`,
-      id: asset.id,
-      cardLabel: asset.name,
-      icon: asset.emoji,
-      rate,
-      description: asset.description || asset.category,
-      color: chartColors.ink2,
-      value, gain, gainPct,
-      custom: true,
-    };
-  });
-
-  const investmentCards = [...builtInInvestmentCards, ...userAssetCards];
   const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
   const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
   const connectedAccounts = combinedAccounts.filter(a => !a.disconnected);
@@ -866,14 +962,14 @@ export default function Savings() {
       </div>
 
       {/* ── Investment projection cards ── */}
-      <div className="sv-section">
+      <div className="sv-section sv-invest-section">
         <div className="sv-section-head">
           <span className="sv-section-title">If you bought assets instead</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span className="sv-section-sub">
               Investing {fmt$2(chartPerDay)}/day for {selectedHorizon.label.toLowerCase()} instead of spending it
             </span>
-            <button className="sv-add-asset-btn" onClick={() => setAssetModalOpen(true)} title="Add custom asset">
+            <button className="sv-add-asset-btn" onClick={openAddAssetModal} title="Add custom asset">
               + Add asset
             </button>
           </div>
@@ -905,20 +1001,30 @@ export default function Savings() {
                   <div className="sv-invest-rate">{Number.isInteger(asset.rate * 100) ? (asset.rate * 100).toFixed(0) : (asset.rate * 100).toFixed(1)}% annualized</div>
                 </div>
                 {topInvestmentCard?.key === asset.key && <span className="sv-invest-rank">Highest projection</span>}
-                {asset.custom && (
+                <div className="sv-asset-actions">
                   <button
+                    type="button"
+                    className="sv-asset-edit"
+                    onClick={e => { e.stopPropagation(); startEditingAsset(asset); }}
+                    aria-label={`Edit ${asset.cardLabel}`}
+                  >Edit</button>
+                  <button
+                    type="button"
                     className="sv-asset-delete"
-                    onClick={() => removeUserAsset(asset.id)}
+                    onClick={e => { e.stopPropagation(); removeInvestmentAsset(asset.key); }}
                     aria-label={`Remove ${asset.cardLabel}`}
                   >×</button>
-                )}
+                </div>
               </div>
               <div className="sv-invest-value">{fmt$0(asset.value)}</div>
               <div className="sv-invest-gain">
                 <span>{fmt$0(asset.gain)} more than cash saved</span>
                 <b>+{asset.gainPct.toFixed(0)}%</b>
               </div>
-              <div className="sv-invest-note">{asset.description}</div>
+              <div className="sv-invest-note">
+                {asset.ticker && <span className="sv-invest-ticker">{asset.ticker}</span>}
+                {asset.description}
+              </div>
             </div>
           ))}
         </div>
@@ -942,8 +1048,9 @@ export default function Savings() {
       </div>
 
       <div className="dashboard-head sv-dashboard-head">
-        <div>
-          <div className="page-title">Savings Dashboard</div>
+        <div className="sv-dashboard-copy">
+          <span className="sv-title-eyebrow">Savings overview</span>
+          <h1 className="page-title">Savings Dashboard</h1>
           <p className="page-subtitle">
             Actual Combined Savings changes compared with logged vice spending for the same period.
           </p>
@@ -1270,13 +1377,13 @@ export default function Savings() {
 
       {/* ── Add Asset Modal ── */}
       {assetModalOpen && isPro === true && (
-        <div className="sv-modal-backdrop" onClick={() => setAssetModalOpen(false)}>
+        <div className="sv-modal-backdrop" onClick={closeAssetModal}>
           <div className="sv-modal" onClick={e => e.stopPropagation()}>
             <div className="sv-modal-head">
-              <span className="sv-modal-title">Add asset to compare</span>
-              <button className="sv-modal-close" onClick={() => setAssetModalOpen(false)}>×</button>
+              <span className="sv-modal-title">{editingAssetKey ? 'Edit asset card' : 'Add asset to compare'}</span>
+              <button className="sv-modal-close" onClick={closeAssetModal}>×</button>
             </div>
-            <p className="sv-modal-sub">Stocks, crypto, real estate, art, sneakers, collectibles — anything you might buy instead.</p>
+            <p className="sv-modal-sub">Add a ticker, fetch a free quote when available, then set the annual return assumption used for projections.</p>
             <form onSubmit={handleAssetSubmit}>
               <div className="sv-modal-field">
                 <label className="sv-modal-label">Category</label>
@@ -1314,6 +1421,22 @@ export default function Savings() {
                 </div>
               </div>
               <div className="sv-modal-field">
+                <label className="sv-modal-label">Ticker <span style={{ opacity: 0.5 }}>(optional)</span></label>
+                <div className="sv-ticker-row">
+                  <input
+                    className="form-input"
+                    value={assetForm.ticker}
+                    onChange={e => setAssetForm(f => ({ ...f, ticker: e.target.value.toUpperCase() }))}
+                    placeholder="e.g. PIT, SPY, BTC-USD"
+                    maxLength={18}
+                  />
+                  <button type="button" className="btn ghost" onClick={lookupTicker} disabled={quoteLookupLoading}>
+                    {quoteLookupLoading ? 'Looking…' : 'Lookup'}
+                  </button>
+                </div>
+                <div className="sv-modal-hint">Free quote lookup uses Yahoo Finance's public quote endpoint when it is available.</div>
+              </div>
+              <div className="sv-modal-field">
                 <label className="sv-modal-label">Expected annual return %</label>
                 <input
                   className="form-input"
@@ -1339,9 +1462,9 @@ export default function Savings() {
               </div>
               {assetFormError && <div className="form-error" style={{ marginBottom: 12 }}>{assetFormError}</div>}
               <div className="sv-modal-actions">
-                <button type="button" className="btn ghost" onClick={() => setAssetModalOpen(false)}>Cancel</button>
+                <button type="button" className="btn ghost" onClick={closeAssetModal}>Cancel</button>
                 <button type="submit" className="btn" disabled={assetSaving}>
-                  {assetSaving ? 'Saving…' : 'Add to my comparison'}
+                  {assetSaving ? 'Saving…' : editingAssetKey ? 'Save asset' : 'Add to my comparison'}
                 </button>
               </div>
             </form>

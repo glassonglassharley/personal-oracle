@@ -36,7 +36,13 @@ async function emailFor(userId, rowEmail) {
 // the /me payload, anything else — goes through here so the rule lives in
 // exactly one place. Pro = active Stripe subscription OR email on the owner
 // allowlist; the allowlist never blocks a paid user.
+//
+// PAYWALLS DISABLED FOR NOW: short-circuited to always return true so every
+// account gets Pro features. The real check is preserved below, commented
+// out, so this can be flipped back on by restoring it.
 async function isPro(userId) {
+  return true;
+  /* eslint-disable no-unreachable */
   const uid = await getInternalUserId(userId);
   if (!uid) return false;
   const r = await pool.query('SELECT subscription_status, email FROM users WHERE id = $1', [uid]);
@@ -48,6 +54,7 @@ async function isPro(userId) {
   if (allow.size === 0) return false;
   const email = await emailFor(userId, row.email);
   return Boolean(email && allow.has(email));
+  /* eslint-enable no-unreachable */
 }
 
 // Express guard for Pro-only routes. `feature` is echoed in the body so the
