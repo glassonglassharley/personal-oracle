@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSavingsPeriodSummary } from './savingsPeriodMetrics.js';
+import { buildSavingsPeriodSummary, findTrackingStartDate } from './savingsPeriodMetrics.js';
 
-const NOW = new Date('2026-09-22T12:00:00.000Z');
+const NOW = new Date('2026-09-22T12:00:00.000Z'); // Tue 2026-09-22 in Los Angeles
 
+// Real daily snapshots only — each row carries the snapshot_date the cron writes.
 const history = [
-  { balance: 2296.17, recorded_at: '2026-09-22T10:00:00.000Z' },
-  { balance: 2250.00, recorded_at: '2026-09-22T00:00:00.000Z' },
-  { balance: 2200.00, recorded_at: '2026-09-20T23:00:00.000Z' },
-  { balance: 2000.00, recorded_at: '2026-09-01T00:00:00.000Z' },
-  { balance: 1800.00, recorded_at: '2026-01-01T00:00:00.000Z' },
-  { balance: 1700.00, recorded_at: '2025-12-31T23:00:00.000Z' },
+  { balance: 2250.00, snapshot_date: '2026-09-22' },
+  { balance: 2200.00, snapshot_date: '2026-09-21' },
+  { balance: 2000.00, snapshot_date: '2026-09-01' },
+  { balance: 1800.00, snapshot_date: '2026-01-01' },
+  { balance: 1700.00, snapshot_date: '2025-12-31' },
 ];
 
 const spendDays = [
@@ -72,7 +72,7 @@ test('buildSavingsPeriodSummary preserves a negative real balance change', () =>
   const summary = buildSavingsPeriodSummary({
     now: NOW,
     currentBalance: 1900,
-    history: [{ balance: 2000, recorded_at: '2026-09-21T20:00:00.000Z' }],
+    history: [{ balance: 2000, snapshot_date: '2026-09-21' }],
     spendDays: [{ date: '2026-09-22', spend: 25 }],
   });
 
@@ -96,4 +96,52 @@ test('buildSavingsPeriodSummary treats a post-midnight cron snapshot as the base
   assert.equal(summary.today.saved, 53.83);
   assert.equal(summary.today.spent, 70);
   assert.equal(summary.today.net, -16.17);
+});
+
+test('legacy rows without a snapshot_date never anchor a period baseline', () => {
+  // The live condition: one real cron snapshot plus pre-cron legacy rows.
+  const summary = buildSavingsPeriodSummary({
+    now: NOW,
+    currentBalance: 5000,
+    history: [
+      { balance: 5000, snapshot_date: '2026-09-22', recorded_at: '2026-09-22T15:00:00.000Z' },
+      { balance: 4870.30, snapshot_date: null, recorded_at: '2026-09-18T17:00:00.000Z' },
+      { balance: 3889.43, snapshot_date: null, recorded_at: '2026-08-30T17:00:00.000Z' },
+    ],
+    spendDays: [],
+  });
+
+  assert.equal(summary.today.hasBaseline, true);
+  assert.equal(summary.today.saved, 0);
+
+  for (const period of ['week', 'month', 'year']) {
+    assert.equal(summary[period].hasBaseline, false, `${period} must not use a legacy row`);
+    assert.equal(summary[period].saved, null);
+    assert.equal(summary[period].net, null);
+  }
+});
+
+test('period boundaries follow America/Los_Angeles rather than UTC or the browser zone', () => {
+  // 2026-09-23T05:00Z is still Tue 2026-09-22 22:00 in Los Angeles, so the
+  // Pacific day has not rolled over yet.
+  const summary = buildSavingsPeriodSummary({
+    now: new Date('2026-09-23T05:00:00.000Z'),
+    currentBalance: 2300,
+    history: [{ balance: 2250, snapshot_date: '2026-09-22' }],
+    spendDays: [{ date: '2026-09-22', spend: 10 }],
+  });
+
+  assert.equal(summary.today.hasBaseline, true);
+  assert.equal(summary.today.saved, 50);
+  assert.equal(summary.today.spent, 10);
+});
+
+test('findTrackingStartDate returns the earliest real snapshot and ignores legacy rows', () => {
+  assert.equal(findTrackingStartDate(history), '2025-12-31');
+  assert.equal(findTrackingStartDate([
+    { balance: 5000, snapshot_date: '2026-09-22' },
+    { balance: 4870.30, recorded_at: '2026-09-18T17:00:00.000Z' },
+  ]), '2026-09-22');
+  assert.equal(findTrackingStartDate([{ balance: 10, recorded_at: '2026-01-01T00:00:00.000Z' }]), null);
+  assert.equal(findTrackingStartDate([]), null);
 });

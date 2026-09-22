@@ -8,7 +8,7 @@ import {
 import { useApi } from '../useApi';
 import { useViceContext } from '../ViceContext';
 import { track } from '../analytics';
-import { buildSavingsPeriodSummary } from '../savingsPeriodMetrics';
+import { buildSavingsPeriodSummary, findTrackingStartDate } from '../savingsPeriodMetrics';
 import { GoalsSection, CelebOverlay } from './GoalsSection';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -84,6 +84,14 @@ function dcaFV(dailyPMT, annualRate, days) {
 const fmt$0 = n => '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
 const fmt$2 = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtSigned$2 = n => `${Number(n) < 0 ? '-' : ''}${fmt$2(Math.abs(Number(n || 0)))}`;
+// Renders a YYYY-MM-DD snapshot key as a calendar date without letting the
+// viewer's timezone shift it a day either way.
+const fmtSnapshotDate = key => {
+  const [year, month, day] = String(key).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-US', {
+    timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric',
+  });
+};
 const fmtInput2 = n => {
   const value = Number(n || 0);
   return Number.isFinite(value) && value > 0 ? value.toFixed(2) : '';
@@ -817,6 +825,7 @@ export default function Savings() {
     history: savingsHistory,
     spendDays,
   });
+  const trackingStartDate = findTrackingStartDate(savingsHistory);
   const savingsDashboardStats = [
     ['Today saved', periodSummary.today],
     ['This week saved', periodSummary.week],
@@ -937,6 +946,13 @@ export default function Savings() {
           <div className="page-title">Savings Dashboard</div>
           <p className="page-subtitle">
             Actual Combined Savings changes compared with logged vice spending for the same period.
+          </p>
+          <p className="sv-tracking-since">
+            {!periodComparisonReady
+              ? 'Loading snapshot history…'
+              : trackingStartDate
+                ? `Tracking since ${fmtSnapshotDate(trackingStartDate)}`
+                : 'Tracking starts with the first daily balance snapshot'}
           </p>
         </div>
       </div>

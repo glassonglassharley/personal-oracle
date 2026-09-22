@@ -1439,6 +1439,10 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .sv-page { background: var(--paper); }
 .sv-dashboard-head { margin-bottom: 14px; }
 .sv-dashboard-head .page-title { margin-bottom: 16px; }
+.sv-tracking-since {
+  font-size: 12px; color: var(--ink-3); margin: 6px 0 0;
+  letter-spacing: .02em; font-feature-settings: "tnum";
+}
 .sv-dashboard-strip {
   margin-bottom: 26px;
   box-shadow: var(--shadow);
