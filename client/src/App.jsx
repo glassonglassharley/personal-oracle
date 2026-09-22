@@ -31,6 +31,7 @@ const NAV = [
   { to: '/history', label: 'History' },
   { to: '/support', label: 'FAQ' },
   { to: '/settings', label: 'Settings' },
+  { to: '/help', label: 'Get Help' },
 ];
 
 function AccountControl({ collapsed = false }) {
