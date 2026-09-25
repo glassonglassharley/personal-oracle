@@ -13,3 +13,6 @@ apps/*/.env.*
 .DS_Store
 
 .vercel
+
+# Tree contact-sheet screenshots: regenerate locally with scripts/tree-screens.mjs
+docs/tree-screens/

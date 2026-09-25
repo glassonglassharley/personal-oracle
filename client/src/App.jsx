@@ -446,6 +446,8 @@ function AuthenticatedApp() {
             <CompanionOnboarding
               onComplete={handleOnboardingComplete}
               existingType={companion?.companion_type || null}
+              existingState={companion?.companion_state || null}
+              tree={companion?.growth?.tree || null}
             />
           )}
         </Suspense>

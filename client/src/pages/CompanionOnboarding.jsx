@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import TreeSVG from '../companions/TreeSVG';
+import TreeArt from '../trees/TreeArt';
+import { treeSeed } from '../trees/growth';
 import CharacterSVG from '../companions/CharacterSVG';
 import {
   TREE_SPECIES, CHARACTER_ARCHETYPES, SKIN_TONES, HAIR_COLORS, HAIR_STYLES,
-  EYE_COLORS, BODY_TYPES, GENDER_OPTIONS, POT_STYLES, DECORATIONS, BACKGROUNDS,
+  EYE_COLORS, BODY_TYPES, GENDER_OPTIONS, POT_STYLES, DECORATIONS, BACKGROUNDS, TREE_BACKGROUNDS,
   getDefaultState,
 } from '../companions/companionData';
 import { useApi } from '../useApi';
@@ -20,17 +21,18 @@ function StepDots({ current }) {
   );
 }
 
-function LivePreview({ type, state }) {
+function LivePreview({ type, state, tree }) {
   if (!type) return <div className="onb-preview-empty">Choose a type to see your companion</div>;
   if (type === 'tree') return (
-    <TreeSVG
+    <TreeArt
       species={state.species || 'oak'}
-      growthState={3}
+      seed={treeSeed(tree?.seedBase, state.species)}
+      growth={tree ? tree.growth : 0.62}
+      health={tree ? tree.health : 1}
+      features={tree?.features}
       decoration={state.decoration || 'none'}
       potStyle={state.potStyle || 'terracotta'}
       background={state.background || 'day'}
-      hasFlowers={false}
-      isDecember={false}
       width={200}
       height={280}
     />
@@ -69,10 +71,10 @@ function Step1({ type, setType, onNext }) {
         >
           <div className="onb-type-icon">🌳</div>
           <div className="onb-type-name">Tree</div>
-          <div className="onb-type-desc">Grows as you save money. Choose from 20 species with pots, decorations, and backgrounds.</div>
+          <div className="onb-type-desc">Grows with the money you save and the days you log. Choose from 20 species with pots, decorations, and backgrounds.</div>
           <div className="onb-type-preview">
-            <TreeSVG species="oak" growthState={4} potStyle="terracotta" background="day"
-              hasFlowers decoration="fairy_lights" width={120} height={168} />
+            <TreeArt species="oak" seed={treeSeed('preview', 'oak')} growth={0.72} potStyle="terracotta" background="day"
+              features={{ blossom: 0.55 }} decoration="fairy_lights" width={120} height={168} />
           </div>
         </button>
         <button
@@ -181,7 +183,7 @@ function TreeCustomize({ state, setState }) {
       )}
       {tab === 'background' && (
         <div className="onb-option-grid">
-          {BACKGROUNDS.map(b => (
+          {TREE_BACKGROUNDS.map(b => (
             <button key={b.id}
               className={`onb-opt${state.background === b.id ? ' selected' : ''}`}
               onClick={() => setState(s => ({ ...s, background: b.id }))}>
@@ -401,21 +403,24 @@ function Step4({ type, state, setState, onNext, onBack }) {
   );
 }
 
-function Step5({ type, state, onBegin, saving }) {
+function Step5({ type, state, onBegin, saving, tree }) {
   const name = state.name || (type === 'tree' ? 'My Tree' : 'My Hero');
   return (
     <div className="onb-step onb-final-step">
       <h2 className="onb-title">Meet {name}!</h2>
       <p className="onb-sub">
         {type === 'tree'
-          ? 'Every dollar you save makes them grow. Log entries to watch them flourish.'
+          ? 'Money you save or pay down, and every day you log, helps them grow. Rough days just make them rest; they never lose their growth.'
           : `Every clean day earns experience. Reach level 20 to unlock legendary gear.`}
       </p>
       <div className="onb-final-preview">
         {type === 'tree' ? (
-          <TreeSVG
+          <TreeArt
             species={state.species || 'oak'}
-            growthState={1}
+            seed={treeSeed(tree?.seedBase, state.species)}
+            growth={tree ? tree.growth : 0}
+            health={tree ? tree.health : 1}
+            features={tree?.features}
             decoration={state.decoration || 'none'}
             potStyle={state.potStyle || 'terracotta'}
             background={state.background || 'day'}
@@ -452,12 +457,15 @@ function Step5({ type, state, onBegin, saving }) {
   );
 }
 
-export default function CompanionOnboarding({ onComplete, existingType }) {
+export default function CompanionOnboarding({ onComplete, existingType, existingState, tree }) {
   const api = useApi();
   const [step, setStep] = useState(existingType ? 2 : 0);
   const [prevStep, setPrevStep] = useState(-1);
   const [type, setType] = useState(existingType || null);
-  const [state, setState] = useState(existingType ? getDefaultState(existingType) : {});
+  // Editing starts from what the user already has, so saving without
+  // changes never resets their species or look.
+  const [state, setState] = useState(existingType ? { ...getDefaultState(existingType), ...(existingState || {}) } : {});
+  const treeForPreview = type === existingType ? tree : null;
   const [saving, setSaving] = useState(false);
 
   const next = () => { setPrevStep(step); setStep(s => s + 1); };
@@ -489,7 +497,7 @@ export default function CompanionOnboarding({ onComplete, existingType }) {
           {/* Live preview panel */}
           <div className="onb-preview-panel">
             <div className="onb-preview-inner">
-              <LivePreview type={type} state={state} />
+              <LivePreview type={type} state={state} tree={treeForPreview} />
             </div>
             {type && step >= 1 && (
               <div className="onb-preview-label">
@@ -509,7 +517,7 @@ export default function CompanionOnboarding({ onComplete, existingType }) {
               {step === 1 && <Step2 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
               {step === 2 && <Step3 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
               {step === 3 && <Step4 type={type} state={state} setState={setState} onNext={next} onBack={back} />}
-              {step === 4 && <Step5 type={type} state={state} onBegin={handleBegin} saving={saving} />}
+              {step === 4 && <Step5 type={type} state={state} onBegin={handleBegin} saving={saving} tree={treeForPreview} />}
             </div>
           </div>
         </div>

@@ -1,0 +1,461 @@
+// Species parameters. Each species picks a generator and tunes it; the
+// generator never branches on species id, so every visual difference lives
+// here. Units are tree-space pixels before the fit-to-frame scale.
+
+const BROADLEAF = {
+  generator: 'branching',
+  frameHeight: 200,
+  trunk: { len: 56, radius: 8.5, lean: 0.05, bend: 0.1, dur: 0.74, profile: 'normal', flare: 1.35 },
+  maxDepth: 5,
+  kids: [[3, 4], [2, 3], [2, 3], [2, 2], [1, 2]],
+  crownStart: 0.55,
+  leader: true,
+  spread: [0, 44, 36, 32, 30, 28],
+  spreadSd: 9,
+  lenRatio: [0, 0.8, 0.72, 0.68, 0.64, 0.6],
+  radRatio: 0.66,
+  upPull: 0.22,
+  curl: 10,
+  taper: 0.62,
+  crooked: 0.12,
+  maxBranches: 220,
+  maxLeaves: 640,
+  leaf: { form: 'oval', len: 7, width: 1, depthMin: 3, clusters: [1, 2], perCluster: 4, clusterR: 9, droop: 25, shape: 'scatter' },
+  mass: 0.95,
+  deciduous: true,
+  palette: {
+    bark: '#6b4a34', barkDark: '#3f2a1d', barkLight: '#8f6a4d', twig: '#5a3e2b',
+    leaf: '#3f8a3a', leafDark: '#285f2c', leafLight: '#62a449', highlight: '#8fc260',
+    mass: '#23502a', fresh: '#b5e07a', dormant: '#8b8456',
+    flower: '#fff4f6', flowerCenter: '#f2c14e',
+    fruit: '#7a5a2c', fruitLight: '#a88449',
+    autumn: ['#c9822b', '#d9a441', '#a8452a'],
+  },
+  fruit: { kind: 'acorn', size: 2.6, chance: 0.35 },
+};
+
+function broadleaf(overrides) {
+  return deepMerge(BROADLEAF, overrides);
+}
+
+function deepMerge(base, over) {
+  if (!over) return base;
+  const out = Array.isArray(base) ? [...base] : { ...base };
+  for (const [k, v] of Object.entries(over)) {
+    if (v && typeof v === 'object' && !Array.isArray(v) && base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) {
+      out[k] = deepMerge(base[k], v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+export const SPECIES = {
+  oak: broadleaf({
+    trunk: { len: 50, radius: 9.5 },
+    flowerForm: 'catkin',
+    flowerScale: 0.9,
+    palette: { flower: '#d8d27a' },
+    crownStart: 0.42,
+    leaf: { form: 'oak', len: 8, width: 1.1 },
+    spread: [0, 42, 36, 32, 30, 28],
+    upPull: 0.24,
+    crooked: 0.22,
+  }),
+
+  maple: broadleaf({
+    trunk: { len: 46, radius: 8 },
+    crownStart: 0.45,
+    kids: [[4, 5], [2, 3], [2, 3], [2, 2], [1, 2]],
+    spread: [0, 46, 36, 32, 30, 28],
+    upPull: 0.2,
+    leaf: { form: 'maple', len: 7.5, width: 1, perCluster: 4 },
+    palette: {
+      bark: '#5e4636', barkDark: '#3a2a20', barkLight: '#7f6250',
+      leaf: '#c2412d', leafDark: '#862621', leafLight: '#e2683a', highlight: '#f3a152',
+      mass: '#5c1a18', fresh: '#f0b25a', dormant: '#8a6a52',
+      autumn: ['#e8962f', '#f2c14e', '#b8321f'],
+    },
+    fruit: { kind: 'none' },
+  }),
+
+  apple: broadleaf({
+    trunk: { len: 40, radius: 8, bend: 0.14 },
+    crownStart: 0.5,
+    spread: [0, 50, 40, 34, 30, 28],
+    upPull: 0.15,
+    curl: 14,
+    leaf: { form: 'oval', len: 7 },
+    palette: {
+      leaf: '#4a8f3c', leafDark: '#2a5f2a', leafLight: '#78b556', highlight: '#aad678',
+      flower: '#fdeef2', flowerCenter: '#f4c95d',
+      fruit: '#c62f2a', fruitLight: '#f07a62',
+    },
+    fruit: { kind: 'round', size: 3.6, chance: 0.5 },
+  }),
+
+  lemon: broadleaf({
+    trunk: { len: 36, radius: 6.5 },
+    crownStart: 0.35,
+    kids: [[4, 5], [2, 3], [2, 3], [2, 2], [1, 2]],
+    spread: [0, 46, 40, 34, 30, 28],
+    lenRatio: [0, 0.86, 0.72, 0.66, 0.62, 0.58],
+    upPull: 0.3,
+    leaf: { form: 'oval', len: 6.5, width: 0.9, perCluster: 5, clusterR: 7 },
+    mass: 0.95,
+    deciduous: false,
+    palette: {
+      leaf: '#4e9a3f', leafDark: '#2b6a2f', leafLight: '#7fbf55', highlight: '#b9df7c',
+      mass: '#1f4a24', flower: '#ffffff', flowerCenter: '#f2d15a',
+      fruit: '#f3cd2f', fruitLight: '#fff08a',
+    },
+    fruit: { kind: 'lemon', size: 3.4, chance: 0.55 },
+  }),
+
+  mango: broadleaf({
+    trunk: { len: 50, radius: 8.5 },
+    kids: [[4, 5], [2, 3], [2, 3], [2, 2], [1, 2]],
+    spread: [0, 48, 40, 34, 30, 28],
+    lenRatio: [0, 0.86, 0.74, 0.66, 0.62, 0.58],
+    upPull: 0.28,
+    leaf: { form: 'lance', len: 10, width: 1.35, perCluster: 5, clusterR: 8, droop: 45 },
+    mass: 1,
+    deciduous: false,
+    palette: {
+      leaf: '#2f7a39', leafDark: '#1a4d25', leafLight: '#4f9f47', highlight: '#8ec567',
+      mass: '#12351b', fresh: '#c59a5a', flower: '#f7ecc4', flowerCenter: '#e0a93b',
+      fruit: '#f08a24', fruitLight: '#ffc35a',
+    },
+    fruit: { kind: 'drop', size: 4, chance: 0.5 },
+  }),
+
+  olive: broadleaf({
+    trunk: { len: 48, radius: 9, bend: 0.28, lean: 0.12 },
+    crooked: 0.34,
+    spread: [0, 46, 40, 34, 30, 28],
+    upPull: 0.2,
+    leaf: { form: 'lance', len: 7.5, width: 1.1, perCluster: 5, clusterR: 7, droop: 30 },
+    mass: 0.55,
+    deciduous: false,
+    palette: {
+      bark: '#7a6a58', barkDark: '#4a3f33', barkLight: '#a39380',
+      leaf: '#7d9163', leafDark: '#556a45', leafLight: '#a6b78d', highlight: '#cdd8b8',
+      mass: '#3d4c33', fresh: '#c4d49a', dormant: '#8f8a66',
+      flower: '#f6f3dc', flowerCenter: '#d9c65a',
+      fruit: '#3a2b3f', fruitLight: '#6d5a70',
+    },
+    fruit: { kind: 'olive', size: 2.4, chance: 0.6 },
+  }),
+
+  avocado: broadleaf({
+    trunk: { len: 48, radius: 8 },
+    crownStart: 0.4,
+    spread: [0, 38, 32, 28, 26, 24],
+    upPull: 0.3,
+    lenRatio: [0, 0.72, 0.7, 0.66, 0.62, 0.58],
+    leaf: { form: 'broad', len: 11, width: 0.95, perCluster: 5, clusterR: 9.5, droop: 40 },
+    mass: 0.95,
+    deciduous: false,
+    palette: {
+      leaf: '#3a7d32', leafDark: '#1f5022', leafLight: '#63a445', highlight: '#9fcd6d',
+      mass: '#153a19', fresh: '#b4d774', flower: '#eef0c8', flowerCenter: '#c9c35a',
+      fruit: '#2e4a1f', fruitLight: '#5d7a3a',
+    },
+    fruit: { kind: 'pear', size: 4.2, chance: 0.45 },
+  }),
+
+  cherry_blossom: broadleaf({
+    trunk: { len: 50, radius: 8, bend: 0.16, lean: 0.08 },
+    crooked: 0.2,
+    spread: [0, 56, 42, 36, 32, 30],
+    upPull: 0.08,
+    curl: 16,
+    lenRatio: [0, 0.9, 0.74, 0.68, 0.62, 0.58],
+    leaf: { form: 'blossom', juvenileForm: 'oval', len: 5, width: 1, perCluster: 6, clusterR: 9, droop: 0 },
+    mass: 0.7,
+    palette: {
+      bark: '#5d423d', barkDark: '#3a2826', barkLight: '#8f6f68',
+      leaf: '#f4a6be', leafDark: '#d9779a', leafLight: '#fbc9d7', highlight: '#fff0f4',
+      mass: '#c96b8b', fresh: '#fff7fa', dormant: '#b99a9f', juvenile: ['#3f7f3a', '#6aa84e'],
+      flower: '#ffffff', flowerCenter: '#f7d6e0',
+      fruit: '#8e1630', fruitLight: '#c9485a',
+      autumn: ['#e39a6b', '#d8745e', '#c9a25a'],
+    },
+    fruit: { kind: 'cherry', size: 1.9, chance: 0.2 },
+  }),
+
+  rainbow_eucalyptus: broadleaf({
+    trunk: { len: 72, radius: 9.5, bend: 0.06, lean: 0.03, dur: 0.76 },
+    kids: [[4, 5], [2, 3], [2, 3], [2, 2], [1, 2]],
+    crownStart: 0.55,
+    spread: [0, 46, 38, 32, 28, 26],
+    lenRatio: [0, 0.74, 0.7, 0.66, 0.62, 0.58],
+    upPull: 0.28,
+    leaf: { form: 'sickle', len: 9.5, width: 1, perCluster: 7, clusterR: 11, droop: 60 },
+    mass: 1,
+    stripes: ['#e2803a', '#3fa56b', '#7a58b8', '#3f8fc9', '#d8b64a'],
+    deciduous: false,
+    palette: {
+      bark: '#8c9a74', barkDark: '#556046', barkLight: '#b8c49c',
+      leaf: '#2f9486', leafDark: '#1c6259', leafLight: '#5fb8a6', highlight: '#9fdccb',
+      mass: '#15443d', fresh: '#b6e6c9', flower: '#f4f0e0', flowerCenter: '#e8d27a',
+    },
+    fruit: { kind: 'none' },
+  }),
+
+  dragon_blood: broadleaf({
+    trunk: { len: 58, radius: 9, bend: 0.03, lean: 0.02 },
+    maxDepth: 5,
+    forks: true,
+    kids: [[2, 2], [2, 2], [2, 2], [2, 2], [2, 2]],
+    crownStart: 1,
+    leader: false,
+    spread: [0, 30, 27, 24, 22, 20],
+    spreadSd: 4,
+    lenRatio: [0, 0.62, 0.8, 0.78, 0.74, 0.7],
+    radRatio: 0.74,
+    upPull: 0.12,
+    curl: 4,
+    taper: 0.82,
+    crooked: 0.04,
+    leaf: { form: 'lance', len: 13, width: 1, depthMin: 5, clusters: [1, 1], perCluster: 15, clusterR: 5, droop: 0, shape: 'rosette' },
+    mass: 1.35,
+    massShape: 'umbrella',
+    deciduous: false,
+    palette: {
+      bark: '#8a8174', barkDark: '#595247', barkLight: '#b2a898',
+      leaf: '#3c7a4a', leafDark: '#22503a', leafLight: '#63a06a', highlight: '#9ccc8e',
+      mass: '#2e6048', fresh: '#b2dc92', dormant: '#7c8062',
+      flower: '#f3f1dc', flowerCenter: '#d7cf7a',
+      fruit: '#b3202a', fruitLight: '#e5545a',
+    },
+    fruit: { kind: 'berry', size: 2, chance: 0.6 },
+  }),
+
+  baobab: broadleaf({
+    trunk: { len: 52, radius: 22, bend: 0.02, lean: 0.02, profile: 'bottle', flare: 1.15 },
+    maxDepth: 3,
+    kids: [[6, 7], [2, 3], [2, 3]],
+    crownStart: 0.92,
+    leader: false,
+    spread: [0, 62, 36, 30],
+    lenRatio: [0, 0.72, 0.62, 0.6],
+    radRatio: 0.34,
+    upPull: 0.1,
+    curl: 22,
+    taper: 0.5,
+    crooked: 0.18,
+    leaf: { form: 'oval', len: 5.5, width: 0.8, depthMin: 2, clusters: [1, 2], perCluster: 7, clusterR: 8, droop: 20 },
+    mass: 0.9,
+    frameHeight: 185,
+    palette: {
+      bark: '#9a8474', barkDark: '#65544a', barkLight: '#c2ad9c',
+      leaf: '#4f8f3a', leafDark: '#2e5e27', leafLight: '#7cb356', highlight: '#b3d88a',
+      mass: '#21431d', fruit: '#8a7a5a', fruitLight: '#b5a57f',
+    },
+    fruit: { kind: 'pod', size: 4, chance: 0.4 },
+  }),
+
+  bonsai: broadleaf({
+    trunk: { len: 40, radius: 8.5, bend: 0.5, lean: 0.25, dur: 0.6, flare: 1.7 },
+    maxDepth: 4,
+    kids: [[3, 4], [2, 3], [2, 3], [1, 2]],
+    crownStart: 0.35,
+    spread: [0, 78, 30, 28, 26],
+    spreadSd: 8,
+    lenRatio: [0, 0.95, 0.62, 0.6, 0.58],
+    radRatio: 0.55,
+    upPull: 0.05,
+    curl: 10,
+    crooked: 0.28,
+    leaf: { form: 'oval', len: 4.2, width: 0.85, depthMin: 2, clusters: [1, 2], perCluster: 11, clusterR: 11, droop: 10, shape: 'pad' },
+    mass: 1.2,
+    frameHeight: 130,
+    deciduous: false,
+    palette: {
+      bark: '#5e4a3c', barkDark: '#3a2c24', barkLight: '#846c5a',
+      leaf: '#3f8a3a', leafDark: '#255a27', leafLight: '#68ab4f', highlight: '#a2d179',
+      mass: '#18401c', fruit: '#c23b2e', fruitLight: '#ee7560',
+    },
+    fruit: { kind: 'berry', size: 1.8, chance: 0.4 },
+  }),
+
+  willow: broadleaf({
+    trunk: { len: 64, radius: 8, bend: 0.12 },
+    maxDepth: 3,
+    kids: [[4, 5], [2, 3], [2, 2]],
+    crownStart: 0.62,
+    spread: [0, 38, 30, 26],
+    lenRatio: [0, 0.72, 0.62, 0.58],
+    upPull: 0.2,
+    curl: -6,
+    leaf: { form: 'lance', len: 6.5, width: 0.9, depthMin: 9, clusters: [0, 0], perCluster: 0 },
+    pendulous: { strands: 5, length: 78, leafGap: 5.5, spread: 0.3 },
+    mass: 0,
+    flowerForm: 'catkin',
+    palette: {
+      bark: '#6e5a44', barkDark: '#44372a', barkLight: '#93806a', twig: '#566233',
+      leaf: '#5f9f45', leafDark: '#3a7430', leafLight: '#86bd5c', highlight: '#b0d688',
+      mass: '#2b5a26', fresh: '#d3ec9c', dormant: '#9a9562',
+      flower: '#f2eab0', flowerCenter: '#d9c45a',
+      autumn: ['#d8b845', '#c9a236', '#b0892f'],
+    },
+    fruit: { kind: 'none' },
+  }),
+
+  weeping_willow: broadleaf({
+    trunk: { len: 58, radius: 9, bend: 0.18, lean: 0.07 },
+    maxDepth: 3,
+    kids: [[4, 5], [2, 3], [2, 2]],
+    crownStart: 0.6,
+    spread: [0, 44, 32, 26],
+    lenRatio: [0, 0.78, 0.62, 0.58],
+    upPull: 0.12,
+    curl: -14,
+    leaf: { form: 'lance', len: 6, width: 0.8, depthMin: 9, clusters: [0, 0], perCluster: 0 },
+    pendulous: { strands: 6, length: 104, leafGap: 5, spread: 0.18 },
+    mass: 0,
+    flowerForm: 'catkin',
+    palette: {
+      bark: '#6a5a4a', barkDark: '#41362b', barkLight: '#8e7d6b', twig: '#5e6a38',
+      leaf: '#7cb85c', leafDark: '#4f8a3c', leafLight: '#9fd476', highlight: '#c4e39a',
+      mass: '#3b6b30', fresh: '#e6f7bb', dormant: '#a39f70',
+      flower: '#f2eab0', flowerCenter: '#d9c45a',
+      autumn: ['#e0c455', '#cfae3f', '#b89634'],
+    },
+    fruit: { kind: 'none' },
+  }),
+
+  pine: {
+    generator: 'conifer',
+    frameHeight: 205,
+    height: 190,
+    trunkRadius: 6.5,
+    bare: 0.1,
+    whorls: 12,
+    spread: 50,
+    shapePow: 1.05,
+    minLen: 7,
+    branchAngle: 100,
+    tipUp: 18,
+    boughWidth: 0.34,
+    maxLeaves: 420,
+    deciduous: false,
+    flowerForm: 'candle',
+    palette: {
+      bark: '#5c4030', barkDark: '#37261c', barkLight: '#7e5d48',
+      leaf: '#2f6b3a', leafDark: '#1a4527', leafLight: '#4b8c4d', highlight: '#7db36a',
+      mass: '#1e4a2a', fresh: '#9ccf6e', dormant: '#5f6e4f', flower: '#d6e59a',
+      fruit: '#7a5230', fruitLight: '#a8784a',
+    },
+    fruit: { kind: 'cone', size: 3.2, chance: 0.4 },
+  },
+
+  redwood: {
+    generator: 'conifer',
+    frameHeight: 212,
+    height: 212,
+    trunkRadius: 9.5,
+    bare: 0.36,
+    whorls: 13,
+    spread: 34,
+    shapePow: 0.55,
+    minLen: 9,
+    branchAngle: 112,
+    tipUp: 8,
+    boughWidth: 0.42,
+    fissures: true,
+    maxLeaves: 420,
+    deciduous: false,
+    flowerForm: 'candle',
+    palette: {
+      bark: '#8a4a33', barkDark: '#55291c', barkLight: '#b0694a',
+      leaf: '#2c5e36', leafDark: '#183d22', leafLight: '#487e48', highlight: '#76a867',
+      mass: '#1b4226', fresh: '#93c46a', dormant: '#5c6a4d', flower: '#d0e09a',
+      fruit: '#6e4a2c', fruitLight: '#9a6d46',
+    },
+    fruit: { kind: 'cone', size: 2.4, chance: 0.4 },
+  },
+
+  palm: {
+    generator: 'palm',
+    variant: 'coconut',
+    frameHeight: 205,
+    height: 165,
+    trunkRadius: 6.2,
+    fronds: 12,
+    frondLen: 70,
+    maxLeaves: 560,
+    deciduous: false,
+    flowerForm: 'catkin',
+    palette: {
+      bark: '#9c8566', barkDark: '#6a5842', barkLight: '#c2ab88',
+      leaf: '#3f8f3c', leafDark: '#26612b', leafLight: '#68b24d', highlight: '#a6d676',
+      mass: '#1c4a1f', fresh: '#bfe38a', dormant: '#9a9a5c', twig: '#6e7a38', flower: '#efe6c0',
+      fruit: '#5a3d22', fruitLight: '#86613c',
+    },
+    fruit: { kind: 'coconut', size: 5, chance: 1 },
+  },
+
+  banana: {
+    generator: 'palm',
+    variant: 'banana',
+    frameHeight: 190,
+    height: 92,
+    trunkRadius: 8.5,
+    fronds: 8,
+    frondLen: 78,
+    maxLeaves: 60,
+    deciduous: false,
+    dormantKeepsLeaves: true,
+    flowerForm: 'catkin',
+    flowerScale: 1.6,
+    palette: {
+      bark: '#8a9a4a', barkDark: '#5e6c30', barkLight: '#b0bf6e',
+      leaf: '#4c9a3a', leafDark: '#2f6a28', leafLight: '#7cc05a', highlight: '#b3e08a',
+      mass: '#1f4a1c', fresh: '#c9eb95', dormant: '#a3a060', twig: '#6f8a34', flower: '#7a2e55',
+      fruit: '#e8c93a', fruitLight: '#f7e27a',
+    },
+    fruit: { kind: 'bunch', size: 4, chance: 1 },
+  },
+
+  cactus: {
+    generator: 'cactus',
+    frameHeight: 175,
+    height: 150,
+    width: 13,
+    deciduous: false,
+    maxLeaves: 0,
+    palette: {
+      leaf: '#4f9a4f', leafDark: '#2f6a37', leafLight: '#79bf6c', highlight: '#a8dc92',
+      mass: '#24502b', fresh: '#9fd88a', dormant: '#93955e', spine: '#f3efd8',
+      flower: '#fffaf0', flowerCenter: '#f0c843',
+      fruit: '#d23f4f', fruitLight: '#f27a82',
+    },
+    fruit: { kind: 'none' },
+  },
+
+  bamboo: {
+    generator: 'bamboo',
+    frameHeight: 205,
+    height: 196,
+    radius: 3.8,
+    nodeGap: 17,
+    maxLeaves: 520,
+    deciduous: false,
+    flowerForm: 'catkin',
+    palette: {
+      bark: '#8db04a', barkDark: '#5f7e2e', barkLight: '#bdd67a',
+      leaf: '#5c9e3c', leafDark: '#3a6f2a', leafLight: '#86c057', highlight: '#b8e08a',
+      mass: '#24461b', fresh: '#cdec9c', dormant: '#a0a065', flower: '#e4dca0',
+    },
+    fruit: { kind: 'none' },
+  },
+};
+
+export const SPECIES_IDS = Object.keys(SPECIES);
+
+export function getSpecies(id) {
+  return SPECIES[id] ? { id, ...SPECIES[id] } : { id: 'oak', ...SPECIES.oak };
+}

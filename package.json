@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "playwright": "^1.63.0",
     "sharp": "^0.34.5"
   }
 }

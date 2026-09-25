@@ -150,10 +150,17 @@ export const BACKGROUNDS = [
   { id: 'space', name: 'Space', sky1: '#000000', sky2: '#0a0a2a', ground: '#1a1a2e' },
 ];
 
-// ── Progression names per companion type ──────────────────────────────────
+// Trees can also sit on the app's own themed surface.
+export const TREE_BACKGROUNDS = [
+  { id: 'theme', name: 'Match App Theme', sky1: 'var(--paper-3)', sky2: 'var(--paper-2)', ground: '#000000' },
+  ...BACKGROUNDS,
+];
+
+// ── Progression names per character group ─────────────────────────────────
+// Tree maturity names (Seedling → Ancient) come from the tree's own growth
+// value on the server, not from XP levels.
 export const LEVEL_PROGRESSIONS = {
-  tree:      ['Seedling', 'Sprout', 'Sapling', 'Young Tree', 'Rooted', 'Thriving', 'Flourishing', 'Resilient', 'Transformed', 'Legendary'],
-  fighter:   ['Recruit', 'Squire', 'Soldier', 'Veteran', 'Elite', 'Champion', 'Commander', 'Warlord', 'Mythic', 'Legendary'],
+  fighter:  ['Recruit', 'Squire', 'Soldier', 'Veteran', 'Elite', 'Champion', 'Commander', 'Warlord', 'Mythic', 'Legendary'],
   mage:      ['Apprentice', 'Initiate', 'Adept', 'Sorcerer', 'Enchanter', 'Mage', 'Archmage', 'Sage', 'Oracle', 'Legendary'],
   ranger:    ['Scout', 'Tracker', 'Ranger', 'Pathfinder', 'Strider', 'Warden', 'Sentinel', 'Guardian', 'Wanderer', 'Legendary'],
   monk_type: ['Initiate', 'Disciple', 'Student', 'Practitioner', 'Adept', 'Master', 'Grand Master', 'Sage', 'Enlightened', 'Legendary'],
@@ -165,14 +172,14 @@ export const LEVEL_PROGRESSIONS = {
 
 export function getProgressionName(level, companionType, archetype) {
   const idx = Math.min(Math.max((level || 1) - 1, 0), 9);
-  if (!companionType || companionType === 'tree') return LEVEL_PROGRESSIONS.tree[idx];
+  if (!companionType || companionType === 'tree') return `Activity Level ${level || 1}`;
   const archetypeData = CHARACTER_ARCHETYPES.find(a => a.id === archetype);
   const group = archetypeData?.group || 'fighter';
   return (LEVEL_PROGRESSIONS[group] || LEVEL_PROGRESSIONS.fighter)[idx];
 }
 
 export function getProgressionIcon(companionType, archetype) {
-  if (!companionType || companionType === 'tree') return null; // server-supplied tree icons used
+  if (!companionType || companionType === 'tree') return null;
   return CHARACTER_ARCHETYPES.find(a => a.id === archetype)?.emoji || '⚔️';
 }
 

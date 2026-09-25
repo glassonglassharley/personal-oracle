@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import TreeSVG from './TreeSVG';
+import { useCallback, useMemo, useState } from 'react';
+import TreeArt from '../trees/TreeArt';
+import RingSeal from '../trees/RingSeal';
+import { treeSeed } from '../trees/growth';
 import CharacterSVG from './CharacterSVG';
 import { TREE_SPECIES, CHARACTER_ARCHETYPES, getLevelTier, getProgressionName } from './companionData';
+import { useApi } from '../useApi';
 
 function HistoryModal({ milestones, name, onClose }) {
   return (
@@ -17,7 +20,10 @@ function HistoryModal({ milestones, name, onClose }) {
           ) : milestones.map((m, i) => (
             <div key={i} className="comp-timeline-item">
               <div className="comp-timeline-dot" />
-              <div className="comp-timeline-text">{m.text}</div>
+              <div className="comp-timeline-text">
+                {m.text}
+                {m.at && <span className="comp-timeline-date">{new Date(m.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -26,11 +32,25 @@ function HistoryModal({ milestones, name, onClose }) {
   );
 }
 
-const TREE_THRESHOLDS = [0, 50, 150, 500, 1500, Infinity];
+const fmtMoney = n => `$${Math.round(n || 0).toLocaleString()}`;
 
 export default function CompanionCard({ companion, growth, onEditCompanion, xpData }) {
+  const api = useApi();
   const [showHistory, setShowHistory] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [acked, setAcked] = useState(() => new Set());
+
+  const tree = growth?.tree || null;
+  const pending = useMemo(
+    () => (tree?.pendingCelebrations || []).filter(p => !acked.has(p.key)),
+    [tree, acked],
+  );
+  const current = pending.length ? [pending[0]] : null;
+
+  const handleCelebrated = useCallback(keys => {
+    setAcked(prev => new Set([...prev, ...keys]));
+    api('/api/companion/celebrated', { method: 'POST', body: JSON.stringify({ keys }) }).catch(() => {});
+  }, [api]);
 
   if (!companion?.companion_type) return null;
 
@@ -48,36 +68,27 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
     ? (speciesData?.name || 'Tree')
     : (archetypeData?.name || 'Hero');
 
-  const treeState = g.treeGrowthState || 1;
-  const treeSaved = g.totalSaved || 0;
-  const stageStart = TREE_THRESHOLDS[treeState - 1];
-  const stageEnd = TREE_THRESHOLDS[treeState];
-  const treeProgressPct = treeState >= 5
-    ? 100
-    : Math.min(100, Math.max(0, ((treeSaved - stageStart) / (stageEnd - stageStart)) * 100));
-
-  const progressionName = getProgressionName(
-    isTree ? treeState : (g.charLevel || 1),
-    companion_type,
-    state.archetype
-  );
-  const nextProgressionName = isTree && treeState < 5
-    ? getProgressionName(treeState + 1, companion_type, state.archetype)
-    : null;
+  const growthValue = tree?.growth ?? 0;
+  const growthPct = Math.round(growthValue * 100);
+  const maturity = tree?.maturity || { name: 'Seedling', next: null };
+  const features = tree?.features || {};
+  const resting = tree ? tree.health < 0.5 : false;
+  const months = tree?.monthsActive || 0;
+  const progressionName = getProgressionName(g.charLevel || 1, companion_type, state.archetype);
 
   const shareText = isTree
     ? [
         `🌳 ${name} the ${label}`,
-        `Growth Stage: ${treeState}/5 — ${progressionName}`,
-        `$${Math.round(treeSaved)} saved · ${g.cleanDays || 0} clean days`,
+        `${maturity.name} · ${growthPct}% grown`,
+        `${fmtMoney(tree?.moneyMoved)} moved · ${tree?.loggedDays || 0} days logged`,
         'Built with Vice Spending',
-      ].filter(Boolean).join('\n')
+      ].join('\n')
     : [
         `⚔️ ${name} the ${label}`,
         `Level ${g.charLevel || 1} (${tier})`,
         `${g.cleanDays || 0} clean days · ${g.streak || 0}-day streak`,
         'Built with Vice Spending',
-      ].filter(Boolean).join('\n');
+      ].join('\n');
 
   const handleShare = () => {
     navigator.clipboard.writeText(shareText).then(() => {
@@ -85,8 +96,6 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
       setTimeout(() => setCopied(false), 2200);
     });
   };
-
-  const growthPct = isTree ? treeProgressPct : (xpData?.progress_percent || 0);
 
   return (
     <div className="comp-card">
@@ -107,14 +116,18 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
       <div className="comp-card-body">
         <div className="comp-svg-wrap">
           {isTree ? (
-            <TreeSVG
+            <TreeArt
               species={state.species || 'oak'}
-              growthState={g.treeGrowthState || 1}
+              seed={treeSeed(tree?.seedBase, state.species || 'oak')}
+              growth={growthValue}
+              health={tree?.health ?? 1}
+              features={features}
               decoration={state.decoration || 'none'}
               potStyle={state.potStyle || 'terracotta'}
               background={state.background || 'day'}
-              hasFlowers={g.hasFlowers}
-              isDecember={g.isDecember}
+              celebrate={current}
+              onCelebrated={handleCelebrated}
+              title={`${name}, a ${maturity.name.toLowerCase()} ${label.toLowerCase()}, ${growthPct}% grown${resting ? ', resting' : ''}`}
               width={184}
               height={258}
             />
@@ -142,31 +155,33 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
         <div className="comp-card-stats">
           {isTree ? (
             <>
-              {/* Stage header */}
               <div className="comp-stage-header">
-                <span className="comp-stage-title">{progressionName}</span>
-                <span className="comp-stage-frac">Stage {treeState} / 5</span>
+                <span className="comp-stage-title">{maturity.name}</span>
+                <span className="comp-stage-frac">{growthPct}% grown</span>
               </div>
 
-              {/* Growth progress bar */}
+              {/* Growth: real money moved + consistency, never shrinks */}
               <div className="comp-progress-wrap">
                 <div className="comp-progress-bar">
-                  <div className="comp-progress-fill" style={{ width: `${treeProgressPct}%` }} />
+                  <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
                 </div>
                 <div className="comp-progress-foot">
-                  <span>${Math.round(treeSaved)}{treeState < 5 ? ` / $${stageEnd} saved` : ' · max stage'}</span>
-                  {nextProgressionName && <span>→ {nextProgressionName}</span>}
+                  <span>{fmtMoney(tree?.moneyMoved)} moved · {tree?.loggedDays || 0} days logged</span>
+                  {maturity.next && <span>→ {maturity.next.name}</span>}
                 </div>
               </div>
 
-              {/* Stat chips */}
               <div className="comp-chips">
-                {g.hasFlowers && <span className="comp-chip">🌸 Blooming</span>}
-                {g.isDecember && <span className="comp-chip">❄️ Winter</span>}
+                {features.blossom > 0 && <span className="comp-chip">🌸 {features.blossom >= 1 ? 'Full bloom' : 'Blossoming'}</span>}
+                {features.fruit > 0 && <span className="comp-chip">🍎 {features.fruit >= 1 ? 'Full harvest' : 'Bearing fruit'}</span>}
+                {features.newGrowth && <span className="comp-chip">🌿 New growth</span>}
+                {resting && <span className="comp-chip comp-chip-rest" title="Log today and it wakes back up. Growth is never lost.">💤 Resting · log to wake it</span>}
+                <span className="comp-chip tree-rings" title="One ring for every month together">
+                  <RingSeal months={months} seed={tree?.seedBase} size={14} />
+                  {months} {months === 1 ? 'ring' : 'rings'}
+                </span>
               </div>
 
-              {/* XP level strip — show level number only, not name, to avoid
-                  conflicting with tree stage names (both use Seedling/Sprout/…) */}
               {xpData && (
                 <div className="comp-xp-row">
                   <div className="comp-xp-row-head">
@@ -188,13 +203,11 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
             </>
           ) : (
             <>
-              {/* Rank + level header */}
               <div className="comp-stage-header">
                 <span className="comp-stage-title">{progressionName}</span>
                 <span className="comp-stage-frac">Lv {g.charLevel || 1}</span>
               </div>
 
-              {/* XP progress bar */}
               {xpData ? (
                 <div className="comp-progress-wrap">
                   <div className="comp-progress-bar comp-progress-bar-gold">
@@ -212,13 +225,12 @@ export default function CompanionCard({ companion, growth, onEditCompanion, xpDa
               ) : (
                 <div className="comp-progress-wrap">
                   <div className="comp-progress-bar">
-                    <div className="comp-progress-fill" style={{ width: `${growthPct}%` }} />
+                    <div className="comp-progress-fill" style={{ width: `${Math.round((g.charXp || 0) * 100)}%` }} />
                   </div>
-                  <div className="comp-progress-foot"><span>{Math.round(growthPct)}% to next</span></div>
+                  <div className="comp-progress-foot"><span>{Math.round((g.charXp || 0) * 100)}% to next</span></div>
                 </div>
               )}
 
-              {/* Stat chips */}
               <div className="comp-chips">
                 {(g.streak || 0) > 0 && (
                   <span className="comp-chip comp-chip-hot">🔥 {g.streak}-day streak</span>

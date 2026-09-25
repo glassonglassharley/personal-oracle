@@ -320,13 +320,17 @@ export default function Dashboard() {
           setLevelUpOverlay(data);
           // Use companion from context at toast time — companion may load concurrently
           const comp = companion;
-          const levelName = comp?.companion_type
-            ? getProgressionName(data.level, comp.companion_type, comp.companion_state?.archetype)
-            : data.level_name;
-          const icon = comp?.companion_type === 'character'
-            ? (getProgressionIcon(comp.companion_type, comp.companion_state?.archetype) || data.level_icon)
-            : data.level_icon;
-          setLevelUpMsg(`Level up! You're now a ${levelName} ${icon}`);
+          if (comp?.companion_type === 'character') {
+            const levelName = getProgressionName(data.level, comp.companion_type, comp.companion_state?.archetype);
+            const icon = getProgressionIcon(comp.companion_type, comp.companion_state?.archetype) || data.level_icon;
+            setLevelUpMsg(`Level up! You're now a ${levelName} ${icon}`);
+          } else if (comp?.companion_type === 'tree') {
+            // Tree names (Sapling, Mature…) belong to the tree's own growth;
+            // XP is the separate activity track.
+            setLevelUpMsg(`Level up! Activity Level ${data.level} ${data.level_icon}`);
+          } else {
+            setLevelUpMsg(`Level up! You're now a ${data.level_name} ${data.level_icon}`);
+          }
           setTimeout(() => setLevelUpMsg(''), 5000);
         }
         localStorage.setItem('vt-last-level', String(data.level));
@@ -479,9 +483,7 @@ export default function Dashboard() {
   const yearSpend = stats ? Number(stats.year?.spend || 0) : 0;
   const actualSavings = Number(balance?.balance || 0);
   const savingsVsSpendGap = actualSavings - yearSpend;
-  const treeNextAmount = companion?.growth?.treeGrowthState && companion.growth.treeGrowthState < 5
-    ? Math.max(0, [0, 50, 150, 500, 1500, Infinity][companion.growth.treeGrowthState] - Number(companion.growth.totalSaved || 0))
-    : null;
+  const treeNext = companion?.companion_type === 'tree' ? companion?.growth?.tree?.nextMilestone?.text || null : null;
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -760,7 +762,7 @@ export default function Dashboard() {
             xpData={xpData}
           />
           <div className="db-companion-stats">
-            {treeNextAmount !== null && <span>Next stage: {fmt$0(treeNextAmount)} away</span>}
+            {treeNext && <span>Next: {treeNext}</span>}
             <span>Best streak: {stats.best_streak || 0} days</span>
             <span>Clean this week: {cleanDaysThisWeek}/7</span>
             <Link to="/log">Grow today →</Link>

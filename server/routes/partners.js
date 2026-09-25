@@ -44,6 +44,13 @@ async function computeStreak(userId) {
 }
 
 // Helper: resolve privacy prefs with safe defaults
+// Tree growth bookkeeping is private to its owner.
+function withoutGrowth(state) {
+  if (!state || typeof state !== 'object') return state;
+  const { _growth, ...rest } = state;
+  return rest;
+}
+
 function resolvePrivacy(raw) {
   const p = raw || {};
   return {
@@ -121,7 +128,7 @@ router.get('/', async (req, res, next) => {
         id: row.id,
         name: row.name,
         companion_type: row.companion_type,
-        companion_state: row.companion_state,
+        companion_state: withoutGrowth(row.companion_state),
         friendship_id: row.friendship_id,
         requester_id: row.requester_id,
         clean_days_this_month: row.clean_days_this_month,
