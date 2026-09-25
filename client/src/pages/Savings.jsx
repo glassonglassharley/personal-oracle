@@ -183,6 +183,41 @@ const CATEGORY_PRESETS = [
   { label: 'Custom',                emoji: '📦', rate: 0,   description: '' },
 ];
 
+const BUYABLE_ASSETS = [
+  { label: 'BTC', unit: 'BTC', emoji: '₿', unitPrice: 115000, note: 'illustrative spot' },
+  { label: 'ETH', unit: 'ETH', emoji: '⟠', unitPrice: 4200, note: 'illustrative spot' },
+  { label: 'S&P 500 ETF', unit: 'shares', emoji: '📈', unitPrice: 650, note: 'broad-market ETF example' },
+  { label: 'Gold', unit: 'oz', emoji: '🥇', unitPrice: 3700, note: 'per troy ounce example' },
+];
+
+const REAL_ESTATE_MARKETS = [
+  { city: 'United States average', region: 'National', country: 'United States', aliases: ['united states', 'usa', 'us', 'america'], avgPrice: 420000, source: 'national average estimate' },
+  { city: 'Canada average', region: 'National', country: 'Canada', aliases: ['canada', 'ca'], avgPrice: 520000, source: 'converted national estimate' },
+  { city: 'United Kingdom average', region: 'National', country: 'United Kingdom', aliases: ['united kingdom', 'uk', 'great britain', 'england'], avgPrice: 360000, source: 'converted national estimate' },
+  { city: 'Australia average', region: 'National', country: 'Australia', aliases: ['australia', 'au'], avgPrice: 610000, source: 'converted national estimate' },
+  { city: 'Germany average', region: 'National', country: 'Germany', aliases: ['germany', 'deutschland'], avgPrice: 410000, source: 'converted national estimate' },
+  { city: 'India average', region: 'National', country: 'India', aliases: ['india', 'bharat'], avgPrice: 90000, source: 'converted national estimate' },
+  { city: 'Brazil average', region: 'National', country: 'Brazil', aliases: ['brazil', 'brasil'], avgPrice: 150000, source: 'converted national estimate' },
+  { city: 'Spain average', region: 'National', country: 'Spain', aliases: ['spain', 'españa'], avgPrice: 270000, source: 'converted national estimate' },
+  { city: 'Singapore average', region: 'National', country: 'Singapore', aliases: ['singapore', 'sg'], avgPrice: 880000, source: 'converted national estimate' },
+  { city: 'San Diego', region: 'CA', country: 'United States', aliases: ['92101', '92109', '92130', 'san diego ca', 'sd'], avgPrice: 950000, source: 'local median estimate' },
+  { city: 'Los Angeles', region: 'CA', country: 'United States', aliases: ['90001', '90012', '90210', 'los angeles ca', 'la'], avgPrice: 980000, source: 'metro median estimate' },
+  { city: 'New York', region: 'NY', country: 'United States', aliases: ['10001', '10011', '11201', 'nyc', 'new york city'], avgPrice: 820000, source: 'metro median estimate' },
+  { city: 'Austin', region: 'TX', country: 'United States', aliases: ['73301', '78701', '78704', 'austin tx'], avgPrice: 540000, source: 'metro median estimate' },
+  { city: 'Miami', region: 'FL', country: 'United States', aliases: ['33101', '33139', 'miami fl'], avgPrice: 610000, source: 'metro median estimate' },
+  { city: 'London', region: 'England', country: 'United Kingdom', aliases: ['sw1a', 'e1', 'london uk', 'united kingdom', 'uk'], avgPrice: 685000, source: 'converted average estimate' },
+  { city: 'Toronto', region: 'ON', country: 'Canada', aliases: ['m5v', 'm4w', 'toronto canada', 'canada'], avgPrice: 790000, source: 'converted average estimate' },
+  { city: 'Mexico City', region: 'CDMX', country: 'Mexico', aliases: ['01000', '06000', 'mexico city', 'ciudad de mexico', 'mexico'], avgPrice: 290000, source: 'converted average estimate' },
+  { city: 'Tokyo', region: 'Tokyo', country: 'Japan', aliases: ['100-0001', '150-0001', 'tokyo japan', 'japan'], avgPrice: 560000, source: 'converted average estimate' },
+  { city: 'Paris', region: 'Île-de-France', country: 'France', aliases: ['75001', '75008', 'paris france', 'france'], avgPrice: 720000, source: 'converted average estimate' },
+  { city: 'Dubai', region: 'Dubai', country: 'United Arab Emirates', aliases: ['dubai uae', 'uae', 'united arab emirates'], avgPrice: 430000, source: 'converted average estimate' },
+  { city: 'Sydney', region: 'NSW', country: 'Australia', aliases: ['2000', 'sydney australia', 'australia'], avgPrice: 860000, source: 'converted average estimate' },
+];
+
+function normalizeMarketSearch(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function plaidAccountKind(account) {
   const type = String(account?.type || account?.accountType || '').toLowerCase();
   const subtype = String(account?.subtype || account?.accountSubtype || '').toLowerCase();
@@ -334,6 +369,7 @@ export default function Savings() {
   const [oppForm, setOppForm] = useState({ title: '', note: '', cost: '' });
   const [oppFormError, setOppFormError] = useState('');
   const [showOppForm, setShowOppForm] = useState(false);
+  const [realEstateSearch, setRealEstateSearch] = useState('San Diego');
 
   useEffect(() => {
     localStorage.setItem(OPP_KEY, JSON.stringify(oppItems));
@@ -827,6 +863,22 @@ export default function Savings() {
 
   const perDay    = data?.per_day || 0;
   const projected = perDay * horizon;
+  const assetBuyOptions = BUYABLE_ASSETS.map(asset => ({
+    ...asset,
+    quantity: asset.unitPrice > 0 ? projected / asset.unitPrice : 0,
+  }));
+  const realEstateMarket = useMemo(() => {
+    const query = normalizeMarketSearch(realEstateSearch);
+    if (!query) return REAL_ESTATE_MARKETS[0];
+    return REAL_ESTATE_MARKETS.find(market => {
+      const haystack = [market.city, market.region, market.country, ...(market.aliases || [])]
+        .map(normalizeMarketSearch);
+      return haystack.some(value => value === query || value.includes(query) || query.includes(value));
+    }) || null;
+  }, [realEstateSearch]);
+  const realEstateAvgPrice = realEstateMarket?.avgPrice || 0;
+  const realEstatePct = realEstateAvgPrice > 0 ? Math.min(100, (projected / realEstateAvgPrice) * 100) : 0;
+  const downPaymentPct = realEstateAvgPrice > 0 ? Math.min(100, (projected / (realEstateAvgPrice * 0.2)) * 100) : 0;
   // The free-tier teaser still needs something to blur when the user has no
   // logged spend yet; use their real rate whenever there is one.
   const TEASER_PER_DAY = 5;
@@ -908,13 +960,25 @@ export default function Savings() {
       const gainPct = chartProjected > 0 ? (gain / chartProjected) * 100 : 0;
       return { ...asset, value, gain, gainPct, custom: true };
     });
-  const actualSavingsBalance = combinedAccounts.length > 0 ? combinedBalance : Number(balance.balance || 0);
+  // balance.balance is the single source of truth: combined-account syncs
+  // (applyCombinedSavings, and the server's own loadCombinedSavings) always
+  // write the combined total back into it, so a manual "Update" edit isn't
+  // silently discarded just because accounts are connected.
+  const actualSavingsBalance = Number(balance.balance || 0);
   const selectedCombinedAccounts = combinedAccounts.filter(a => a.includedInCombinedSavings && !a.disconnected);
   const connectedAccounts = combinedAccounts.filter(a => !a.disconnected);
   const negativeAccounts = selectedCombinedAccounts.filter(a => Number(a.currentBalance || 0) < 0);
   const selectedHorizon = MILESTONES.find(m => m.days === horizon) || MILESTONES[1];
   const topInvestmentCard = investmentCards.reduce((best, card) => (!best || card.value > best.value ? card : best), null);
   const viewedInvestmentCard = investmentCards.find(card => card.key === viewedInvestmentKey) || investmentCards[0] || topInvestmentCard;
+  const selectedChartDatasets = chartDatasets
+    .filter(dataset => dataset.label === 'Cash saved' || dataset.label === viewedInvestmentCard?.label)
+    .map(dataset => ({
+      ...dataset,
+      borderWidth: dataset.label === viewedInvestmentCard?.label ? 3 : 1.75,
+      pointRadius: dataset.label === viewedInvestmentCard?.label ? 2 : 0,
+      pointHoverRadius: dataset.label === viewedInvestmentCard?.label ? 5 : 3,
+    }));
   const periodComparisonReady = periodComparisonLoaded && balanceLoaded && combinedLoaded;
   const periodSummary = buildSavingsPeriodSummary({
     currentBalance: actualSavingsBalance,
@@ -1086,7 +1150,10 @@ export default function Savings() {
             </p>
           </div>
           <div className="sv-balance-summary-actions">
-            <span className="sv-balance-summary-value">{fmt$2(actualSavingsBalance)}</span>
+            <span className="sv-balance-summary-stack">
+              <span className="sv-balance-summary-value">{fmt$2(actualSavingsBalance)}</span>
+              <span className="sv-balance-summary-since">Since May 24th 2026</span>
+            </span>
             <button
               type="button"
               className="sv-account-toggle sv-balance-toggle"
@@ -1290,6 +1357,69 @@ export default function Savings() {
             {fmt$2(perDay)}/day × {horizon} days = <strong style={{ color: 'var(--money)' }}>{fmt$0(projected)}</strong>
           </p>
           <p className="sv-opp-sub">Track your own opportunity cost — add anything you want to compare against your avoided vice spending.</p>
+
+          <div className="sv-alt-box-grid" aria-label="Alternative asset and real estate comparisons">
+            <div className="sv-alt-box sv-alt-assets-box">
+              <div className="sv-alt-box-head">
+                <span className="sv-alt-kicker">Assets you could have bought instead</span>
+                <strong>{fmt$0(projected)}</strong>
+              </div>
+              <div className="sv-alt-asset-list">
+                {assetBuyOptions.map(asset => (
+                  <div key={asset.label} className="sv-alt-asset-row">
+                    <span className="sv-alt-asset-icon">{asset.emoji}</span>
+                    <span className="sv-alt-asset-name">
+                      <b>{asset.label}</b>
+                      <em>{fmt$0(asset.unitPrice)} / {asset.unit}</em>
+                    </span>
+                    <span className="sv-alt-asset-qty">
+                      {asset.quantity >= 1 ? asset.quantity.toFixed(2) : asset.quantity.toFixed(4)} {asset.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="sv-alt-note">Illustrative price examples only — not live quotes or financial advice.</p>
+            </div>
+
+            <div className="sv-alt-box sv-real-estate-box">
+              <div className="sv-alt-box-head">
+                <span className="sv-alt-kicker">Average real estate price</span>
+                <strong>{realEstateMarket ? fmt$0(realEstateAvgPrice) : '—'}</strong>
+              </div>
+              <label className="sv-market-search">
+                <span>Search ZIP, city, or country</span>
+                <input
+                  className="form-input"
+                  value={realEstateSearch}
+                  onChange={e => setRealEstateSearch(e.target.value)}
+                  placeholder="92101, London, Japan…"
+                />
+              </label>
+              {realEstateMarket ? (
+                <>
+                  <div className="sv-market-result">
+                    <b>{realEstateMarket.city}, {realEstateMarket.region}</b>
+                    <span>{realEstateMarket.country} · {realEstateMarket.source}</span>
+                  </div>
+                  <div className="sv-market-bars">
+                    <div>
+                      <span>Home price covered</span>
+                      <b>{realEstatePct.toFixed(realEstatePct < 1 ? 2 : 1)}%</b>
+                      <i><em style={{ width: `${realEstatePct}%` }} /></i>
+                    </div>
+                    <div>
+                      <span>20% down payment covered</span>
+                      <b>{downPaymentPct.toFixed(downPaymentPct < 1 ? 2 : 1)}%</b>
+                      <i><em style={{ width: `${downPaymentPct}%` }} /></i>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="sv-market-empty">No estimate saved for that location yet. Try a major city, country, or known ZIP/postal code.</p>
+              )}
+              <p className="sv-alt-note">Uses built-in average estimates in USD for quick comparison; exact local property data varies.</p>
+            </div>
+          </div>
 
           {oppItems.length > 0 && (
             <div className="sv-opp-grid">
