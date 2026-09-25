@@ -98,7 +98,7 @@ test('buildSavingsPeriodSummary treats a post-midnight cron snapshot as the base
   assert.equal(summary.today.net, -16.17);
 });
 
-test('legacy rows without a snapshot_date never anchor a period baseline', () => {
+test('legacy rows without a snapshot_date never anchor a period baseline, but real mid-period tracking can', () => {
   // The live condition: one real cron snapshot plus pre-cron legacy rows.
   const summary = buildSavingsPeriodSummary({
     now: NOW,
@@ -115,9 +115,34 @@ test('legacy rows without a snapshot_date never anchor a period baseline', () =>
   assert.equal(summary.today.saved, 0);
 
   for (const period of ['week', 'month', 'year']) {
-    assert.equal(summary[period].hasBaseline, false, `${period} must not use a legacy row`);
-    assert.equal(summary[period].saved, null);
-    assert.equal(summary[period].net, null);
+    assert.equal(summary[period].hasBaseline, true, `${period} can use the first real in-period snapshot`);
+    assert.equal(summary[period].saved, 0);
+    assert.equal(summary[period].net, 0);
+  }
+});
+
+test('week/month/year use first real snapshot inside the period when tracking starts after the calendar boundary', () => {
+  const summary = buildSavingsPeriodSummary({
+    now: new Date('2026-09-24T18:00:00.000Z'),
+    currentBalance: 2362.02,
+    history: [
+      { balance: 2343.02, snapshot_date: '2026-09-22', recorded_at: '2026-09-22T08:00:00.000Z' },
+      { balance: 2200, snapshot_date: null, recorded_at: '2026-09-18T17:00:00.000Z' },
+    ],
+    spendDays: [
+      { date: '2026-09-21', spend: 100 },
+      { date: '2026-09-22', spend: 5 },
+      { date: '2026-09-23', spend: 7 },
+      { date: '2026-09-24', spend: 2 },
+    ],
+  });
+
+  for (const period of ['week', 'month', 'year']) {
+    assert.equal(summary[period].hasBaseline, true);
+    assert.equal(summary[period].saved, 19);
+    // Spend before the first real snapshot is outside the measurable window.
+    assert.equal(summary[period].spent, 14);
+    assert.equal(summary[period].net, 5);
   }
 });
 

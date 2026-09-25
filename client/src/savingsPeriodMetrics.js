@@ -49,15 +49,27 @@ function snapshotDateKey(snapshot) {
   return DATE_KEY_PATTERN.test(key) ? key : null;
 }
 
-function balanceAtOrBefore(history, boundaryKey) {
-  const eligible = history
+function normalizedSnapshotHistory(history) {
+  return history
     .map(snapshot => ({ balance: Number(snapshot.balance), key: snapshotDateKey(snapshot) }))
     .filter(snapshot => snapshot.key !== null
-      && Number.isFinite(snapshot.balance)
-      && snapshot.key <= boundaryKey)
-    .sort((a, b) => b.key.localeCompare(a.key));
+      && Number.isFinite(snapshot.balance));
+}
 
-  return eligible[0]?.balance ?? null;
+function periodBaseline(history, startKey, todayKey) {
+  const beforeOrAtStart = normalizedSnapshotHistory(history)
+    .filter(snapshot => snapshot.key <= startKey)
+    .sort((a, b) => b.key.localeCompare(a.key))[0];
+  if (beforeOrAtStart) return { ...beforeOrAtStart, spendStartKey: startKey };
+
+  // If tracking began after the calendar period started, use the first real
+  // snapshot inside the period instead of hiding the card forever. The saved
+  // amount and the vice-spend comparison both start from that snapshot date, so
+  // week/month/year tiles remain honest when history only begins mid-period.
+  const firstInsidePeriod = normalizedSnapshotHistory(history)
+    .filter(snapshot => snapshot.key >= startKey && snapshot.key <= todayKey)
+    .sort((a, b) => a.key.localeCompare(b.key))[0];
+  return firstInsidePeriod ? { ...firstInsidePeriod, spendStartKey: firstInsidePeriod.key } : null;
 }
 
 // Earliest real snapshot on record — the point the tiles can actually measure
@@ -76,14 +88,15 @@ export function buildSavingsPeriodSummary({ now = new Date(), currentBalance, hi
   const todayKey = starts.today;
 
   return Object.fromEntries(Object.entries(starts).map(([key, startKey]) => {
-    const baseline = balanceAtOrBefore(history, startKey);
+    const baseline = periodBaseline(history, startKey, todayKey);
+    const spendStartKey = baseline?.spendStartKey || startKey;
     const spent = roundCurrency(spendDays.reduce((total, day) => {
       const date = String(day.date || '').slice(0, 10);
       const amount = Number(day.spend);
-      return date >= startKey && date <= todayKey && Number.isFinite(amount) ? total + amount : total;
+      return date >= spendStartKey && date <= todayKey && Number.isFinite(amount) ? total + amount : total;
     }, 0));
     const hasBaseline = baseline !== null && Number.isFinite(current);
-    const saved = hasBaseline ? roundCurrency(current - baseline) : null;
+    const saved = hasBaseline ? roundCurrency(current - baseline.balance) : null;
 
     return [key, {
       saved,
